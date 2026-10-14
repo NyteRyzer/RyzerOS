@@ -1,5 +1,5 @@
 #!/bin/sh
-# ryzer-tune - one-time-per-boot system tweaks that make the RG DS feel faster.
+# ryzer-tune - one-time-per-boot system tweaks that make a Linux handheld feel faster.
 # Safe to run repeatedly. Every tweak is skipped if the kernel doesn't support it.
 
 set -u

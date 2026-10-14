@@ -1,7 +1,8 @@
 """Filesystem locations.
 
-On the device everything lives under /storage/ryzer (the persistent partition on
-ROCKNIX-style firmwares). On a desktop it falls back to ~/.ryzer so the UI can be
+On a handheld everything lives in a "ryzer" folder on the firmware's persistent
+partition (/storage on ROCKNIX, /userdata on Knulli, /mnt/mmc on muOS, /roms on
+ArkOS - see device.py). On a desktop it falls back to ~/.ryzer so the UI can be
 previewed and edited without a handheld. Every path can be overridden with an
 environment variable.
 """
@@ -15,22 +16,25 @@ DATA_DIR = PACKAGE_DIR / "data"
 
 
 def _default_home() -> Path:
-    if Path("/storage").is_dir() and os.access("/storage", os.W_OK):
-        return Path("/storage/ryzer")
-    return Path.home() / ".ryzer"
+    from ryzer import device
+    root = device.data_root()
+    return root / "ryzer" if root else Path.home() / ".ryzer"
 
 
 def home() -> Path:
     return Path(os.environ.get("RYZER_HOME", _default_home()))
 
 
-def roms_dir() -> Path:
+def roms_dirs() -> list:
+    """Every ROM root to scan (internal + SD card on dual-slot devices)."""
     if "RYZER_ROMS" in os.environ:
-        return Path(os.environ["RYZER_ROMS"])
-    for candidate in ("/storage/roms", "/roms", "/mnt/sdcard/roms"):
-        if Path(candidate).is_dir():
-            return Path(candidate)
-    return home() / "roms"
+        return [Path(p) for p in os.environ["RYZER_ROMS"].split(os.pathsep)]
+    from ryzer import device
+    return device.rom_dirs() or [home() / "roms"]
+
+
+def roms_dir() -> Path:
+    return roms_dirs()[0]
 
 
 def user_themes_dir() -> Path:

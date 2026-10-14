@@ -1,6 +1,31 @@
 # Ryzer OS
 
-**A console-style OS layer for the Anbernic RG DS.** It includes a dashboard frontend, 20 themes, an on-device theme editor, per-system speed profiles and emulator tuning for the heavy consoles (3DS, GameCube and PS2).
+**A console-style frontend for retro handhelds.** It includes a dashboard, dual-screen support, 20 themes, an on-device theme editor, and speed tuning for the heavy consoles (3DS, GameCube, PS2 and Switch).
+
+Ryzer OS comes in two editions that share the same look and the same themes:
+
+| Edition | For | Install |
+| --- | --- | --- |
+| **Android** (APK) | The **stock OS** on Anbernic (RG DS, RG 406H/556/557, RG Cube, RG 477M...), AYN (Thor, Odin 2/3, Odin Portal), Retroid (Pocket 4 Pro/5/6/Mini/Flip/Classic/Dual), AYANEO Pocket DS and any Android 8+ handheld | Download the APK and open it, like Cocoon or iiSU |
+| **Linux** (zip) | Custom firmware: ROCKNIX, Knulli/Batocera, muOS, ArkOS | Unzip and run `install.sh` |
+
+## Download
+
+The **[latest release](../../releases)** is built automatically on every change and contains both:
+- `RyzerOS-<version>.apk` for Android
+- `RyzerOS-<version>.zip` for Linux firmwares
+
+### Android: install on the stock OS
+
+1. On the handheld, open the release page in the browser and download `RyzerOS-<version>.apk`.
+2. Open the downloaded file. If Android asks, allow your browser or file manager to **install unknown apps**.
+3. Start **Ryzer OS** and grant **All files access** so it can find your games.
+4. Optional: go to **Settings → Set as home screen** to make Ryzer your home screen, like Cocoon or iiSU.
+5. Put games in `ROMs/<system>` folders (`ROMs/3ds`, `ROMs/gc`, `ROMs/ps2`, `ROMs/switch`, `ROMs/nds`...) on internal storage or the SD card. ES-DE folder names work too. You can add other folders under **Settings → Library → ROM folders**.
+
+**Emulators:** Ryzer launches the emulators you already have installed. It knows how to start 27 of them directly: Azahar, Citra MMJ, Lime3DS, Mandarine, Dolphin, NetherSX2, ARMSX2, Eden, Cemu, DuckStation, DraStic, melonDS, PPSSPP, Flycast, Redream, M64Plus FZ, Yaba Sanshiro 2, Pizza Boy, My Boy!, RetroArch (any core) and more. The launch settings follow ES-DE's tested Android configuration. Any other emulator works through **Emulators → Any app** or **Ask every time**. You choose the emulator for each system under **Settings → Emulators**.
+
+**Dual screen (Android):** on devices with a second display (AYN Thor, RG DS, AYANEO Pocket DS, Retroid Dual), Ryzer puts the menu on one screen and the clock, box art and game details on the other. **Swap screens** flips them, and you can tap either screen. While a game is running, Ryzer releases the second screen so DraStic, melonDS or Azahar can use both screens themselves.
 
 ```
  ┌──────────────── top screen ────────────────┐
@@ -22,8 +47,7 @@ Dual-screen layout (Neon Night theme): [docs/screenshots/dual/01-home.png](docs/
 
 ## What Ryzer OS is (and isn't)
 
-Ryzer OS runs **on top of a ROCKNIX-style Linux firmware** for the RG DS. The firmware supplies the
-kernel, drivers and emulators. Ryzer OS replaces how the device looks and feels and tunes how hard it runs:
+Neither edition replaces the kernel. The **Android edition** is a launcher app that runs on the stock OS. The **Linux edition** runs **on top of a custom firmware** (ROCKNIX, Knulli, muOS or ArkOS), which supplies the kernel, drivers and emulators. Ryzer OS replaces how the device looks and feels and tunes how hard it runs:
 
 | Part | What it does |
 | --- | --- |
@@ -35,6 +59,19 @@ kernel, drivers and emulators. Ryzer OS replaces how the device looks and feels 
 Writing a kernel and drivers from scratch for one handheld isn't realistic, and it wouldn't make games run faster. The speed comes from clocks, memory and emulator settings, and Ryzer OS controls all three.
 
 ### Honest performance expectations
+
+How well each system runs depends on the device's chip. The Android edition shows each system's requirements on its tile (for example, "Wants a flagship chip (Snapdragon 8 Gen 2 class)"). Roughly:
+
+| Chip class (examples) | 3DS | GameCube / Wii | PS2 | Switch |
+| --- | --- | --- | --- | --- |
+| RK3568 (RG DS, RG 353) | Light games | A few light games | Very light games | No |
+| Unisoc T618/T820 (RG 405/406, RP4) | Many games | Many 2D/light 3D | Light games | No |
+| Dimensity 1100 / SD 865 (RP4 Pro, Odin 1) | Most games | Most games | Many games | Light games |
+| Snapdragon 8 Gen 2+ (AYN Thor, Odin 2/3, RP5/6) | Full library | Most games | Most games | Many games |
+
+On Android, Ryzer can't change CPU clocks without root. Use the device's own performance mode (AYN, Retroid and Anbernic all have one). Ryzer's **Boost** option closes cached background apps before heavy games to free RAM.
+
+#### Linux edition on the RG DS
 
 The RG DS uses a **Rockchip RK3568**: 4× Cortex-A55 at 2.0 GHz, a Mali-G52 GPU and 3 GB of RAM. That's an entry-level chip. Software can make it run at its best, but it can't make it faster than its hardware allows. Turbo uses the highest *stock* clocks only. There's no overclocking, which could damage the device.
 
@@ -68,15 +105,15 @@ The dashboard shows this rating on every system tile, so you know what to expect
 - **System info**: live CPU clock, temperature, RAM, storage and battery
 - **Screenshots** (SELECT + R), **dim when idle**, **button test**, **swap A/B**, menu sounds with volume control, and a 30/60 fps menu cap
 
-## Install
+## Install the Linux edition
 
-You need **ROCKNIX** (or another ROCKNIX-style firmware) running on the RG DS.
+You need **ROCKNIX** or **Knulli** (fully supported), or **muOS** or **ArkOS** (experimental). The installer detects which one you have.
 
 1. On a PC, build the package (or download a release zip):
    ```sh
    ./build/package.sh            # -> dist/RyzerOS-1.0.0.zip
    ```
-2. Copy the zip to the device and unzip it, for example to `/storage/RyzerOS`.
+2. Copy the zip to the device and unzip it (for example to `/storage/RyzerOS` on ROCKNIX or `/userdata/RyzerOS` on Knulli).
 3. On the device (over SSH, or with a terminal port), run:
    ```sh
    sh /storage/RyzerOS/install.sh          # add --boot to apply the speed tweaks at every boot
@@ -85,10 +122,10 @@ You need **ROCKNIX** (or another ROCKNIX-style firmware) running on the RG DS.
 
 To uninstall, run `sh /storage/RyzerOS/uninstall.sh`. Add `--all` to also delete your themes and settings.
 
-Put ROMs in the usual folders, such as `/storage/roms/3ds`, `/storage/roms/gamecube`, `/storage/roms/ps2` and `/storage/roms/nds`.
+Ryzer reads the firmware's usual ROM folders (`/storage/roms`, `/userdata/roms`, `/mnt/sdcard/ROMS`, `/roms` and `/roms2`). Folder names are matched without regard to case.
 Box art is picked up from an `images/` (or `media/images/`) folder next to the ROMs.
 
-> **Status:** the frontend, themes, installer and tuning scripts are tested on a PC (see `tests/`), including headless rendering at both screen layouts. They haven't been tested on RG DS hardware yet. If something doesn't work on your firmware, look at `/storage/ryzer/ryzer.log` first.
+> **Status:** the Linux frontend, themes, installer and tuning scripts are tested on a PC (see `tests/`), including headless rendering at both screen layouts. The Android APK is compiled by CI on every push. Neither edition has been tested on real handheld hardware yet. If something doesn't work on your firmware, look at `/storage/ryzer/ryzer.log` first.
 
 ## Controls
 
@@ -130,7 +167,9 @@ python3 -m pytest
 ## Layout
 
 ```
-ryzer/            frontend (Python)
+android/          Android edition (Kotlin, no third-party libraries)
+  app/src/main/assets/   systems.json + emulators.json (regenerate with tools/gen_android_data.py)
+ryzer/            Linux edition frontend (Python) + the 20 shared themes
   screens/        boot, home, games, themes + editor, settings, keyboard
   themes/         20 built-in themes (JSON)
   data/           systems.json - systems, folders, emulator commands, speed ratings

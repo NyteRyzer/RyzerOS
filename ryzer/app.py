@@ -8,12 +8,12 @@ import time
 
 import pygame
 
-from ryzer import NAME, launcher, library, paths, perf, themes, ui
+from ryzer import NAME, device, launcher, library, paths, perf, themes, ui
 from ryzer.config import Config, State
 from ryzer.input import Input
 from ryzer.sound import Sounds
 
-LOGICAL = (640, 480)   # RG DS panels are 640x480; the RG DS Plus is scaled up by SDL
+LOGICAL = (640, 480)   # 640x480 is native on most Anbernic panels; SDL scales it to anything else
 
 
 class App:
@@ -52,14 +52,14 @@ class App:
             return True
         if layout == "single":
             return False
-        # auto: the RG DS reports its two panels as one tall framebuffer
+        # auto: dual-panel devices (RG DS) can report both panels as one tall framebuffer
         return info_h >= info_w * 1.5
 
     def open_display(self):
         if not pygame.display.get_init():
             pygame.display.init()
         info = pygame.display.Info()
-        on_device = paths.home().as_posix().startswith("/storage") and not self.args.windowed
+        on_device = device.firmware() != "desktop" and not self.args.windowed
         self.dual = self._want_dual(info.current_w or 0, info.current_h or 0)
         size = (LOGICAL[0], LOGICAL[1] * 2) if self.dual else LOGICAL
         flags = pygame.SCALED | (pygame.FULLSCREEN if on_device else 0)
@@ -116,7 +116,7 @@ class App:
 
     # ----- library -------------------------------------------------------
     def rescan(self):
-        library.scan(self.systems, paths.roms_dir(), self.cfg["clean_names"])
+        library.scan(self.systems, paths.roms_dirs(), self.cfg["clean_names"])
 
     def launch(self, game):
         profile = self.cfg.profile_for(game.system.id)

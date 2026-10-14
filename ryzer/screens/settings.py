@@ -3,7 +3,7 @@
 import platform
 import subprocess
 
-from ryzer import NAME, VERSION, paths, perf, tweaks, ui
+from ryzer import NAME, VERSION, device, paths, perf, tweaks, ui
 from ryzer.config import format_duration
 from ryzer.screens import Screen
 from ryzer.screens.menus import Confirm, Item, Menu, Message
@@ -155,7 +155,8 @@ def controls_menu(app):
 
 def about_text(app):
     games = sum(len(s.games) for s in app.systems)
-    return (f"{NAME} {VERSION}\nA console-style frontend and performance layer for the Anbernic RG DS.\n\n"
+    return (f"{NAME} {VERSION}\nA console-style frontend and performance layer for handhelds.\n"
+            f"Device: {device.model()}  ({device.firmware()})\n\n"
             f"Games: {games}\nThemes: {len(app.themes)}\n"
             f"Total play time: {format_duration(app.state.total_playtime())}\n"
             f"Data folder: {paths.home()}\n\nEverything is editable: themes and systems.json are plain JSON, "
@@ -177,7 +178,8 @@ class SystemInfo(Screen):
         bat = perf.battery()
         t = perf.cpu_temp()
         self.lines = [
-            ("Device", platform.machine() + "  " + platform.release()),
+            ("Device", device.model()),
+            ("Firmware", f"{device.firmware()}  |  {platform.release()}"),
             ("CPU", f"{perf.cpu_freq_mhz() or '?'} MHz  ({perf.cpu_governor() or 'unknown'})"),
             ("Temperature", f"{t:.0f} C" if t else "unknown"),
             ("Memory", f"{mem[0]} / {mem[1]} MB" if mem else "unknown"),

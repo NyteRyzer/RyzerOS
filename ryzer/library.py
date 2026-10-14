@@ -89,26 +89,36 @@ def load_systems() -> list:
     return systems
 
 
-def scan(systems: list, roms_root: Path, clean_names: bool = True) -> None:
-    """Fill each system's game list. Only scans one level of subfolders so a
-    huge SD card doesn't stall the boot."""
+def scan(systems: list, roms_roots, clean_names: bool = True) -> None:
+    """Fill each system's game list from one or more ROM roots. Folder names match
+    case-insensitively (muOS uses ROMS/3DS, ROCKNIX uses roms/3ds). Only one level of
+    subfolders is scanned so a huge SD card doesn't stall the boot."""
+    if isinstance(roms_roots, (str, Path)):
+        roms_roots = [roms_roots]
+    folders_by_root = {}
+    for root in map(Path, roms_roots):
+        try:
+            folders_by_root[root] = {d.name.lower(): d for d in root.iterdir() if d.is_dir()}
+        except OSError:
+            continue
     for system in systems:
         found = {}
-        for folder in system.folders:
-            d = roms_root / folder
-            if not d.is_dir():
-                continue
-            candidates = list(d.iterdir())
-            for sub in [c for c in candidates if c.is_dir() and not c.name.startswith(".")]:
-                if sub.name.lower() in {"images", "media", "boxart", "snap", "videos", "manuals"}:
+        for root, folders in folders_by_root.items():
+            for folder in system.folders:
+                d = folders.get(folder.lower())
+                if d is None:
                     continue
-                try:
-                    candidates.extend(sub.iterdir())
-                except OSError:
-                    pass
-            for f in candidates:
-                if f.is_file() and f.suffix.lower() in system.extensions and not f.name.startswith("."):
-                    found[str(f)] = Game(f, system, clean_names)
+                candidates = list(d.iterdir())
+                for sub in [c for c in candidates if c.is_dir() and not c.name.startswith(".")]:
+                    if sub.name.lower() in {"images", "media", "boxart", "snap", "videos", "manuals"}:
+                        continue
+                    try:
+                        candidates.extend(sub.iterdir())
+                    except OSError:
+                        pass
+                for f in candidates:
+                    if f.is_file() and f.suffix.lower() in system.extensions and not f.name.startswith("."):
+                        found[str(f)] = Game(f, system, clean_names)
         system.games = sorted(found.values(), key=lambda g: g.name.lower())
 
 

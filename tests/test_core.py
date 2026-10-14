@@ -121,3 +121,22 @@ def test_tweaks_apply_and_restore(tmp_path, monkeypatch):
     assert "resolution_factor=1" in ini.read_text()
     assert tweaks.restore_all() == 1
     assert "resolution_factor=4" in ini.read_text()
+
+
+def test_scan_multiple_roots_case_insensitive(tmp_path):
+    a, b = tmp_path / "sd1" / "ROMS", tmp_path / "sd2" / "roms"
+    (a / "3DS").mkdir(parents=True)
+    (b / "n3ds").mkdir(parents=True)
+    (a / "3DS" / "Pilotwings.3ds").touch()
+    (b / "n3ds" / "Kirby.3ds").touch()
+    systems = library.load_systems()
+    library.scan(systems, [a, b, tmp_path / "missing"])
+    n3ds = next(s for s in systems if s.id == "3ds")
+    assert [g.name for g in n3ds.games] == ["Kirby", "Pilotwings"]
+
+
+def test_firmware_override(monkeypatch):
+    from ryzer import device
+    monkeypatch.setenv("RYZER_FIRMWARE", "knulli")
+    assert device.firmware() == "knulli"
+    assert isinstance(device.model(), str) and device.model()

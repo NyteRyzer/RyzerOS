@@ -120,7 +120,7 @@ class GameList(Screen):
         return (f"System: {game.system.name}\nFile: {game.path.name}\nSize: {size:.1f} MB\n"
                 f"Play time: {format_duration(st.playtime(game.key))}\n"
                 f"Launches: {st.data['launches'].get(game.key, 0)}\n"
-                f"RG DS performance: {game.system.tier_label}\n{game.system.note}")
+                f"Performance (RK3568-class chip): {game.system.tier_label}\n{game.system.note}")
 
     def draw(self, surf):
         th = self.theme

@@ -1,8 +1,8 @@
 """Turns keyboard, gamepad and joystick events into Ryzer actions.
 
 Actions: up down left right a b x y l r start select.
-SDL's game-controller API is used when the pad has a mapping (the RG DS built-in
-pad does on ROCKNIX); raw joystick indices from config are the fallback.
+SDL's game-controller API is used when the pad has a mapping (built-in pads on
+ROCKNIX, Knulli, muOS and ArkOS do); raw joystick indices from config are the fallback.
 """
 
 import pygame

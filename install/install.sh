@@ -1,17 +1,25 @@
 #!/bin/sh
-# Ryzer OS installer for the Anbernic RG DS (ROCKNIX-based firmware).
+# Ryzer OS installer for Linux handheld firmwares:
+#   ROCKNIX, Knulli / Batocera (tested layouts), muOS and ArkOS (experimental).
+# Works on Anbernic, Retroid, AYN, Powkiddy, TrimUI... whatever the firmware supports.
 #
-# Run on the device (SSH, or from the Ports menu via "Install Ryzer OS.sh"):
+# Run on the device (SSH or a terminal port):
 #     sh install.sh            install / update
-#     sh install.sh --boot     also run the speed tweaks at every boot
+#     sh install.sh --boot     also run the speed tweaks at every boot (systemd firmwares)
 #
-# Installs to /storage/ryzer and adds "Ryzer OS" to the Ports menu.
-# Your ROMs, saves and the stock firmware are not touched.
+# Adds "Ryzer OS" to the Ports menu. Your ROMs, saves and the firmware are not touched.
 
 set -eu
 SRC="$(cd "$(dirname "$0")" && pwd)"
-DEST="${RYZER_DEST:-/storage/ryzer}"
-PORTS="${RYZER_PORTS:-/storage/roms/ports}"
+
+if [ -d /storage/.config ]; then FW=rocknix; D=/storage/ryzer; P=/storage/roms/ports
+elif [ -d /userdata/system ]; then FW=knulli; D=/userdata/ryzer; P=/userdata/roms/ports
+elif [ -d /mnt/mmc/MUOS ]; then FW=muos; D=/mnt/mmc/ryzer; P=/mnt/mmc/ROMS/Ports
+elif [ -d /roms/ports ]; then FW=arkos; D=/roms/ryzer; P=/roms/ports
+else FW=unknown; D="$HOME/ryzer"; P="$HOME/ryzer-ports"
+fi
+DEST="${RYZER_DEST:-$D}"
+PORTS="${RYZER_PORTS:-$P}"
 BOOT=0
 [ "${1:-}" = "--boot" ] && BOOT=1
 
@@ -20,7 +28,8 @@ say() { echo "[ryzer] $*"; }
 command -v python3 >/dev/null 2>&1 || { say "python3 not found - this firmware can't run Ryzer OS."; exit 1; }
 
 PYTAG="cp$(python3 -c 'import sys; print("%d%d" % sys.version_info[:2])')"
-say "Python $PYTAG detected"
+say "Firmware: $FW   Python: $PYTAG"
+say "Installing to $DEST, launcher in $PORTS"
 
 mkdir -p "$DEST" "$PORTS"
 rm -rf "$DEST/app" "$DEST/system"
@@ -51,16 +60,17 @@ cat > "$PORTS/Ryzer OS.sh" <<LAUNCH
 [ -f /etc/profile ] && . /etc/profile
 export PYTHONPATH="$DEST/pylib:$DEST/app\${PYTHONPATH:+:\$PYTHONPATH}"
 export RYZER_HOME="$DEST"
-"$DEST/system/ryzer-tune" >/dev/null 2>&1 || true
+sh "$DEST/system/ryzer-tune" >/dev/null 2>&1 || true
 cd "$DEST/app"
 python3 -m ryzer "\$@" > "$DEST/ryzer.log" 2>&1
-"$DEST/system/ryzer-perf" balanced >/dev/null 2>&1 || true
+sh "$DEST/system/ryzer-perf" balanced >/dev/null 2>&1 || true
 LAUNCH
 chmod +x "$PORTS/Ryzer OS.sh"
 say "Added 'Ryzer OS' to the Ports menu"
 
 if [ "$BOOT" = 1 ]; then
 	UNIT_DIR=/storage/.config/system.d
+	[ "$FW" = rocknix ] || UNIT_DIR=/etc/systemd/system
 	mkdir -p "$UNIT_DIR"
 	cat > "$UNIT_DIR/ryzer-tune.service" <<UNIT
 [Unit]

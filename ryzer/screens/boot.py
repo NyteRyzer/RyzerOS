@@ -4,7 +4,7 @@ import math
 
 import pygame
 
-from ryzer import NAME, VERSION, ui
+from ryzer import NAME, VERSION, device, ui
 from ryzer.screens import Screen
 
 DURATION = 2.4
@@ -59,8 +59,8 @@ class BootScreen(Screen):
             pygame.draw.line(surf, th.c("accent"), (wr.left, wr.bottom + 6),
                              (wr.left + int(wr.width * reveal), wr.bottom + 6), 3)
         if progress > 0.7:
-            ui.text(surf, f"v{VERSION}  |  RG DS Edition", (cx, cy + 128), 22,
-                    th.c("text_dim"), align="center")
+            ui.text(surf, f"v{VERSION}  |  {device.model()}", (cx, cy + 128), 22,
+                    th.c("text_dim"), align="center", max_width=w - 40)
 
     def draw(self, surf):
         self._logo(surf, min(1.0, self.t / (DURATION * 0.85)))
