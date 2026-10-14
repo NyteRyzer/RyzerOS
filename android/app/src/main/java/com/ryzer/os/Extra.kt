@@ -173,7 +173,13 @@ fun settingsMenu(app: Ryzer): Menu {
     fun toggle(label: String, help: String = "", get: () -> Boolean, set: (Boolean) -> Unit) =
         Item(label, help, value = { if (get()) "On" else "Off" }, change = { set(!get()); cfg.save() })
 
-    val emulators = { Menu(app, "Emulators", app.systems.map { s ->
+    val emulators = { Menu(app, "Emulators", listOf(
+        Item("How games are opened", "Auto: Ryzer shares the file directly (no setup needed), except .cue/.m3u discs. " +
+            "Folder access: the emulator reads your ROM folder itself (give it access inside the emulator first). " +
+            "Ryzer falls back to the other ways automatically if one is refused.",
+            value = { mapOf("auto" to "Auto", "provider" to "Direct file", "folder" to "Folder access")[cfg.romAccess] ?: cfg.romAccess },
+            change = { d -> cfg.romAccess = cycle(listOf("auto", "provider", "folder"), cfg.romAccess, d); cfg.save() }),
+    ) + app.systems.map { s ->
         Item(s.name, "${s.demand}. ${s.note}", value = { Launcher.label(app, Launcher.chosen(app, s)) }, select = { app.push(EmulatorPicker(app, s)) })
     }) }
 

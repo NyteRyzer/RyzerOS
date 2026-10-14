@@ -139,30 +139,45 @@ class Ryzer(val ctx: MainActivity) {
     fun launch(game: Game) {
         val sys = game.system
         val choice = state.gameEmu[game.key] ?: Launcher.chosen(this, sys)
-        val intent: Intent? = when {
-            choice == null -> null
-            choice == Launcher.CHOOSER -> Launcher.anyAppIntent(game, null)
-            choice.startsWith(Launcher.ANY_APP_PREFIX) -> Launcher.anyAppIntent(game, choice.removePrefix(Launcher.ANY_APP_PREFIX))
-            else -> Launcher.emulator(this, choice)?.let { Launcher.buildIntent(this, it, game) }
+        val intents: List<Intent> = when {
+            choice == null -> emptyList()
+            choice == Launcher.CHOOSER -> listOf(Launcher.anyAppIntent(game, null))
+            choice.startsWith(Launcher.ANY_APP_PREFIX) -> listOf(Launcher.anyAppIntent(game, choice.removePrefix(Launcher.ANY_APP_PREFIX)))
+            else -> Launcher.emulator(this, choice)?.let { Launcher.candidates(this, it, game) } ?: emptyList()
         }
-        if (intent == null) {
+        if (intents.isEmpty()) {
             sounds.play("error")
             notify("No ${sys.short} emulator installed - pick one")
             push(EmulatorPicker(this, sys))
             return
         }
-        val target = intent.component?.packageName ?: intent.`package` ?: ""
+        val first = intents.first()
+        val target = first.component?.packageName ?: first.`package` ?: ""
+        val name = Launcher.label(this, choice)
         val start = Runnable {
-            try {
-                state.startPlay(game.key)
-                ctx.startActivity(intent)
-            } catch (e: ActivityNotFoundException) {
-                state.pendingKey = null
-                notify("Couldn't start ${Launcher.label(this, choice)}")
-            } catch (e: SecurityException) {
-                state.pendingKey = null
-                notify("${Launcher.label(this, choice)} refused the launch")
+            var lastError: Throwable? = null
+            state.startPlay(game.key)
+            for (intent in intents) {
+                try {
+                    ctx.startActivity(intent)
+                    return@Runnable
+                } catch (e: Exception) {   // ActivityNotFound, SecurityException, FileUriExposed...
+                    lastError = e
+                    Crash.log(ctx, RuntimeException("Launch attempt failed for $name: ${intent.toUri(0)}", e))
+                }
             }
+            state.pendingKey = null
+            state.save()
+            sounds.play("error")
+            val why = lastError?.message?.take(80) ?: "unknown error"
+            notify("$name couldn't start: $why", 6f)
+            push(Message(this, "Couldn't start $name",
+                "Ryzer tried ${intents.size} ways to open ${title(game)} in $name and Android refused all of them.\n\n" +
+                "Last error: $why\n\nTry this:\n" +
+                "1. Open $name once by itself and give it access to your ROM folder (${game.file.parent}).\n" +
+                "2. Update $name to its newest version.\n" +
+                "3. In this game's options (START), pick 'Open with another app' or another emulator.\n\n" +
+                "The full error was saved to ${Crash.file(ctx).path}."))
         }
         notify("Launching ${title(game)}")
         if (cfg.boost && Launcher.isHeavy(sys)) io.execute { Launcher.boost(ctx, target); main.post(start) } else start.run()

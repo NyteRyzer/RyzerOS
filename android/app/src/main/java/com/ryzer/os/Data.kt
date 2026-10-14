@@ -67,6 +67,7 @@ class Config(private val file: File) {
     var batterySaver = true      // drop to 20 fps and no animations under 20% battery
     var kidMode = false
     var kidPin = ""
+    var romAccess = "auto"       // auto | provider | folder: how games are handed to emulators
 
     init { load() }
 
@@ -92,6 +93,7 @@ class Config(private val file: File) {
         wallpaper = j.optString("wallpaper", wallpaper); screensaver = j.optInt("screensaver", screensaver)
         haptics = j.optBoolean("haptics", haptics); batterySaver = j.optBoolean("batterySaver", batterySaver)
         kidMode = j.optBoolean("kidMode", kidMode); kidPin = j.optString("kidPin", kidPin)
+        romAccess = j.optString("romAccess", romAccess)
     }
 
     fun save() = writeJson(file, JSONObject().apply {
@@ -106,6 +108,7 @@ class Config(private val file: File) {
         put("themeMode", themeMode); put("dayNight", dayNight); put("dayTheme", dayTheme); put("nightTheme", nightTheme)
         put("font", font); put("uiSize", uiSize); put("wallpaper", wallpaper); put("screensaver", screensaver)
         put("haptics", haptics); put("batterySaver", batterySaver); put("kidMode", kidMode); put("kidPin", kidPin)
+        put("romAccess", romAccess)
     })
 }
 

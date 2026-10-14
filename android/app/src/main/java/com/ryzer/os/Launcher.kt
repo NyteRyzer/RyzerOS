@@ -89,25 +89,65 @@ object Launcher {
         .replace("{external}", Environment.getExternalStorageDirectory().absolutePath)
         .replace("{core}", core ?: "")
 
-    fun buildIntent(app: Ryzer, emu: Emulator, game: Game): Intent? {
+    /**
+     * How the ROM is handed over. ES-DE's tested form comes first; the others are
+     * fallbacks for emulators that reject it.
+     *  - DEFAULT: exactly as the emulator table says (storage-framework link, path or our provider)
+     *  - PROVIDER: our own content:// link with a one-off read grant (no folder setup needed in the emulator)
+     *  - PATH: plain file path in extras, provider link as data
+     */
+    enum class Style { DEFAULT, PROVIDER, PATH }
+
+    fun buildIntent(app: Ryzer, emu: Emulator, game: Game, style: Style = Style.DEFAULT): Intent? {
         val (pkg, cls) = installedComponent(app.ctx, emu) ?: return null
-        val i = Intent(emu.action ?: if (emu.data != null) Intent.ACTION_VIEW else Intent.ACTION_MAIN)
+        fun adapt(t: String, isData: Boolean) = when (style) {
+            Style.DEFAULT -> t
+            Style.PROVIDER -> t.replace("{saf}", "{provider}")
+            Style.PATH -> if (isData) t.replace("{saf}", "{provider}") else t.replace("{saf}", "{path}")
+        }
+        val data = emu.data?.let { adapt(it, true) }
+        val extras = emu.extras.mapValues { adapt(it.value, false) }
+        val i = Intent(emu.action ?: if (data != null) Intent.ACTION_VIEW else Intent.ACTION_MAIN)
         i.component = ComponentName(pkg, cls)
         emu.category?.let { i.addCategory(it) }
-        emu.data?.let { i.data = Uri.parse(fill(it, game, pkg, emu.core)) }
-        for ((k, v) in emu.extras) {
+        data?.let { i.data = Uri.parse(fill(it, game, pkg, emu.core)) }
+        for ((k, v) in extras) {
             val value = fill(v, game, pkg, emu.core)
             if (k.startsWith("bool:")) i.putExtra(k.removePrefix("bool:"), value.toBoolean()) else i.putExtra(k, value)
         }
-        var flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        var flags = Intent.FLAG_ACTIVITY_NEW_TASK
         if ("clear_task" in emu.flags) flags = flags or Intent.FLAG_ACTIVITY_CLEAR_TASK
         if ("clear_top" in emu.flags) flags = flags or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        i.addFlags(flags)
-        if (emu.data?.contains("{provider}") == true || emu.extras.values.any { "{provider}" in it }) {
-            app.ctx.grantUriPermission(pkg, providerUri(game.file),
-                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        // Only grant access to links Ryzer itself serves. Asking Android to grant a storage-framework
+        // link Ryzer doesn't own makes it reject the whole launch with a SecurityException.
+        val usesProvider = (data?.contains("{provider}") == true) || extras.values.any { "{provider}" in it }
+        if (usesProvider) {
+            flags = flags or Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            runCatching {
+                app.ctx.grantUriPermission(pkg, providerUri(game.file),
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            }
         }
+        i.addFlags(flags)
         return i
+    }
+
+    /** Every way to start this game with this emulator, best first. */
+    private val MULTI_FILE = setOf("cue", "m3u", "gdi", "ccd", "toc", "mds", "cdi")
+
+    fun candidates(app: Ryzer, emu: Emulator, game: Game): List<Intent> {
+        // Ryzer's own link works without any setup in the emulator, but multi-file discs
+        // (.cue/.m3u...) need the emulator's own folder access, so those try the folder link first.
+        val providerFirst = when (app.cfg.romAccess) {
+            "provider" -> true
+            "folder" -> false
+            else -> game.file.extension.lowercase() !in MULTI_FILE
+        }
+        val order = if (providerFirst) listOf(Style.PROVIDER, Style.DEFAULT, Style.PATH) else listOf(Style.DEFAULT, Style.PROVIDER, Style.PATH)
+        val list = order.mapNotNull { buildIntent(app, emu, game, it) }
+            .distinctBy { it.toUri(0) + it.extras?.keySet()?.joinToString { k -> "$k=${it.extras?.get(k)}" } }
+        val pkg = installedComponent(app.ctx, emu)?.first
+        return if (pkg != null && emu.core == null) list + anyAppIntent(game, pkg) else list
     }
 
     /** Open the ROM with any app ("Open with..."), for emulators Ryzer doesn't know. */
