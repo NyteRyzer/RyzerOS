@@ -60,12 +60,27 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      - name: Update the "latest" release
+      - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="latest-${GITHUB_REF_NAME//\//-}"
+          VERSION=$(grep '^VERSION' ryzer/__init__.py | cut -d'"' -f2)
+          TAG="v$VERSION"
+          # Fixed file names so this link always gets the newest APK:
+          #   https://github.com/<owner>/<repo>/releases/latest/download/RyzerOS.apk
+          mkdir -p out
+          cp dist/RyzerOS-*.apk out/RyzerOS.apk
+          cp dist/RyzerOS-*.zip out/RyzerOS-Linux.zip
+          # Old-style pre-releases from earlier builds
+          for old in $(gh release list --limit 50 --json tagName --jq '.[].tagName' | grep '^latest-' || true); do
+            gh release delete "$old" --yes --cleanup-tag || true
+          done
+          # Rebuilds of the same version replace that version's release
           gh release delete "$TAG" --yes --cleanup-tag || true
-          gh release create "$TAG" dist/* --prerelease --target "$GITHUB_SHA" \
-            --title "Ryzer OS (latest build from $GITHUB_REF_NAME)" \
-            --notes "Android: download the .apk on your handheld and open it to install. Linux (ROCKNIX, Knulli, muOS, ArkOS): download the .zip and run install.sh. Built from ${GITHUB_SHA::7}."
+          gh release create "$TAG" out/RyzerOS.apk out/RyzerOS-Linux.zip --latest --target "$GITHUB_SHA" \
+            --title "Ryzer OS $VERSION" \
+            --notes "**Android (stock OS on Anbernic, AYN, Retroid, AYANEO...):** download **RyzerOS.apk** on the handheld and open it to install. Android 6 or newer.
+
+          **Linux firmwares (ROCKNIX, Knulli, muOS, ArkOS):** download **RyzerOS-Linux.zip**, unzip it on the device and run install.sh.
+
+          Built from ${GITHUB_SHA::7}."

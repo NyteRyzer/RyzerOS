@@ -120,8 +120,13 @@ class Ryzer(val ctx: MainActivity) {
         val roots = romRoots()
         val list = systems
         io.execute {
-            Library.scan(list, roots, cfg.cleanNames)
-            main.post { scanning = false; current?.onResume(); done?.invoke(); ctx.redraw() }
+            val error = runCatching { Library.scan(list, roots, cfg.cleanNames) }.exceptionOrNull()
+            main.post {
+                scanning = false
+                if (error != null) notify("Scan problem: ${error.javaClass.simpleName}", 4f)
+                safely { current?.onResume(); done?.invoke() }
+                ctx.redraw()
+            }
         }
     }
 
@@ -189,7 +194,26 @@ class Ryzer(val ctx: MainActivity) {
     }
 
     // ----- device status -----
+    // Battery and Wi-Fi are read at most every few seconds: both are system calls and the
+    // top bar is drawn every frame on both screens, which is too slow on RK3568-class chips.
+    private var batteryCache = -1 to false
+    private var batteryAt = 0L
+    private var wifiCache = false
+    private var wifiAt = 0L
+
     fun battery(): Pair<Int, Boolean> {
+        val now = SystemClock.uptimeMillis()
+        if (now - batteryAt > 5000) { batteryAt = now; batteryCache = runCatching { readBattery() }.getOrDefault(-1 to false) }
+        return batteryCache
+    }
+
+    fun wifiConnected(): Boolean {
+        val now = SystemClock.uptimeMillis()
+        if (now - wifiAt > 5000) { wifiAt = now; wifiCache = runCatching { readWifi() }.getOrDefault(false) }
+        return wifiCache
+    }
+
+    private fun readBattery(): Pair<Int, Boolean> {
         val i = ctx.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED)) ?: return -1 to false
         val level = i.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
         val scale = i.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
@@ -198,7 +222,7 @@ class Ryzer(val ctx: MainActivity) {
         return level * 100 / scale to (status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL)
     }
 
-    fun wifiConnected(): Boolean {
+    private fun readWifi(): Boolean {
         val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
         return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
@@ -252,21 +276,43 @@ class Ryzer(val ctx: MainActivity) {
         if (role == Role.MAIN && animationsOn) particles.draw(c, th, dt, w, h)
         val scr = current ?: return
         if (role == Role.MAIN) {
-            scr.draw(c, w, h)
+            try {
+                scr.draw(c, w, h)
+            } catch (e: Throwable) {
+                Crash.log(ctx, e)
+                G.text(c, "This screen hit an error and was closed.", w / 2, h / 2, 24f, th.c("bad"), align = 'c')
+                if (stack.size > 1 && stack.last() === scr) { stack.removeAt(stack.size - 1); main.post { ctx.redraw() } }
+                return
+            }
             G.hints(c, th, scr.hints(), w, h) { r, action -> hit(r) { handle(action) } }
             val now = SystemClock.uptimeMillis()
             if (now < toastUntil) G.toast(c, th, toastMsg, ((toastUntil - now) / 330f).coerceAtMost(1f), w, h)
             if (scanning) G.text(c, "Scanning...", w - 16, 46f, 18f, th.c("accent"), align = 'r')
         } else {
-            scr.drawTop(c, w, h)
+            runCatching { scr.drawTop(c, w, h) }.onFailure { Crash.log(ctx, it) }
         }
     }
 
     fun handle(action: String) {
         lastInput = SystemClock.uptimeMillis()
         if (cfg.haptics) ctx.buzz()
-        current?.handle(action)
+        safely { current?.handle(action) }
         ctx.redraw()
+    }
+
+    /**
+     * Runs UI code so that a bug in one screen can't close the whole app: the error is
+     * logged to crash.txt, the broken screen is closed and a message is shown instead.
+     */
+    fun safely(block: () -> Unit) {
+        try {
+            block()
+        } catch (e: Throwable) {
+            Crash.log(ctx, e)
+            val bad = current
+            if (stack.size > 1) stack.removeAt(stack.size - 1)
+            notify("Something went wrong in ${bad?.javaClass?.simpleName ?: "Ryzer"} - it was closed", 4f)
+        }
     }
 
     /** A finished game session: show a summary and check milestones. */
@@ -278,7 +324,7 @@ class Ryzer(val ctx: MainActivity) {
     }
 
     fun update(dt: Float) {
-        current?.update(dt)
+        safely { current?.update(dt) }
         checkTimer += dt
         if (checkTimer < 30f) return
         checkTimer = 0f
@@ -328,7 +374,11 @@ class RyzerView(context: Context, private val app: () -> Ryzer?, var role: Role)
             canvas.translate(rect.left, rect.top)
             canvas.clipRect(0f, 0f, rect.width(), rect.height())
             canvas.scale(scale, scale)
-            a.render(canvas, r, rect.width() / scale, lh, dt, now / 1000f)
+            try {
+                a.render(canvas, r, rect.width() / scale, lh, dt, now / 1000f)
+            } catch (e: Throwable) {
+                Crash.log(context, e)
+            }
             canvas.restore()
         }
     }
@@ -380,6 +430,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         BuildInfo.currentContext = applicationContext
+        Crash.install(this)
         mainView = RyzerView(this, { app }, Role.MAIN)
         setContentView(mainView)
         mainView.requestFocus()
@@ -387,12 +438,28 @@ class MainActivity : Activity() {
     }
 
     private fun start() {
-        val a = Ryzer(this)
+        val a = try {
+            Ryzer(this)
+        } catch (e: Throwable) {
+            // Last resort: show the error instead of closing, so it can be reported.
+            Crash.log(this, e)
+            setContentView(android.widget.TextView(this).apply {
+                setPadding(40, 40, 40, 40); textSize = 14f; setTextColor(0xFFFFFFFF.toInt()); setBackgroundColor(0xFF1A0508.toInt())
+                text = "Ryzer OS couldn't start on this device.\n\n${Crash.describe(e)}\n\n" +
+                    "A copy was saved to ${Crash.file(this@MainActivity).path}. Please send it to the developer."
+            })
+            return
+        }
         app = a
         val homeScreen = HomeScreen(a)
         a.stack.clear()
         a.stack.add(if (a.cfg.boot) BootScreen(a, homeScreen) else homeScreen)
         if (!hasStorageAccess(this)) a.push(PermissionScreen(a))
+        Crash.pending(this)?.let { report ->
+            a.cfg.boot = false   // skip the boot animation after a crash, to get to Home faster
+            a.push(Message(a, "Ryzer closed unexpectedly", "Sorry about that. The error is below and saved in crash.txt; " +
+                "send it to the developer and it can be fixed.\n\n$report"))
+        }
         a.rescan()
     }
 
@@ -404,9 +471,9 @@ class MainActivity : Activity() {
         resumed = true
         hideSystemBars()
         app?.let { a ->
-            a.onSession(a.state.finishPlay())
+            a.safely { a.onSession(a.state.finishPlay()) }
             a.lastInput = SystemClock.uptimeMillis()
-            a.current?.onResume()
+            a.safely { a.current?.onResume() }
         }
         updateDisplays()
         handler.removeCallbacks(tick)

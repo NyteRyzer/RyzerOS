@@ -261,8 +261,16 @@ class Game(val file: File, val system: GameSystem, private val clean: Boolean) {
     val name: String = if (clean) cleanName(file.nameWithoutExtension) else file.nameWithoutExtension
     val key: String get() = file.path
 
-    /** Box art: next to the ROM, or in ES-DE's downloaded_media folder. */
+    private var imageLooked = false
+    private var imageFile: File? = null
+
+    /** Box art: next to the ROM, or in ES-DE's downloaded_media folder. Looked up once, then cached. */
     fun image(): File? {
+        if (!imageLooked) { imageLooked = true; imageFile = runCatching { findImage() }.getOrNull() }
+        return imageFile
+    }
+
+    private fun findImage(): File? {
         val stem = file.nameWithoutExtension
         val dirs = IMAGE_DIRS.map { File(file.parentFile, it) } +
             listOf("covers", "miximages", "screenshots").map {

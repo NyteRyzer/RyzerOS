@@ -11,9 +11,13 @@ Ryzer OS comes in two editions that share the same look and the same themes:
 
 ## Download
 
-The **[latest release](../../releases)** is built automatically on every change and contains both:
-- `RyzerOS-<version>.apk` for Android
-- `RyzerOS-<version>.zip` for Linux firmwares
+**Android APK (direct link):** https://github.com/NyteRyzer/RyzerOS/releases/latest/download/RyzerOS.apk
+
+**Linux zip (direct link):** https://github.com/NyteRyzer/RyzerOS/releases/latest/download/RyzerOS-Linux.zip
+
+Every version is listed on the [Releases page](https://github.com/NyteRyzer/RyzerOS/releases). The newest one is marked **Latest**.
+
+If Ryzer ever closes by itself, it saves the error to `RyzerOS/crash.txt` and shows it the next time it starts. Send that text along with your bug report.
 
 ### What's in the Android edition
 
