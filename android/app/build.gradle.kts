@@ -13,7 +13,7 @@ android {
 
     defaultConfig {
         applicationId = "com.ryzer.os"
-        minSdk = 26          // Android 8: covers every Anbernic, AYN, Retroid and AYANEO Android handheld
+        minSdk = 23          // Android 6+: every Anbernic, AYN, Retroid, AYANEO and Powkiddy Android handheld
         targetSdk = 35
         versionCode = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
         versionName = ryzerVersion

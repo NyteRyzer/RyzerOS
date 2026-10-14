@@ -32,6 +32,7 @@ class Config(private val file: File) {
     var sound = true
     var volume = 70
     var clock24 = false
+    var clockStyle = "digital"     // digital | analog (top screen)
     var showBattery = true
     var cleanNames = true
     var hideEmpty = true
@@ -45,6 +46,27 @@ class Config(private val file: File) {
     var showApps = true
     var romDirs = mutableListOf<String>()
     val systemEmu = LinkedHashMap<String, String>()   // system id -> emulator id or "pkg:<package>"
+    // Library view
+    var sort = "name"            // name | recent | played | rating | size | added
+    var filter = "all"           // all | favorites | unplayed | backlog | playing | beaten | completed
+    var grid = false             // box-art grid instead of a list
+    var showHidden = false
+    var systemSort = "default"   // default | name | games | recent
+    val hiddenSystems = mutableSetOf<String>()
+    // Look
+    var themeMode = "fixed"      // fixed | daily | random
+    var dayNight = false
+    var dayTheme = "snow"
+    var nightTheme = "midnight-blue"
+    var font = "default"         // default | condensed | mono | serif | rounded
+    var uiSize = "normal"        // small | normal | large
+    var wallpaper = ""           // file name in RyzerOS/wallpapers, "" = off
+    var screensaver = 5          // minutes idle before the screensaver, 0 = off
+    // Device
+    var haptics = true
+    var batterySaver = true      // drop to 20 fps and no animations under 20% battery
+    var kidMode = false
+    var kidPin = ""
 
     init { load() }
 
@@ -52,6 +74,7 @@ class Config(private val file: File) {
         val j = readJson(file) ?: return
         theme = j.optString("theme", theme); sound = j.optBoolean("sound", sound)
         volume = j.optInt("volume", volume); clock24 = j.optBoolean("clock24", clock24)
+        clockStyle = j.optString("clockStyle", clockStyle)
         showBattery = j.optBoolean("showBattery", showBattery); cleanNames = j.optBoolean("cleanNames", cleanNames)
         hideEmpty = j.optBoolean("hideEmpty", hideEmpty); boot = j.optBoolean("boot", boot)
         animations = j.optBoolean("animations", animations); fps = j.optInt("fps", fps)
@@ -60,23 +83,55 @@ class Config(private val file: File) {
         showApps = j.optBoolean("showApps", showApps)
         romDirs = j.optJSONArray("romDirs").strings().toMutableList()
         systemEmu.clear(); systemEmu.putAll(j.optJSONObject("systemEmu").stringMap())
+        sort = j.optString("sort", sort); filter = j.optString("filter", filter); grid = j.optBoolean("grid", grid)
+        showHidden = j.optBoolean("showHidden", showHidden); systemSort = j.optString("systemSort", systemSort)
+        hiddenSystems.clear(); hiddenSystems += j.optJSONArray("hiddenSystems").strings()
+        themeMode = j.optString("themeMode", themeMode); dayNight = j.optBoolean("dayNight", dayNight)
+        dayTheme = j.optString("dayTheme", dayTheme); nightTheme = j.optString("nightTheme", nightTheme)
+        font = j.optString("font", font); uiSize = j.optString("uiSize", uiSize)
+        wallpaper = j.optString("wallpaper", wallpaper); screensaver = j.optInt("screensaver", screensaver)
+        haptics = j.optBoolean("haptics", haptics); batterySaver = j.optBoolean("batterySaver", batterySaver)
+        kidMode = j.optBoolean("kidMode", kidMode); kidPin = j.optString("kidPin", kidPin)
     }
 
     fun save() = writeJson(file, JSONObject().apply {
         put("theme", theme); put("sound", sound); put("volume", volume); put("clock24", clock24)
+        put("clockStyle", clockStyle)
         put("showBattery", showBattery); put("cleanNames", cleanNames); put("hideEmpty", hideEmpty)
         put("boot", boot); put("animations", animations); put("fps", fps); put("swapAB", swapAB)
         put("dual", dual); put("swapScreens", swapScreens); put("boost", boost); put("showApps", showApps)
         put("romDirs", JSONArray(romDirs)); put("systemEmu", JSONObject(systemEmu as Map<*, *>))
+        put("sort", sort); put("filter", filter); put("grid", grid); put("showHidden", showHidden)
+        put("systemSort", systemSort); put("hiddenSystems", JSONArray(hiddenSystems.toList()))
+        put("themeMode", themeMode); put("dayNight", dayNight); put("dayTheme", dayTheme); put("nightTheme", nightTheme)
+        put("font", font); put("uiSize", uiSize); put("wallpaper", wallpaper); put("screensaver", screensaver)
+        put("haptics", haptics); put("batterySaver", batterySaver); put("kidMode", kidMode); put("kidPin", kidPin)
     })
 }
 
-/** Favorites, recently played and play time. Games are keyed by ROM path. */
+private fun JSONObject?.longMap(into: MutableMap<String, Long>) { this?.keys()?.forEach { into[it] = getLong(it) } }
+private fun JSONObject?.intMap(into: MutableMap<String, Int>) { this?.keys()?.forEach { into[it] = getInt(it) } }
+
+fun today(offsetDays: Int = 0): String {
+    val cal = java.util.Calendar.getInstance()
+    cal.add(java.util.Calendar.DAY_OF_YEAR, offsetDays)
+    return java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(cal.time)
+}
+
+/** Everything Ryzer remembers about your games. Games are keyed by ROM path. */
 class PlayState(private val file: File) {
     val favorites = mutableListOf<String>()
     val recent = mutableListOf<String>()
     val times = HashMap<String, Long>()
     val launches = HashMap<String, Int>()
+    val ratings = HashMap<String, Int>()          // 1..5 stars
+    val status = HashMap<String, String>()        // backlog | playing | beaten | completed
+    val titles = HashMap<String, String>()        // custom display names
+    val gameEmu = HashMap<String, String>()       // per-game emulator override
+    val hidden = mutableSetOf<String>()
+    val collections = LinkedHashMap<String, MutableList<String>>()
+    val daily = HashMap<String, Long>()           // yyyy-MM-dd -> seconds played
+    val milestones = mutableSetOf<String>()
     var pendingKey: String? = null
     var pendingStart = 0L
 
@@ -84,8 +139,16 @@ class PlayState(private val file: File) {
         readJson(file)?.let { j ->
             favorites += j.optJSONArray("favorites").strings()
             recent += j.optJSONArray("recent").strings()
-            j.optJSONObject("playtime")?.let { p -> p.keys().forEach { times[it] = p.getLong(it) } }
-            j.optJSONObject("launches")?.let { p -> p.keys().forEach { launches[it] = p.getInt(it) } }
+            j.optJSONObject("playtime").longMap(times)
+            j.optJSONObject("launches").intMap(launches)
+            j.optJSONObject("ratings").intMap(ratings)
+            status.putAll(j.optJSONObject("status").stringMap())
+            titles.putAll(j.optJSONObject("titles").stringMap())
+            gameEmu.putAll(j.optJSONObject("gameEmu").stringMap())
+            hidden += j.optJSONArray("hidden").strings()
+            j.optJSONObject("collections")?.let { c -> c.keys().forEach { collections[it] = c.getJSONArray(it).strings().toMutableList() } }
+            j.optJSONObject("daily").longMap(daily)
+            milestones += j.optJSONArray("milestones").strings()
             pendingKey = j.optString("pendingKey").ifEmpty { null }
             pendingStart = j.optLong("pendingStart", 0)
         }
@@ -94,6 +157,11 @@ class PlayState(private val file: File) {
     fun save() = writeJson(file, JSONObject().apply {
         put("favorites", JSONArray(favorites)); put("recent", JSONArray(recent))
         put("playtime", JSONObject(times as Map<*, *>)); put("launches", JSONObject(launches as Map<*, *>))
+        put("ratings", JSONObject(ratings as Map<*, *>)); put("status", JSONObject(status as Map<*, *>))
+        put("titles", JSONObject(titles as Map<*, *>)); put("gameEmu", JSONObject(gameEmu as Map<*, *>))
+        put("hidden", JSONArray(hidden.toList()))
+        put("collections", JSONObject().apply { collections.forEach { (k, v) -> put(k, JSONArray(v)) } })
+        put("daily", JSONObject(daily as Map<*, *>)); put("milestones", JSONArray(milestones.toList()))
         put("pendingKey", pendingKey ?: ""); put("pendingStart", pendingStart)
     })
 
@@ -104,6 +172,12 @@ class PlayState(private val file: File) {
         return k in favorites
     }
 
+    fun toggleHidden(k: String): Boolean {
+        if (!hidden.remove(k)) hidden.add(k)
+        save()
+        return k in hidden
+    }
+
     fun startPlay(k: String) {
         recent.remove(k); recent.add(0, k)
         while (recent.size > 30) recent.removeAt(recent.size - 1)
@@ -112,17 +186,40 @@ class PlayState(private val file: File) {
         save()
     }
 
-    /** Called when Ryzer comes back to the front; credits the time spent in the emulator. */
-    fun finishPlay() {
-        val k = pendingKey ?: return
+    /**
+     * Called when Ryzer comes back to the front; credits the time spent in the emulator.
+     * Returns the finished session (game key, seconds) for the "you played..." summary.
+     */
+    fun finishPlay(): Pair<String, Long>? {
+        val k = pendingKey ?: return null
         val secs = (System.currentTimeMillis() - pendingStart) / 1000
-        if (secs in 1..(12 * 3600)) times[k] = (times[k] ?: 0) + secs
         pendingKey = null
+        val ok = secs in 1..(12 * 3600)
+        if (ok) {
+            times[k] = (times[k] ?: 0) + secs
+            daily[today()] = (daily[today()] ?: 0) + secs
+        }
+        save()
+        return if (ok) k to secs else null
+    }
+
+    fun forget(k: String) {
+        favorites.remove(k); recent.remove(k); times.remove(k); launches.remove(k); ratings.remove(k)
+        status.remove(k); titles.remove(k); gameEmu.remove(k); hidden.remove(k)
+        collections.values.forEach { it.remove(k) }
         save()
     }
 
     fun playtime(k: String) = times[k] ?: 0L
     fun total() = times.values.sum()
+
+    /** Consecutive days with play time, ending today (or yesterday if nothing played yet today). */
+    fun streak(): Int {
+        var start = if ((daily[today()] ?: 0) > 0) 0 else -1
+        var n = 0
+        while ((daily[today(start)] ?: 0) > 0) { n++; start-- }
+        return n
+    }
 }
 
 fun formatDuration(seconds: Long): String {

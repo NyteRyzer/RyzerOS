@@ -34,6 +34,9 @@ fun drawIcon(c: Canvas, kind: String, cx: Float, cy: Float, s: Float, color: Int
         "random" -> { val r = RectF(cx - s * 0.8f, cy - s * 0.8f, cx + s * 0.8f, cy + s * 0.8f); G.outline(c, r, color, 4f, 8f)
             listOf(-0.4f to -0.4f, 0.4f to 0.4f, 0f to 0f, 0.4f to -0.4f, -0.4f to 0.4f).forEach { (dx, dy) -> G.circle(c, cx + dx * s, cy + dy * s, 4f, color) } }
         "continue" -> { val p = Path(); p.moveTo(cx - s * 0.5f, cy - s * 0.8f); p.lineTo(cx - s * 0.5f, cy + s * 0.8f); p.lineTo(cx + s * 0.8f, cy); p.close(); G.path(c, p, color) }
+        "played", "stats" -> for (i in 0 until 3) { val bh = s * (0.6f + 0.5f * i); G.rect(c, RectF(cx - s + i * s * 0.7f, cy + s - bh, cx - s + i * s * 0.7f + s * 0.5f, cy + s), color, 2f) }
+        "added" -> { G.ring(c, cx, cy, s, color, 4f); G.line(c, cx - s * 0.5f, cy, cx + s * 0.5f, cy, color, 5f); G.line(c, cx, cy - s * 0.5f, cx, cy + s * 0.5f, color, 5f) }
+        "collection" -> for (i in 0 until 3) G.outline(c, RectF(cx - s + i * 6, cy - s * 0.7f + i * 6, cx + s * 0.6f + i * 6, cy + s * 0.5f + i * 6), color, 3f, 4f)
     }
 }
 
@@ -44,31 +47,40 @@ class HomeScreen(app: Ryzer) : Screen(app) {
     private var t = 0f
     private var tiles = listOf<Tile>()
     private val tileW = 132f; private val tileH = 150f; private val selW = 160f; private val selH = 180f; private val gap = 16f
+    private val kid get() = app.cfg.kidMode
 
     init { rebuild() }
 
     fun rebuild() {
         val old = tiles.getOrNull(sel)?.label
+        val st = app.state
         val out = ArrayList<Tile>()
-        val recent = app.state.recent.mapNotNull { Library.find(app.systems, it) }
+        val recent = app.visible(st.recent.mapNotNull { Library.find(app.systems, it) })
         recent.firstOrNull()?.let { g ->
-            out += Tile("continue", "Continue", g.name, game = g, system = g.system,
-                note = "Resume ${g.name} (${g.system.short}). Played ${formatDuration(app.state.playtime(g.key))}.")
+            out += Tile("continue", "Continue", app.title(g), game = g, system = g.system,
+                note = "Resume ${app.title(g)} (${g.system.short}). Played ${formatDuration(st.playtime(g.key))}.")
         }
-        val favs = app.state.favorites.count { Library.find(app.systems, it) != null }
+        val favs = app.visible(st.favorites.mapNotNull { Library.find(app.systems, it) }).size
         out += Tile("favorites", "Favorites", plural(favs, "game"), note = "Games you starred with X.")
         out += Tile("recent", "Recent", plural(recent.size, "game"), note = "Your recently played games.")
-        for (s in app.systems) {
+        val played = st.times.count { it.value > 0 }
+        if (played > 0) out += Tile("played", "Most Played", plural(played, "game"), note = "Your games ranked by play time.")
+        if (app.allGames().isNotEmpty()) out += Tile("added", "New", "Recently added", note = "The newest games on your storage.")
+        for ((name, keys) in st.collections) out += Tile("collection", name, plural(keys.size, "game"), note = "Your collection. Add games from any game's options (START).")
+        for (s in sortedSystems(app)) {
             if (s.games.isEmpty() && app.cfg.hideEmpty) continue
-            out += Tile("system", s.short, plural(s.games.size, "game"), s.color, s,
+            out += Tile("system", s.short, plural(app.visible(s.games).size, "game"), s.color, s,
                 note = listOf(s.demand, s.note, "Emulator: " + Launcher.label(app, Launcher.chosen(app, s))).filter { it.isNotEmpty() }.joinToString(". "))
         }
-        if (app.cfg.showApps) out += Tile("apps", "Apps", "Android apps", note = "Launch any app on your device, like a console home screen.")
+        if (app.cfg.showApps && !kid) out += Tile("apps", "Apps", "Android apps", note = "Launch any app on your device, like a console home screen.")
         out += Tile("random", "Surprise", "Random game", note = "Can't decide? Launch a random game from your library.")
         out += Tile("search", "Search", "All systems", note = "Find any game by name.")
-        out += Tile("themes", "Themes", "${app.themes.size} themes", note = "Pick from 20+ themes or design your own.")
-        out += Tile("settings", "Settings", "Ryzer", note = "Emulators, ROM folders, dual screen, display, sound and controls.")
-        out += Tile("device", "Device", "Android settings", note = "Open the Android settings app (Wi-Fi, Bluetooth, performance mode).")
+        out += Tile("stats", "Stats", "${st.streak()} day streak", note = "Play time, a 7-day activity chart, your top games and milestones.")
+        if (!kid) {
+            out += Tile("themes", "Themes", "${app.themes.size} themes", note = "Pick from 20+ themes or design your own.")
+            out += Tile("settings", "Settings", "Ryzer", note = "Emulators, ROM folders, dual screen, display, sound and controls.")
+            out += Tile("device", "Device", "Android settings", note = "Open the Android settings app (Wi-Fi, Bluetooth, performance mode).")
+        }
         tiles = out
         val i = tiles.indexOfFirst { it.label == old }
         sel = if (i >= 0) i else min(sel, tiles.size - 1)
@@ -86,8 +98,8 @@ class HomeScreen(app: Ryzer) : Screen(app) {
             "a" -> { app.sounds.play("select"); open(tiles[sel]) }
             "y" -> app.openSearch()
             "x" -> app.openRandom()
-            "start" -> app.push(settingsMenu(app))
-            "select" -> app.push(ThemePicker(app))
+            "start" -> if (kid) KidMode.unlock(app) else app.push(settingsMenu(app))
+            "select" -> if (!kid) app.push(ThemePicker(app))
         }
     }
 
@@ -97,6 +109,10 @@ class HomeScreen(app: Ryzer) : Screen(app) {
             "system" -> t.system?.let { app.push(GameList(app, it.name, it.games, it)) }
             "favorites" -> app.push(GameList(app, "Favorites", null, source = "favorites"))
             "recent" -> app.push(GameList(app, "Recently Played", null, source = "recent"))
+            "played" -> app.push(GameList(app, "Most Played", null, source = "played"))
+            "added" -> app.push(GameList(app, "Recently Added", null, source = "added"))
+            "collection" -> app.push(GameList(app, t.label, null, source = "collection:${t.label}"))
+            "stats" -> app.push(StatsScreen(app))
             "apps" -> app.push(AppsScreen(app))
             "random" -> app.openRandom()
             "search" -> app.openSearch()
@@ -108,11 +124,11 @@ class HomeScreen(app: Ryzer) : Screen(app) {
 
     override fun update(dt: Float) {
         t += dt
-        scroll = if (app.cfg.animations) scroll + (sel - scroll) * min(1f, dt * 12) else sel.toFloat()
+        scroll = if (app.animationsOn) scroll + (sel - scroll) * min(1f, dt * 12) else sel.toFloat()
     }
 
     private fun drawTile(c: Canvas, tile: Tile, r: RectF, selected: Boolean) {
-        val pulse = if (selected) ((sin(t * 4) + 1) / 2) else 0f
+        val pulse = if (selected && app.animationsOn) ((sin(t * 4) + 1) / 2) else 0f
         G.panel(c, r, th, selected, pulse)
         val band = RectF(r.left + 6, r.top + 6, r.right - 6, r.top + 6 + r.height() * 0.55f)
         G.rect(c, band, mix(th.c("panel"), tile.color ?: th.c("accent"), if (selected) 0.75f else 0.5f), max(0f, th.radius - 4))
@@ -124,7 +140,7 @@ class HomeScreen(app: Ryzer) : Screen(app) {
     }
 
     override fun draw(c: Canvas, w: Float, h: Float) {
-        G.topBar(c, app, th, "RYZER", w)
+        G.topBar(c, app, th, if (kid) "RYZER  |  KID MODE" else "RYZER", w)
         val cy = 70 + selH / 2
         val order = tiles.indices.sortedBy { it == sel }
         for (i in order) {
@@ -143,10 +159,11 @@ class HomeScreen(app: Ryzer) : Screen(app) {
         G.panel(c, info, th)
         val title = when (tile.kind) { "system" -> tile.system!!.name; "continue" -> tile.sub; else -> tile.label }
         G.text(c, title, info.left + 14, info.top + 10, 28f, th.c("text"), isBold = true, maxW = info.width() - 40, theme = th)
-        G.wrap(tile.note, 20f, info.width() - 28).take(4).forEachIndexed { i, l -> G.text(c, l, info.left + 14, info.top + 42 + i * 21, 20f, th.c("text_dim")) }
+        G.wrap(tile.note, 20f, info.width() - 28).take(max(1, ((info.height() - 46) / 21).toInt())).forEachIndexed { i, l ->
+            G.text(c, l, info.left + 14, info.top + 42 + i * 21, 20f, th.c("text_dim")) }
         val n = tiles.size
         for (i in 0 until n) {
-            val x = w / 2 + (i - (n - 1) / 2f) * 12
+            val x = w / 2 + (i - (n - 1) / 2f) * 10
             G.circle(c, x, info.top - 8, if (i == sel) 3f else 2f, if (i == sel) th.c("accent") else th.c("panel_border"))
         }
     }
@@ -157,10 +174,12 @@ class HomeScreen(app: Ryzer) : Screen(app) {
         val tile = tiles.getOrNull(sel) ?: return
         G.image(tile.game?.image())?.let { G.drawImageFit(c, it, RectF(40f, h / 2 + 10, w - 40, h - 20)); return }
         G.text(c, "Total play time  ${formatDuration(app.state.total())}", w / 2, h / 2 + 40, 24f, th.c("text_dim"), align = 'c')
-        G.text(c, "${app.systems.sumOf { it.games.size }} games  |  ${app.state.favorites.size} favorites", w / 2, h / 2 + 72, 24f, th.c("text_dim"), align = 'c')
+        G.text(c, "${app.allGames().size} games  |  ${app.state.favorites.size} favorites  |  ${app.state.streak()} day streak", w / 2, h / 2 + 72, 22f,
+            th.c("text_dim"), align = 'c', maxW = w - 30)
     }
 
-    override fun hints() = listOf("SELECT" to "Themes", "X" to "Random", "Y" to "Search", "A" to "Open")
+    override fun hints() = if (kid) listOf("START" to "Unlock", "X" to "Random", "A" to "Open")
+        else listOf("SELECT" to "Themes", "X" to "Random", "Y" to "Search", "A" to "Open")
 }
 
 class GameList(app: Ryzer, override val title: String, private val initial: List<Game>?, private val system: GameSystem? = null,
@@ -169,30 +188,40 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
     private var sel = 0
     private var offset = 0
     private val rowH = 34f
+    private var cols = 4
+    private val collection = source?.takeIf { it.startsWith("collection:") }?.removePrefix("collection:")
 
     init { refresh() }
 
     private fun refresh() {
-        games = when (source) {
-            "favorites" -> app.state.favorites.mapNotNull { Library.find(app.systems, it) }.sortedBy { it.name.lowercase() }
-            "recent" -> app.state.recent.mapNotNull { Library.find(app.systems, it) }
-            else -> system?.games ?: initial ?: emptyList()
+        val st = app.state
+        val keep = current()?.key
+        games = when {
+            source == "favorites" -> ListView.apply(app, st.favorites.mapNotNull { Library.find(app.systems, it) })
+            source == "recent" -> ListView.apply(app, st.recent.mapNotNull { Library.find(app.systems, it) }, sortIt = false)
+            source == "played" -> ListView.apply(app, st.times.entries.filter { it.value > 0 }.sortedByDescending { it.value }
+                .mapNotNull { Library.find(app.systems, it.key) }, sortIt = false)
+            source == "added" -> ListView.apply(app, app.systems.flatMap { it.games }.sortedByDescending { it.file.lastModified() }.take(60), sortIt = false)
+            collection != null -> ListView.apply(app, collectionGames(app, collection))
+            else -> ListView.apply(app, system?.games ?: initial ?: emptyList())
         }
-        sel = sel.coerceIn(0, max(0, games.size - 1))
+        sel = games.indexOfFirst { it.key == keep }.let { if (it >= 0) it else sel.coerceIn(0, max(0, games.size - 1)) }
     }
 
     override fun onResume() = refresh()
     fun current() = games.getOrNull(sel)
+    private val grid get() = app.cfg.grid
 
     private fun letterJump(dir: Int) {
         if (games.isEmpty()) return
-        val letter = games[sel].name.take(1).lowercase()
+        fun first(i: Int) = app.title(games[i]).take(1).lowercase()
+        val letter = first(sel)
         val idx = if (dir > 0) (sel + 1 until games.size) else (sel - 1 downTo 0)
         for (i in idx) {
-            val first = games[i].name.take(1).lowercase()
-            if (first != letter) {
+            val f = first(i)
+            if (f != letter) {
                 var j = i
-                if (dir < 0) while (j > 0 && games[j - 1].name.take(1).lowercase() == first) j--
+                if (dir < 0) while (j > 0 && first(j - 1) == f) j--
                 sel = j; return
             }
         }
@@ -202,48 +231,111 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
     override fun handle(a: String) {
         val n = games.size
         when (a) {
-            "up", "down" -> if (n > 0) { sel = (sel + (if (a == "down") 1 else -1) + n) % n; app.sounds.play("move") }
-            "left", "right" -> if (n > 0) { sel = (sel + if (a == "right") 10 else -10).coerceIn(0, n - 1); app.sounds.play("move") }
+            "up", "down" -> if (n > 0) {
+                val step = if (grid) cols else 1
+                sel = if (grid) (sel + if (a == "down") step else -step).coerceIn(0, n - 1) else (sel + (if (a == "down") 1 else -1) + n) % n
+                app.sounds.play("move")
+            }
+            "left", "right" -> if (n > 0) {
+                sel = (sel + (if (a == "right") 1 else -1) * (if (grid) 1 else 10)).coerceIn(0, n - 1); app.sounds.play("move")
+            }
             "l", "r" -> { letterJump(if (a == "r") 1 else -1); app.sounds.play("move") }
             "a" -> current()?.let { app.sounds.play("select"); app.launch(it) }
             "x" -> current()?.let {
                 val fav = app.state.toggleFavorite(it.key)
                 app.sounds.play("fav"); app.notify(if (fav) "Added to favorites" else "Removed from favorites")
+                Milestones.check(app)
                 if (source == "favorites") refresh()
             }
-            "start" -> current()?.let { options(it) }
+            "select" -> { app.cfg.grid = !app.cfg.grid; app.cfg.save(); app.notify(if (app.cfg.grid) "Grid view" else "List view") }
+            "start" -> current()?.let { options(it) } ?: listOptions()
             "y" -> app.openSearch()
             "b" -> { app.sounds.play("back"); app.pop() }
         }
     }
 
+    private fun cycleCfg(list: List<String>, cur: String, d: Int) = list[((list.indexOf(cur).coerceAtLeast(0) + d) % list.size + list.size) % list.size]
+
+    private fun viewItems(): List<Item> = listOf(
+        Item("Sort by", value = { ListView.label(app.cfg.sort) }, change = { d -> app.cfg.sort = cycleCfg(ListView.SORTS, app.cfg.sort, d); app.cfg.save() }),
+        Item("Filter", value = { ListView.label(app.cfg.filter) }, change = { d -> app.cfg.filter = cycleCfg(ListView.FILTERS, app.cfg.filter, d); app.cfg.save() }),
+        Item("View", value = { if (app.cfg.grid) "Grid" else "List" }, change = { app.cfg.grid = !app.cfg.grid; app.cfg.save() }),
+        Item("Show hidden games", value = { if (app.cfg.showHidden) "On" else "Off" }, change = { app.cfg.showHidden = !app.cfg.showHidden; app.cfg.save() }),
+        Item("Random game from this list", select = { app.pop(); app.randomFrom(games) }),
+    )
+
+    private fun listOptions() = app.push(Menu(app, title, viewItems()))
+
     private fun options(g: Game) {
-        app.push(Menu(app, g.name, listOf(
+        val st = app.state
+        val kid = app.cfg.kidMode
+        val items = mutableListOf(
             Item("Play", select = { app.pop(); app.launch(g) }),
-            Item("Favorite", value = { if (app.state.isFavorite(g.key)) "Yes" else "No" }, change = { app.state.toggleFavorite(g.key) }),
-            Item("${g.system.short} emulator", value = { Launcher.label(app, Launcher.chosen(app, g.system)) },
-                select = { app.push(EmulatorPicker(app, g.system)) }, help = "Applies to every ${g.system.short} game."),
-            Item("Open with another app", select = { app.pop(); app.state.startPlay(g.key)
-                runCatching { app.ctx.startActivity(Launcher.anyAppIntent(g, null)) } }, help = "Pick any installed app for just this launch."),
-            Item("Game info", select = { app.push(Message(app, g.name, info(g))) }),
-        )))
+            Item("Favorite", value = { if (st.isFavorite(g.key)) "Yes" else "No" }, change = { st.toggleFavorite(g.key); Milestones.check(app) }),
+            Item("Rating", value = { ListView.stars(st.ratings[g.key] ?: 0) }, change = { d ->
+                val r = ((st.ratings[g.key] ?: 0) + d).coerceIn(0, 5)
+                if (r == 0) st.ratings.remove(g.key) else st.ratings[g.key] = r
+                st.save(); Milestones.check(app) }),
+            Item("Status", "Track your backlog: Backlog, Playing, Beaten, Completed.", value = { ListView.label(st.status[g.key] ?: "") }, change = { d ->
+                val s = cycleCfg(ListView.STATUSES, st.status[g.key] ?: "", d)
+                if (s.isEmpty()) st.status.remove(g.key) else st.status[g.key] = s
+                st.save(); Milestones.check(app) }),
+            Item("Add to collection", select = { app.push(addToCollectionMenu(app, g)) }),
+        )
+        if (collection != null) items += Item("Remove from '$collection'", select = {
+            st.collections[collection]?.remove(g.key); st.save(); app.pop(); refresh() })
+        if (!kid) {
+            items += Item("Rename", "Shown everywhere in Ryzer. The file isn't renamed.", value = { app.title(g) }, select = {
+                app.push(Keyboard(app, "Rename game", app.title(g), 40) { name ->
+                    if (name.isEmpty() || name == g.name) st.titles.remove(g.key) else st.titles[g.key] = name
+                    st.save() })
+            })
+            items += Item("Hide game", "Hidden games disappear from lists. Turn on 'Show hidden games' to see them.",
+                value = { if (g.key in st.hidden) "Hidden" else "Shown" }, change = { st.toggleHidden(g.key) })
+            items += Item("Emulator for this game", value = { st.gameEmu[g.key]?.let { Launcher.label(app, it) } ?: "Same as system" },
+                select = { app.push(EmulatorPicker(app, g.system, g)) }, help = "Overrides the ${g.system.short} emulator for just this game.")
+            items += Item("${g.system.short} emulator", value = { Launcher.label(app, Launcher.chosen(app, g.system)) },
+                select = { app.push(EmulatorPicker(app, g.system)) }, help = "Applies to every ${g.system.short} game.")
+            items += Item("Open with another app", select = { app.pop(); st.startPlay(g.key)
+                runCatching { app.ctx.startActivity(Launcher.anyAppIntent(g, null)) } }, help = "Pick any installed app for just this launch.")
+        }
+        items += viewItems()
+        items += Item("Game info", select = { app.push(Message(app, app.title(g), info(g))) })
+        if (!kid) items += Item("Delete ROM file", "Permanently deletes the file from your storage.", select = {
+            app.push(Confirm(app, "Delete ${g.file.name} permanently? This can't be undone.", yes = "Delete") {
+                if (g.file.delete()) { st.forget(g.key); app.notify("Deleted ${app.title(g)}"); app.pop(); app.rescan() }
+                else app.notify("Couldn't delete (file is read-only?)")
+            })
+        })
+        app.push(Menu(app, app.title(g), items))
     }
 
     private fun info(g: Game): String {
         val st = app.state
         return "System: ${g.system.name}\nFile: ${g.file.name}\nFolder: ${g.file.parent}\nSize: ${"%.1f".format(g.file.length() / 1e6)} MB\n" +
             "Play time: ${formatDuration(st.playtime(g.key))}\nLaunches: ${st.launches[g.key] ?: 0}\n" +
-            "Emulator: ${Launcher.label(app, Launcher.chosen(app, g.system))}\n\n${g.system.demand}. ${g.system.note}"
+            "Rating: ${ListView.stars(st.ratings[g.key] ?: 0)}\nStatus: ${ListView.label(st.status[g.key] ?: "")}\n" +
+            "Emulator: ${Launcher.label(app, st.gameEmu[g.key] ?: Launcher.chosen(app, g.system))}\n\n${g.system.demand}. ${g.system.note}"
     }
 
     override fun draw(c: Canvas, w: Float, h: Float) {
-        G.topBar(c, app, th, title, w)
+        val tag = listOfNotNull(ListView.label(app.cfg.sort).takeIf { app.cfg.sort != "name" }, ListView.label(app.cfg.filter).takeIf { app.cfg.filter != "all" })
+        G.topBar(c, app, th, title + if (tag.isEmpty()) "" else "  (${tag.joinToString(", ")})", w)
         if (games.isEmpty()) {
-            val msg = when (source) { "favorites" -> "No favorites yet. Press X on any game to add it."; "recent" -> "Nothing played yet."
-                else -> "No games found. Put ROMs in ROMs/<system> or add a folder in Settings > ROM folders." }
+            val msg = when {
+                app.cfg.filter != "all" -> "No games match the filter '${ListView.label(app.cfg.filter)}'. Press START to change it."
+                source == "favorites" -> "No favorites yet. Press X on any game to add it."
+                source == "recent" || source == "played" -> "Nothing played yet."
+                collection != null -> "This collection is empty. Use 'Add to collection' in any game's options."
+                else -> "No games found. Put ROMs in ROMs/<system> or add a folder in Settings > Library > ROM folders." }
             G.wrap(msg, 24f, w - 60).forEachIndexed { i, l -> G.text(c, l, w / 2, h / 2 - 24 + i * 28, 24f, th.c("text_dim"), align = 'c') }
             return
         }
+        if (grid) drawGrid(c, w, h) else drawList(c, w, h)
+    }
+
+    private fun drawList(c: Canvas, w: Float, h: Float) {
+        val st = app.state
         val detailsW = if (app.dual) 0f else min(220f, w * 0.34f)
         val listW = w - 28 - detailsW - (if (detailsW > 0) 8 else 0)
         val top = 52f
@@ -255,13 +347,44 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
             val s = i == sel
             if (s) G.panel(c, r, th, true)
             app.hit(r) { if (sel == i) handle("a") else sel = i }
-            if (app.state.isFavorite(g.key)) G.text(c, "*", r.left + 12, r.top + 4, 30f, th.c("warn"), isBold = true)
-            val label = if (system != null) g.name else "${g.name}  [${g.system.short}]"
-            G.text(c, label, r.left + 28, r.top + 6, 23f, if (s) th.c("text") else th.c("text_dim"), maxW = r.width() - 40, theme = th)
+            if (st.isFavorite(g.key)) G.text(c, "*", r.left + 12, r.top + 4, 30f, th.c("warn"), isBold = true)
+            val label = (if (system != null) app.title(g) else "${app.title(g)}  [${g.system.short}]") + if (g.key in st.hidden) "  (hidden)" else ""
+            val right = st.ratings[g.key]?.let { "★$it" } ?: ""
+            G.text(c, label, r.left + 28, r.top + 6, 23f, if (s) th.c("text") else th.c("text_dim"), maxW = r.width() - 80, theme = th)
+            if (right.isNotEmpty()) G.text(c, right, r.right - 10, r.top + 7, 19f, th.c("warn"), align = 'r')
         }
         G.scrollbar(c, th, RectF(listW + 18, top, listW + 23, top + visible * rowH - 4), offset, visible, games.size)
         G.text(c, "${sel + 1}/${games.size}", listW + 10, h - 62, 18f, th.c("text_dim"), align = 'r')
         if (detailsW > 0) details(c, RectF(w - detailsW - 14, top, w - 14, h - 46), true)
+    }
+
+    private fun drawGrid(c: Canvas, w: Float, h: Float) {
+        cols = max(3, (w / 150).toInt())
+        val gap = 10f
+        val cw = (w - 28 - (cols - 1) * gap) / cols
+        val ch = cw * 1.15f
+        val top = 52f
+        val rowsVisible = max(1, ((h - top - 44) / (ch + gap)).toInt())
+        val row = sel / cols
+        val firstRow = (offset / cols).let { r -> when { row < r -> row; row >= r + rowsVisible -> row - rowsVisible + 1; else -> r } }
+        offset = firstRow * cols
+        for (i in offset until min(games.size, offset + rowsVisible * cols)) {
+            val g = games[i]
+            val rr = (i - offset) / cols; val cc = (i - offset) % cols
+            val r = RectF(14 + cc * (cw + gap), top + rr * (ch + gap), 14 + cc * (cw + gap) + cw, top + rr * (ch + gap) + ch)
+            val s = i == sel
+            G.panel(c, r, th, s)
+            app.hit(r) { if (sel == i) handle("a") else sel = i }
+            val art = RectF(r.left + 6, r.top + 6, r.right - 6, r.bottom - 30)
+            val bmp = G.image(g.image())
+            if (bmp != null) G.drawImageFit(c, bmp, art)
+            else {
+                G.rect(c, art, mix(th.c("panel"), g.system.color, 0.6f), max(0f, th.radius - 4))
+                G.text(c, g.system.short, art.centerX(), art.centerY() - 16, 34f, th.c("highlight_text"), align = 'c', isBold = true)
+            }
+            if (app.state.isFavorite(g.key)) G.text(c, "*", r.right - 16, r.top + 4, 30f, th.c("warn"), isBold = true)
+            G.text(c, app.title(g), r.centerX(), r.bottom - 26, 18f, if (s) th.c("text") else th.c("text_dim"), align = 'c', maxW = cw - 10)
+        }
     }
 
     private fun details(c: Canvas, r: RectF, compact: Boolean) {
@@ -270,16 +393,20 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
         var y = r.top + 10
         val bmp = G.image(g.image())
         if (bmp != null) {
-            y = G.drawImageFit(c, bmp, RectF(r.left + 10, y, r.right - 10, y + if (compact) r.height() / 2 else r.height() - 150)).bottom + 8
+            y = G.drawImageFit(c, bmp, RectF(r.left + 10, y, r.right - 10, y + if (compact) r.height() / 2 else r.height() - 170)).bottom + 8
         } else {
             val art = RectF(r.left + 10, y, r.right - 10, y + if (compact) 90 else 140)
             G.rect(c, art, mix(th.c("panel"), g.system.color, 0.6f), max(0f, th.radius - 4))
             G.text(c, g.system.short, art.centerX(), art.centerY() - 18, 44f, th.c("highlight_text"), align = 'c', isBold = true)
             y = art.bottom + 8
         }
-        G.text(c, g.name, r.centerX(), y, if (compact) 22f else 30f, th.c("text"), align = 'c', isBold = true, maxW = r.width() - 16)
+        G.text(c, app.title(g), r.centerX(), y, if (compact) 22f else 30f, th.c("text"), align = 'c', isBold = true, maxW = r.width() - 16)
         y += if (compact) 26 else 36
-        for (line in listOf("Played ${formatDuration(app.state.playtime(g.key))}", Launcher.label(app, Launcher.chosen(app, g.system)))) {
+        val st = app.state
+        val lines = listOfNotNull("Played ${formatDuration(st.playtime(g.key))}",
+            st.ratings[g.key]?.let { ListView.stars(it) }, st.status[g.key]?.let { ListView.label(it) },
+            Launcher.label(app, st.gameEmu[g.key] ?: Launcher.chosen(app, g.system)))
+        for (line in lines) {
             G.text(c, line, r.centerX(), y, if (compact) 19f else 24f, th.c("text_dim"), align = 'c', maxW = r.width() - 16)
             y += if (compact) 22 else 30
         }
@@ -290,5 +417,5 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
         if (games.isNotEmpty()) details(c, RectF(20f, 52f, w - 20, h - 12), false)
     }
 
-    override fun hints() = listOf("START" to "Options", "X" to "Fav", "L/R" to "A-Z", "A" to "Play")
+    override fun hints() = listOf("START" to "Options", "SELECT" to if (grid) "List" else "Grid", "X" to "Fav", "A" to "Play")
 }

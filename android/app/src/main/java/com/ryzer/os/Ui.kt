@@ -119,14 +119,28 @@ object G {
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
     private val textP = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val bold = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    private var regular: Typeface = Typeface.DEFAULT
+    private var bold: Typeface = Typeface.DEFAULT_BOLD
+    val FONTS = listOf("default", "condensed", "mono", "serif", "rounded")
+
+    fun setFont(name: String) {
+        val family = when (name) {
+            "condensed" -> Typeface.create("sans-serif-condensed", Typeface.NORMAL)
+            "mono" -> Typeface.MONOSPACE
+            "serif" -> Typeface.SERIF
+            "rounded" -> Typeface.create("casual", Typeface.NORMAL)
+            else -> Typeface.DEFAULT
+        }
+        regular = family
+        bold = Typeface.create(family, Typeface.BOLD)
+    }
     private val bgCache = HashMap<String, Bitmap>()
 
     /** Draws text with its top edge at y (pygame-style). `size` matches the Linux edition's font sizes. */
     fun text(c: Canvas, s: String, x: Float, y: Float, size: Float, color: Int, align: Char = 'l',
              isBold: Boolean = false, maxW: Float = 0f, theme: Theme? = null): RectF {
         textP.textSize = size * 0.72f * (theme?.fontScale ?: 1f)
-        textP.typeface = if (isBold) bold else Typeface.DEFAULT
+        textP.typeface = if (isBold) bold else regular
         textP.color = color
         var str = s
         if (maxW > 0 && textP.measureText(str) > maxW) {
@@ -142,7 +156,7 @@ object G {
 
     fun measure(s: String, size: Float, isBold: Boolean = false): Float {
         textP.textSize = size * 0.72f
-        textP.typeface = if (isBold) bold else Typeface.DEFAULT
+        textP.typeface = if (isBold) bold else regular
         return textP.measureText(s)
     }
 
@@ -206,6 +220,35 @@ object G {
                 mix(th.c("bg_top"), th.c("text"), r.nextFloat() * 0.6f)) } }
         }
         return bmp
+    }
+
+    /** A user wallpaper, cropped to fill and dimmed with the theme so text stays readable. */
+    fun wallpaper(c: Canvas, th: Theme, bmp: Bitmap, w: Float, h: Float) {
+        val sc = max(w / bmp.width, h / bmp.height)
+        val dw = bmp.width * sc; val dh = bmp.height * sc
+        c.drawBitmap(bmp, null, RectF((w - dw) / 2, (h - dh) / 2, (w + dw) / 2, (h + dh) / 2), Paint(Paint.FILTER_BITMAP_FLAG))
+        rect(c, RectF(0f, 0f, w, h), withAlpha(th.c("bg_bottom"), 0.55f))
+    }
+
+    fun analogClock(c: Canvas, th: Theme, cx: Float, cy: Float, r: Float) {
+        val cal = java.util.Calendar.getInstance()
+        circle(c, cx, cy, r, th.c("panel"))
+        ring(c, cx, cy, r, th.c("accent"), 4f)
+        for (i in 0 until 12) {
+            val a = i * PI / 6
+            val inner = if (i % 3 == 0) r * 0.78f else r * 0.86f
+            line(c, cx + inner * sin(a).toFloat(), cy - inner * cos(a).toFloat(),
+                cx + r * 0.94f * sin(a).toFloat(), cy - r * 0.94f * cos(a).toFloat(), th.c("text_dim"), if (i % 3 == 0) 3f else 1.5f)
+        }
+        fun hand(frac: Double, len: Float, width: Float, col: Int) {
+            val a = frac * 2 * PI
+            line(c, cx, cy, cx + len * sin(a).toFloat(), cy - len * cos(a).toFloat(), col, width)
+        }
+        val m = cal.get(java.util.Calendar.MINUTE); val hr = cal.get(java.util.Calendar.HOUR) + m / 60.0
+        hand(hr / 12, r * 0.5f, 6f, th.c("text"))
+        hand(m / 60.0, r * 0.75f, 4f, th.c("text"))
+        hand(cal.get(java.util.Calendar.SECOND) / 60.0, r * 0.82f, 2f, th.c("accent"))
+        circle(c, cx, cy, 5f, th.c("accent"))
     }
 
     fun panel(c: Canvas, r: RectF, th: Theme, selected: Boolean = false, pulse: Float = 0f, fillColor: Int? = null) {

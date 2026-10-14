@@ -63,6 +63,32 @@ class Ryzer(val ctx: MainActivity) {
     private val main = Handler(Looper.getMainLooper())
     val dual get() = ctx.dualActive
     var focusTheme: String? = null
+    var lastInput = SystemClock.uptimeMillis()
+    private var checkTimer = 99f
+    private var batteryLow = false
+    private var warned15 = false
+    private var warned5 = false
+    private var timeTheme: String? = null
+
+    init {
+        G.setFont(cfg.font)
+        when (cfg.themeMode) {   // theme of the day / random theme on every start
+            "daily" -> themes.keys.sorted().let { ids -> setTheme(ids[(today().hashCode() and 0x7fffffff) % ids.size], save = false) }
+            "random" -> setTheme(themes.keys.random(), save = false)
+        }
+    }
+
+    /** The game's display name: your custom title if you renamed it. */
+    fun title(g: Game) = state.titles[g.key] ?: g.name
+
+    /** Drops hidden games unless "Show hidden games" is on. */
+    fun visible(list: List<Game>) = if (cfg.showHidden) list else list.filter { it.key !in state.hidden }
+
+    fun allGames() = visible(systems.flatMap { it.games })
+
+    val logicalH get() = when (cfg.uiSize) { "small" -> 540f; "large" -> 420f; else -> 480f }
+    val animationsOn get() = cfg.animations && !batteryLow
+    fun effectiveFps() = if (batteryLow) 20 else cfg.fps
 
     private fun pickHome(): File {
         val shared = File(Environment.getExternalStorageDirectory(), "RyzerOS")
@@ -107,7 +133,7 @@ class Ryzer(val ctx: MainActivity) {
 
     fun launch(game: Game) {
         val sys = game.system
-        val choice = Launcher.chosen(this, sys)
+        val choice = state.gameEmu[game.key] ?: Launcher.chosen(this, sys)
         val intent: Intent? = when {
             choice == null -> null
             choice == Launcher.CHOOSER -> Launcher.anyAppIntent(game, null)
@@ -133,24 +159,28 @@ class Ryzer(val ctx: MainActivity) {
                 notify("${Launcher.label(this, choice)} refused the launch")
             }
         }
-        notify("Launching ${game.name}")
+        notify("Launching ${title(game)}")
         if (cfg.boost && Launcher.isHeavy(sys)) io.execute { Launcher.boost(ctx, target); main.post(start) } else start.run()
     }
 
     fun openSearch() {
         push(Keyboard(this, "Search games") { q ->
             if (q.isNotEmpty()) {
-                val r = Library.search(systems, q)
+                val query = q.lowercase()
+                val r = allGames().filter { query in title(it).lowercase() }
                 if (r.isEmpty()) notify("No games match \"$q\"") else push(GameList(this, "Search: \"$q\"", r))
             }
         })
     }
 
     fun openRandom() {
-        val games = systems.flatMap { it.games }
+        randomFrom(allGames())
+    }
+
+    fun randomFrom(games: List<Game>) {
         if (games.isEmpty()) { sounds.play("error"); notify("No games found yet"); return }
         val g = games.random()
-        notify("Surprise! ${g.name}")
+        notify("Surprise! ${title(g)}")
         launch(g)
     }
 
@@ -186,8 +216,21 @@ class Ryzer(val ctx: MainActivity) {
         for ((r, action) in list.reversed()) if (r.contains(x, y)) { action(); ctx.redraw(); return }
     }
 
+    private var wallpaperName = ""
+    private var wallpaperBmp: android.graphics.Bitmap? = null
+    fun wallpaperDir() = File(home, "wallpapers").apply { mkdirs() }
+    fun wallpaper(): android.graphics.Bitmap? {
+        if (cfg.wallpaper.isEmpty()) return null
+        if (cfg.wallpaper != wallpaperName) {
+            wallpaperName = cfg.wallpaper
+            wallpaperBmp = G.image(File(wallpaperDir(), cfg.wallpaper))
+        }
+        return wallpaperBmp
+    }
+
     fun drawBigClock(c: Canvas, w: Float, y: Float) {
         val th = activeTheme
+        if (cfg.clockStyle == "analog") { G.analogClock(c, th, w / 2, y + 60, 70f); return }
         val now = java.util.Date()
         val fmt = java.text.SimpleDateFormat(if (cfg.clock24) "HH:mm" else "h:mm", java.util.Locale.getDefault())
         G.text(c, fmt.format(now), w / 2, y, 110f, th.c("text"), align = 'c', isBold = true)
@@ -205,7 +248,8 @@ class Ryzer(val ctx: MainActivity) {
         hitRole = role
         hits[role] = mutableListOf()
         G.background(c, th, w, h, t)
-        if (role == Role.MAIN) particles.draw(c, th, dt, w, h)
+        wallpaper()?.let { G.wallpaper(c, th, it, w, h) }
+        if (role == Role.MAIN && animationsOn) particles.draw(c, th, dt, w, h)
         val scr = current ?: return
         if (role == Role.MAIN) {
             scr.draw(c, w, h)
@@ -219,11 +263,43 @@ class Ryzer(val ctx: MainActivity) {
     }
 
     fun handle(action: String) {
+        lastInput = SystemClock.uptimeMillis()
+        if (cfg.haptics) ctx.buzz()
         current?.handle(action)
         ctx.redraw()
     }
 
-    fun update(dt: Float) { current?.update(dt) }
+    /** A finished game session: show a summary and check milestones. */
+    fun onSession(session: Pair<String, Long>?) {
+        session ?: return
+        val g = Library.find(systems, session.first)
+        if (session.second >= 60) notify("You played ${g?.let { title(it) } ?: "a game"} for ${formatDuration(session.second)}", 3.5f)
+        Milestones.check(this)
+    }
+
+    fun update(dt: Float) {
+        current?.update(dt)
+        checkTimer += dt
+        if (checkTimer < 30f) return
+        checkTimer = 0f
+        // Battery: warnings and automatic power saving
+        val (pct, charging) = battery()
+        batteryLow = cfg.batterySaver && pct in 0..19 && !charging
+        if (pct in 0..5 && !charging && !warned5) { warned5 = true; sounds.play("error"); notify("Battery at $pct% - plug in soon!", 4f) }
+        else if (pct in 0..15 && !charging && !warned15) { warned15 = true; notify("Battery low ($pct%)", 3f) }
+        if (charging) { warned5 = false; warned15 = false }
+        // Day / night theme
+        if (cfg.dayNight) {
+            val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+            val want = if (hour in 7..18) cfg.dayTheme else cfg.nightTheme
+            if (want != timeTheme && themes.containsKey(want)) { timeTheme = want; setTheme(want, save = false) }
+        }
+        // Screensaver
+        val idle = (SystemClock.uptimeMillis() - lastInput) / 60000f
+        if (cfg.screensaver > 0 && idle >= cfg.screensaver && current !is Screensaver && current !is BootScreen) push(Screensaver(this))
+    }
+
+    fun checkSoon() { checkTimer = 99f }
 }
 
 /** One drawing surface: the main screen, the top screen, or both stacked on a tall single display. */
@@ -246,12 +322,13 @@ class RyzerView(context: Context, private val app: () -> Ryzer?, var role: Role)
         val dt = ((now - last) / 1000f).coerceIn(0f, 0.1f)
         last = now
         for ((r, rect) in regions()) {
-            val scale = rect.height() / 480f
+            val lh = a.logicalH
+            val scale = rect.height() / lh
             canvas.save()
             canvas.translate(rect.left, rect.top)
             canvas.clipRect(0f, 0f, rect.width(), rect.height())
             canvas.scale(scale, scale)
-            a.render(canvas, r, rect.width() / scale, 480f, dt, now / 1000f)
+            a.render(canvas, r, rect.width() / scale, lh, dt, now / 1000f)
             canvas.restore()
         }
     }
@@ -260,7 +337,7 @@ class RyzerView(context: Context, private val app: () -> Ryzer?, var role: Role)
         val a = app() ?: return false
         if (e.actionMasked != MotionEvent.ACTION_UP) return true
         for ((r, rect) in regions()) if (rect.contains(e.x, e.y)) {
-            val scale = rect.height() / 480f
+            val scale = rect.height() / a.logicalH
             a.tap(r, (e.x - rect.left) / scale, (e.y - rect.top) / scale)
         }
         return true
@@ -294,9 +371,9 @@ class MainActivity : Activity() {
             if (!resumed) return
             val now = SystemClock.uptimeMillis()
             axisDir?.let { if (now >= axisRepeatAt) { a.handle(it); axisRepeatAt = now + 75 } }
-            a.update(1f / a.cfg.fps)
+            a.update(1f / a.effectiveFps())
             redraw()
-            handler.postDelayed(this, (1000 / a.cfg.fps).toLong())
+            handler.postDelayed(this, (1000 / a.effectiveFps()).toLong())
         }
     }
 
@@ -327,7 +404,8 @@ class MainActivity : Activity() {
         resumed = true
         hideSystemBars()
         app?.let { a ->
-            a.state.finishPlay()
+            a.onSession(a.state.finishPlay())
+            a.lastInput = SystemClock.uptimeMillis()
             a.current?.onResume()
         }
         updateDisplays()
@@ -381,6 +459,23 @@ class MainActivity : Activity() {
 
     fun redraw() { mainView.invalidate(); second?.view?.invalidate() }
 
+    private val vibrator by lazy { getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator }
+
+    /** A tiny tick of rumble on button presses, for handhelds with a vibration motor. */
+    fun buzz() {
+        val v = vibrator ?: return
+        if (!v.hasVibrator()) return
+        runCatching {
+            if (Build.VERSION.SDK_INT >= 26) v.vibrate(android.os.VibrationEffect.createOneShot(12, 60))
+            else @Suppress("DEPRECATION") v.vibrate(12)
+        }
+    }
+
+    /** Ryzer's own screen brightness (does not change the system setting). */
+    fun setMenuBrightness(level: Float) {
+        window.attributes = window.attributes.apply { screenBrightness = level }
+    }
+
     // ----- input -----
     private fun action(code: Int): String? = when (code) {
         KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_W -> "up"
@@ -405,6 +500,10 @@ class MainActivity : Activity() {
         val act = action(keyCode)?.let { swap(it) } ?: return super.onKeyDown(keyCode, event)
         if (event.repeatCount > 0 && act !in setOf("up", "down", "left", "right")) return true
         held.add(act)
+        if ("l" in held && "r" in held && act in setOf("l", "r")) {   // L + R together: quick menu
+            if (a.current !is QuickMenu) a.push(QuickMenu(a))
+            return true
+        }
         a.handle(act)
         return true
     }

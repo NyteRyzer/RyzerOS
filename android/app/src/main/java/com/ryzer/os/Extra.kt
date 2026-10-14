@@ -187,7 +187,32 @@ fun settingsMenu(app: Ryzer): Menu {
         Item("Menu frame rate", "30 fps saves battery; the menu still feels smooth.", value = { "${cfg.fps} fps" },
             change = { d -> cfg.fps = cycle(listOf(30, 60), cfg.fps, d); cfg.save() }),
         toggle("24-hour clock", get = { cfg.clock24 }) { cfg.clock24 = it },
+        Item("Clock style", "How the big clock looks on the top screen.", value = { cfg.clockStyle.replaceFirstChar { it.uppercase() } },
+            change = { d -> cfg.clockStyle = cycle(listOf("digital", "analog"), cfg.clockStyle, d); cfg.save() }),
         toggle("Show battery", get = { cfg.showBattery }) { cfg.showBattery = it },
+        Item("Screensaver", "Drifting box art and a clock after you stop pressing buttons. It also dims the screen.",
+            value = { if (cfg.screensaver == 0) "Off" else "${cfg.screensaver} min" },
+            change = { d -> cfg.screensaver = cycle(listOf(0, 1, 2, 5, 10, 15), cfg.screensaver, d); cfg.save() }),
+    )) }
+
+    val look = { Menu(app, "Look & feel", listOf(
+        Item("Interface size", "Bigger text and tiles for small screens, or more on screen for big ones.",
+            value = { cfg.uiSize.replaceFirstChar { it.uppercase() } }, change = { d -> cfg.uiSize = cycle(listOf("small", "normal", "large"), cfg.uiSize, d); cfg.save() }),
+        Item("Font", value = { cfg.font.replaceFirstChar { it.uppercase() } }, change = { d -> cfg.font = cycle(G.FONTS, cfg.font, d); G.setFont(cfg.font); cfg.save() }),
+        Item("Wallpaper", "Put PNG or JPG images in RyzerOS/wallpapers, then pick one here.", value = { cfg.wallpaper.ifEmpty { "Off" } }, change = { d ->
+            val files = listOf("") + (app.wallpaperDir().listFiles { f -> f.extension.lowercase() in setOf("png", "jpg", "jpeg", "webp") }?.map { it.name }?.sorted() ?: emptyList())
+            if (files.size == 1) app.notify("Add images to ${app.wallpaperDir()} first")
+            cfg.wallpaper = cycle(files, cfg.wallpaper, d); cfg.save() }),
+        Item("Theme mode", "Fixed: your chosen theme. Daily: a new theme every day. Random: a surprise every start.",
+            value = { cfg.themeMode.replaceFirstChar { it.uppercase() } }, change = { d -> cfg.themeMode = cycle(listOf("fixed", "daily", "random"), cfg.themeMode, d); cfg.save() }),
+        toggle("Day / night themes", "Switches between a day theme (7am-7pm) and a night theme automatically.", { cfg.dayNight }) { cfg.dayNight = it; app.checkSoon() },
+        Item("Day theme", value = { app.themes[cfg.dayTheme]?.name ?: cfg.dayTheme }, change = { d -> cfg.dayTheme = cycle(app.themes.keys.toList(), cfg.dayTheme, d); cfg.save(); app.checkSoon() }),
+        Item("Night theme", value = { app.themes[cfg.nightTheme]?.name ?: cfg.nightTheme }, change = { d -> cfg.nightTheme = cycle(app.themes.keys.toList(), cfg.nightTheme, d); cfg.save(); app.checkSoon() }),
+        Item("Home system order", value = { mapOf("default" to "Default", "name" to "A-Z", "games" to "Most games", "recent" to "Recently played")[cfg.systemSort] ?: cfg.systemSort },
+            change = { d -> cfg.systemSort = cycle(listOf("default", "name", "games", "recent"), cfg.systemSort, d); cfg.save() }),
+        Item("Show / hide systems", "Choose which systems appear on Home.", select = { app.push(Menu(app, "Systems on Home", app.systems.map { s ->
+            Item(s.name, value = { if (s.id in cfg.hiddenSystems) "Hidden" else "Shown" }, change = {
+                if (!cfg.hiddenSystems.remove(s.id)) cfg.hiddenSystems.add(s.id); cfg.save() }) })) }),
     )) }
 
     val sound = { Menu(app, "Sound", listOf(
@@ -202,6 +227,10 @@ fun settingsMenu(app: Ryzer): Menu {
         toggle("Hide empty systems", get = { cfg.hideEmpty }) { cfg.hideEmpty = it },
         toggle("Show Apps tile", get = { cfg.showApps }) { cfg.showApps = it },
         Item("Reload systems & emulators", "Re-reads systems.json / emulators.json from the RyzerOS folder if you edited them.", select = { app.reloadData(); app.notify("Reloaded") }),
+        Item("Collections", "Rename or delete your collections.", value = { "${app.state.collections.size}" }, select = { app.push(manageCollectionsMenu(app)) }),
+        toggle("Show hidden games", get = { cfg.showHidden }) { cfg.showHidden = it },
+        Item("Duplicate finder", "Finds the same game more than once (other regions or copies).", select = { app.push(duplicatesMenu(app)) }),
+        Item("Storage by system", "How much space each system's games use.", select = { app.push(StorageScreen(app)) }),
         Item("Clear recently played", select = { app.push(Confirm(app, "Clear your recently played list?") { app.state.recent.clear(); app.state.save(); app.notify("Cleared") }) }),
     )) }
 
@@ -210,19 +239,24 @@ fun settingsMenu(app: Ryzer): Menu {
         Item("Free memory now", select = { Launcher.boost(app.ctx, ""); app.notify("Background apps closed") }),
         Item("Device performance mode", "Opens Android settings. AYN, Retroid and Anbernic put their CPU/fan performance modes in quick settings or a dedicated settings page.",
             select = { runCatching { app.ctx.startActivity(Intent(android.provider.Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }),
+        toggle("Battery saver", "Below 20% battery: 20 fps menus and no animations. Also warns at 15% and 5%.", { cfg.batterySaver }) { cfg.batterySaver = it },
         Item("Speed tips", select = { app.push(Message(app, "Speed tips", SPEED_TIPS)) }),
     )) }
 
     val controls = { Menu(app, "Controls", listOf(
         toggle("Swap A / B", "Use the other face button to confirm (for Nintendo-style layouts).", { cfg.swapAB }) { cfg.swapAB = it },
+        toggle("Vibration", "A light tick of rumble on button presses (devices with a vibration motor).", { cfg.haptics }) { cfg.haptics = it },
         Item("Controls help", select = { app.push(Message(app, "Controls", "D-pad / stick: move\nA: open / play   B: back\nX: favorite / random   Y: search\n" +
-            "L / R: page or letter jump\nSTART: options / settings   SELECT: themes\nTouch: tap anything, including the button hints.")) }),
+            "L / R: page or letter jump\nL + R together: quick menu (volume, brightness, Wi-Fi...)\n" +
+            "START: options / settings   SELECT: themes (Home) or grid/list (game lists)\nTouch: tap anything, including the button hints.")) }),
     )) }
 
     return Menu(app, "Settings", listOf(
         Item("Emulators", "Choose which emulator each system uses. Any installed app works.", select = { app.push(emulators()) }),
         Item("Library", "ROM folders, rescanning and naming.", select = { app.push(library()) }),
         Item("Display & dual screen", select = { app.push(display()) }),
+        Item("Look & feel", "Interface size, font, wallpaper, theme schedule and Home layout.", select = { app.push(look()) }),
+        Item("Play stats", "Play time, 7-day chart, top games and milestones.", select = { app.push(StatsScreen(app)) }),
         Item("Performance", select = { app.push(performance()) }),
         Item("Themes", "Pick one of 20+ themes or build your own.", select = { app.push(ThemePicker(app)) }),
         Item("Sound", select = { app.push(sound()) }),
@@ -230,6 +264,13 @@ fun settingsMenu(app: Ryzer): Menu {
         Item("Set as home screen", "Make Ryzer OS your device's home screen, like Cocoon or iiSU.", select = {
             runCatching { app.ctx.startActivity(Intent(android.provider.Settings.ACTION_HOME_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                 .onFailure { app.notify("Open Android Settings > Apps > Default apps > Home app") } }),
+        Item("Kid mode", "Locks settings and file actions behind a PIN, so kids can only play.", select = { KidMode.enable(app) }),
+        Item("Back up settings", "Saves settings, play data and your themes to RyzerOS/backups.", select = {
+            runCatching { Backup.create(app) }.onSuccess { app.notify("Saved ${it.name}") }.onFailure { app.notify("Backup failed: ${it.message}") } }),
+        Item("Restore latest backup", select = {
+            val b = Backup.latest(app)
+            if (b == null) app.notify("No backups in ${app.home}/backups")
+            else app.push(Confirm(app, "Restore ${b.name}? Current settings will be replaced.", yes = "Restore") { Backup.restore(app, b) }) }),
         Item("System info", select = { app.push(SystemInfo(app)) }),
         Item("Emulator setup help", select = { app.push(Message(app, "Emulator setup", SETUP_HELP)) }),
         Item("About Ryzer OS", select = { app.push(Message(app, "About", "Ryzer OS ${BuildInfo.version} for Android\n${BuildInfo.device}\n\n" +
@@ -294,27 +335,34 @@ class FolderPicker(app: Ryzer, start: File, private val onPick: (File) -> Unit) 
 
 // ----- Emulator choice -------------------------------------------------------------
 
-class EmulatorPicker(app: Ryzer, private val sys: GameSystem) : Menu(app, "${sys.short} emulator", emptyList(), sys.demand) {
+/** Picks the emulator for a whole system, or (with [game]) an override for one game. */
+class EmulatorPicker(app: Ryzer, private val sys: GameSystem, private val game: Game? = null)
+    : Menu(app, if (game != null) "Emulator: ${app.title(game)}" else "${sys.short} emulator", emptyList(), sys.demand) {
     init {
-        val cur = Launcher.chosen(app, sys)
+        val cur = if (game != null) app.state.gameEmu[game.key] else Launcher.chosen(app, sys)
         val list = mutableListOf<Item>()
         for ((id, installed) in Launcher.choices(app, sys)) {
             val name = Launcher.label(app, id)
-            list += Item((if (id == cur) "> " else "") + name, if (installed) "Installed" else "Not installed - get it from its official site or store.",
-                value = { if (installed) "Installed" else "Missing" },
-                select = { if (installed) pick(id) else app.notify("$name isn't installed") })
+            val pkg = Launcher.emulator(app, id)?.components?.firstOrNull()?.substringBefore("/")
+            list += Item((if (id == cur) "> " else "") + name,
+                if (installed) "Installed" else "Not installed. Press A to open its store page.",
+                value = { if (installed) "Installed" else "Get it" },
+                select = { if (installed) pick(id) else if (pkg != null) openStore(app, pkg) })
         }
         list += Item((if (cur == Launcher.CHOOSER) "> " else "") + "Ask every time", "Shows Android's 'Open with' list on each launch.", select = { pick(Launcher.CHOOSER) })
         list += Item((if (cur?.startsWith(Launcher.ANY_APP_PREFIX) == true) "> " else "") + "Any app...",
             "Use any installed emulator, even one Ryzer doesn't know.", select = { app.push(AppsScreen(app) { pkg -> pick(Launcher.ANY_APP_PREFIX + pkg) }) })
-        if (app.cfg.systemEmu.containsKey(sys.id)) list += Item("Reset to automatic", select = { app.cfg.systemEmu.remove(sys.id); app.cfg.save(); app.pop() })
+        val hasOverride = if (game != null) app.state.gameEmu.containsKey(game.key) else app.cfg.systemEmu.containsKey(sys.id)
+        if (hasOverride) list += Item(if (game != null) "Use the system's emulator" else "Reset to automatic", select = {
+            if (game != null) { app.state.gameEmu.remove(game.key); app.state.save() } else { app.cfg.systemEmu.remove(sys.id); app.cfg.save() }
+            app.pop() })
         items = list
     }
 
     private fun pick(id: String) {
-        app.cfg.systemEmu[sys.id] = id
-        app.cfg.save()
-        app.notify("${sys.short}: ${Launcher.label(app, id)}")
+        if (game != null) { app.state.gameEmu[game.key] = id; app.state.save() }
+        else { app.cfg.systemEmu[sys.id] = id; app.cfg.save() }
+        app.notify("${if (game != null) app.title(game) else sys.short}: ${Launcher.label(app, id)}")
         while (app.current is EmulatorPicker || app.current is AppsScreen) app.pop()
     }
 }
