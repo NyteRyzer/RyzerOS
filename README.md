@@ -6,14 +6,56 @@ Ryzer OS comes in two editions that share the same look and the same themes:
 
 | Edition | For | Install |
 | --- | --- | --- |
-| **Android** (APK) | The **stock OS** on Anbernic (RG DS, RG 406H/556/557, RG Cube, RG 477M...), AYN (Thor, Odin 2/3, Odin Portal), Retroid (Pocket 4 Pro/5/6/Mini/Flip/Classic/Dual), AYANEO Pocket DS and any Android 8+ handheld | Download the APK and open it, like Cocoon or iiSU |
-| **Linux** (zip) | Custom firmware: ROCKNIX, Knulli/Batocera, muOS, ArkOS | Unzip and run `install.sh` |
+| **Android** (APK) — main edition | The **stock OS** on Anbernic (RG DS, RG 406H/556/557, RG Cube, RG 477M...), AYN (Thor, Odin 2/3, Odin Portal), Retroid (Pocket 4 Pro/5/6/Mini/Flip/Classic/Dual), AYANEO Pocket DS and any Android 6+ handheld | Download the APK and open it, like Cocoon or iiSU |
+| **Linux** (zip) — fallback for custom firmware | Devices running ROCKNIX, Knulli/Batocera, muOS, ArkOS | Unzip and run `install.sh` |
 
 ## Download
 
 The **[latest release](../../releases)** is built automatically on every change and contains both:
 - `RyzerOS-<version>.apk` for Android
 - `RyzerOS-<version>.zip` for Linux firmwares
+
+### What's in the Android edition
+
+**Library**
+1. **Collections**: make your own lists (e.g. "Couch co-op"), each with its own Home tile
+2. **Hide games** you don't want to see, plus a "Show hidden games" switch
+3. **Per-game emulator**: pick a different emulator for one game
+4. **Sort** by name, last played, most played, rating, file size or recently added
+5. **Filter** by favorites, never played, or completion status
+6. **Rename games** (a display name only; the file is untouched)
+7. **Star ratings** from 1 to 5
+8. **Completion status**: Backlog, Playing, Beaten or Completed
+9. **Most Played** list and Home tile
+10. **Recently Added** list and Home tile
+11. **Random pick** from any list (a system, a collection or favorites)
+12. **Grid view** with box art (press SELECT in any game list)
+13. **Duplicate finder** for the same game found more than once
+14. **Storage by system**: how much space each system's games use
+15. **Delete ROM** from the game's options, with a confirmation
+
+**Stats**
+16. **Play stats**: total time, launches and your top games
+17. **7-day activity chart**
+18. **Day streak** counter
+19. **14 milestones** to unlock (e.g. "Marathon": 3 hours in one day)
+20. **Session summary** after each game ("You played Kirby for 42m")
+
+**Look & feel**
+21. **Screensaver**: drifting box art and a clock, with the screen dimmed
+22. **Wallpapers**: put images in `RyzerOS/wallpapers`
+23. **Theme of the day** or a **random theme** on every start
+24. **Day / night themes** that switch automatically
+25. **5 fonts** and **3 interface sizes**
+26. **Home layout**: order systems (A-Z, most games, recently played) and hide the ones you don't use
+
+**Device**
+27. **Quick menu (L + R)** from anywhere: volume, mute, brightness, Wi-Fi, Bluetooth, free memory
+28. **Vibration** on button presses
+29. **Battery saver**: lighter menus below 20%, with warnings at 15% and 5%
+30. **Kid mode**: hides settings, Apps and file actions behind a PIN
+
+Also included: settings **backup and restore**, an **analog clock** style for the top screen, and **store links** for missing emulators.
 
 ### Android: install on the stock OS
 
