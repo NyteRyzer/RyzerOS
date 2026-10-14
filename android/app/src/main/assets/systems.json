@@ -1,0 +1,673 @@
+{
+ "systems": [
+  {
+   "id": "switch",
+   "name": "Nintendo Switch",
+   "short": "NSW",
+   "color": "#E60012",
+   "folders": [
+    "switch"
+   ],
+   "extensions": [
+    ".nca",
+    ".nro",
+    ".nso",
+    ".nsp",
+    ".xci"
+   ],
+   "emulators": [
+    "eden"
+   ],
+   "demand": "Wants a flagship chip (Snapdragon 8 Gen 2 class, e.g. AYN Thor / Odin 2)",
+   "note": "Light titles only below Snapdragon 8 Gen 2. Needs keys/firmware set up inside Eden."
+  },
+  {
+   "id": "3ds",
+   "name": "Nintendo 3DS",
+   "short": "3DS",
+   "color": "#D12228",
+   "folders": [
+    "3ds",
+    "n3ds"
+   ],
+   "extensions": [
+    ".3ds",
+    ".3dsx",
+    ".app",
+    ".axf",
+    ".cci",
+    ".cxi",
+    ".elf",
+    ".z3dsx",
+    ".zcci",
+    ".zcxi"
+   ],
+   "emulators": [
+    "azahar",
+    "azaharplus",
+    "citra_mmj",
+    "lime3ds",
+    "mandarine",
+    "citra",
+    "citra_canary",
+    "panda3ds",
+    "ra:azahar",
+    "ra:citra"
+   ],
+   "demand": "Wants a strong chip (Snapdragon 865 / Dimensity 1100 or better)",
+   "note": "Dual-screen devices can show both 3DS screens natively (set the layout in Azahar)."
+  },
+  {
+   "id": "wiiu",
+   "name": "Nintendo Wii U",
+   "short": "WIIU",
+   "color": "#009AC7",
+   "folders": [
+    "wiiu"
+   ],
+   "extensions": [
+    ".elf",
+    ".rpx",
+    ".tmd",
+    ".wua",
+    ".wud",
+    ".wuhb",
+    ".wux"
+   ],
+   "emulators": [
+    "cemu"
+   ],
+   "demand": "Wants a flagship chip (Snapdragon 8 Gen 2 class, e.g. AYN Thor / Odin 2)",
+   "note": "Cemu for Android is early; expect issues."
+  },
+  {
+   "id": "wii",
+   "name": "Nintendo Wii",
+   "short": "WII",
+   "color": "#8FA3AD",
+   "folders": [
+    "wii"
+   ],
+   "extensions": [
+    ".ciso",
+    ".dol",
+    ".elf",
+    ".gcz",
+    ".iso",
+    ".rvz",
+    ".wad",
+    ".wbfs",
+    ".wia"
+   ],
+   "emulators": [
+    "dolphin",
+    "dolphin_mmjr2",
+    "ra:dolphin"
+   ],
+   "demand": "Wants a strong chip (Snapdragon 865 / Dimensity 1100 or better)",
+   "note": ""
+  },
+  {
+   "id": "gc",
+   "name": "Nintendo GameCube",
+   "short": "GC",
+   "color": "#6A5ACD",
+   "folders": [
+    "gc",
+    "gamecube",
+    "ngc"
+   ],
+   "extensions": [
+    ".ciso",
+    ".dol",
+    ".elf",
+    ".gcm",
+    ".gcz",
+    ".iso",
+    ".rvz",
+    ".tgc",
+    ".wia"
+   ],
+   "emulators": [
+    "dolphin",
+    "dolphin_mmjr2",
+    "ra:dolphin"
+   ],
+   "demand": "Wants a strong chip (Snapdragon 865 / Dimensity 1100 or better)",
+   "note": "On RK3568 / T618-class chips only a handful of light games approach full speed."
+  },
+  {
+   "id": "ps2",
+   "name": "PlayStation 2",
+   "short": "PS2",
+   "color": "#2E5BD8",
+   "folders": [
+    "ps2"
+   ],
+   "extensions": [
+    ".bin",
+    ".chd",
+    ".ciso",
+    ".cso",
+    ".elf",
+    ".gz",
+    ".img",
+    ".iso",
+    ".isz",
+    ".m3u",
+    ".mdf",
+    ".nrg"
+   ],
+   "emulators": [
+    "nethersx2",
+    "armsx2",
+    "ra:pcsx2"
+   ],
+   "demand": "Wants a strong chip (Snapdragon 865 / Dimensity 1100 or better)",
+   "note": "Adreno GPUs (Snapdragon) do far better than Mali. RK3568 devices: very light games only."
+  },
+  {
+   "id": "psvita",
+   "name": "PlayStation Vita",
+   "short": "VITA",
+   "color": "#003791",
+   "folders": [
+    "psvita",
+    "vita"
+   ],
+   "extensions": [
+    ".psvita",
+    ".vpk"
+   ],
+   "emulators": [],
+   "demand": "Wants a flagship chip (Snapdragon 8 Gen 2 class, e.g. AYN Thor / Odin 2)",
+   "note": "Use Vita3K's own launcher; pick it with 'Any app'."
+  },
+  {
+   "id": "nds",
+   "name": "Nintendo DS",
+   "short": "NDS",
+   "color": "#9AA3AD",
+   "folders": [
+    "nds"
+   ],
+   "extensions": [
+    ".7z",
+    ".app",
+    ".dsi",
+    ".ids",
+    ".nds",
+    ".zip"
+   ],
+   "emulators": [
+    "drastic",
+    "melonds",
+    "ra:melondsds",
+    "ra:melonds",
+    "ra:desmume"
+   ],
+   "demand": "Runs on any handheld",
+   "note": "On dual-screen devices DraStic/melonDS can put each DS screen on its own display."
+  },
+  {
+   "id": "psp",
+   "name": "PlayStation Portable",
+   "short": "PSP",
+   "color": "#3A3A3A",
+   "folders": [
+    "psp"
+   ],
+   "extensions": [
+    ".chd",
+    ".cso",
+    ".elf",
+    ".iso",
+    ".pbp",
+    ".prx"
+   ],
+   "emulators": [
+    "ppsspp",
+    "ra:ppsspp"
+   ],
+   "demand": "Wants a mid-range chip (Unisoc T618 / Dimensity 900 or better)",
+   "note": ""
+  },
+  {
+   "id": "dreamcast",
+   "name": "Sega Dreamcast",
+   "short": "DC",
+   "color": "#F28C28",
+   "folders": [
+    "dreamcast",
+    "dc"
+   ],
+   "extensions": [
+    ".cdi",
+    ".chd",
+    ".cue",
+    ".gdi",
+    ".m3u"
+   ],
+   "emulators": [
+    "flycast",
+    "redream",
+    "ra:flycast"
+   ],
+   "demand": "Wants a mid-range chip (Unisoc T618 / Dimensity 900 or better)",
+   "note": ""
+  },
+  {
+   "id": "saturn",
+   "name": "Sega Saturn",
+   "short": "SAT",
+   "color": "#455A64",
+   "folders": [
+    "saturn"
+   ],
+   "extensions": [
+    ".bin",
+    ".ccd",
+    ".chd",
+    ".cue",
+    ".iso",
+    ".m3u",
+    ".mds",
+    ".toc"
+   ],
+   "emulators": [
+    "yabasanshiro2",
+    "saturn_emu",
+    "ra:yabasanshiro",
+    "ra:mednafen_saturn"
+   ],
+   "demand": "Wants a mid-range chip (Unisoc T618 / Dimensity 900 or better)",
+   "note": ""
+  },
+  {
+   "id": "n64",
+   "name": "Nintendo 64",
+   "short": "N64",
+   "color": "#2DA44E",
+   "folders": [
+    "n64"
+   ],
+   "extensions": [
+    ".7z",
+    ".n64",
+    ".ndd",
+    ".v64",
+    ".z64",
+    ".zip"
+   ],
+   "emulators": [
+    "m64plus_fz",
+    "mupen64plus_ae",
+    "ra:mupen64plus_next_gles3",
+    "ra:parallel_n64"
+   ],
+   "demand": "Wants a mid-range chip (Unisoc T618 / Dimensity 900 or better)",
+   "note": ""
+  },
+  {
+   "id": "psx",
+   "name": "PlayStation",
+   "short": "PS1",
+   "color": "#8C8C8C",
+   "folders": [
+    "psx",
+    "ps1"
+   ],
+   "extensions": [
+    ".bin",
+    ".cbn",
+    ".ccd",
+    ".chd",
+    ".cue",
+    ".ecm",
+    ".exe",
+    ".img",
+    ".iso",
+    ".m3u",
+    ".mdf",
+    ".mds",
+    ".pbp",
+    ".toc"
+   ],
+   "emulators": [
+    "duckstation",
+    "ra:swanstation",
+    "ra:pcsx_rearmed",
+    "ra:mednafen_psx_hw"
+   ],
+   "demand": "Runs on any handheld",
+   "note": ""
+  },
+  {
+   "id": "gba",
+   "name": "Game Boy Advance",
+   "short": "GBA",
+   "color": "#5B3FA8",
+   "folders": [
+    "gba"
+   ],
+   "extensions": [
+    ".7z",
+    ".agb",
+    ".gba",
+    ".zip"
+   ],
+   "emulators": [
+    "ra:mgba",
+    "pizzaboy_gba",
+    "my_boy",
+    "ra:gpsp",
+    "ra:vbam"
+   ],
+   "demand": "Runs on any handheld",
+   "note": ""
+  },
+  {
+   "id": "gbc",
+   "name": "Game Boy Color",
+   "short": "GBC",
+   "color": "#C2185B",
+   "folders": [
+    "gbc"
+   ],
+   "extensions": [
+    ".7z",
+    ".cgb",
+    ".gbc",
+    ".zip"
+   ],
+   "emulators": [
+    "ra:gambatte",
+    "ra:sameboy",
+    "ra:mgba"
+   ],
+   "demand": "Runs on any handheld",
+   "note": ""
+  },
+  {
+   "id": "gb",
+   "name": "Game Boy",
+   "short": "GB",
+   "color": "#8BAC0F",
+   "folders": [
+    "gb"
+   ],
+   "extensions": [
+    ".7z",
+    ".dmg",
+    ".gb",
+    ".zip"
+   ],
+   "emulators": [
+    "ra:gambatte",
+    "ra:sameboy",
+    "ra:mgba"
+   ],
+   "demand": "Runs on any handheld",
+   "note": ""
+  },
+  {
+   "id": "snes",
+   "name": "Super Nintendo",
+   "short": "SNES",
+   "color": "#6C5CE7",
+   "folders": [
+    "snes",
+    "sfc"
+   ],
+   "extensions": [
+    ".7z",
+    ".bs",
+    ".fig",
+    ".sfc",
+    ".smc",
+    ".swc",
+    ".zip"
+   ],
+   "emulators": [
+    "ra:snes9x",
+    "ra:bsnes",
+    "ra:snes9x2010"
+   ],
+   "demand": "Runs on any handheld",
+   "note": ""
+  },
+  {
+   "id": "nes",
+   "name": "Nintendo Entertainment System",
+   "short": "NES",
+   "color": "#E53935",
+   "folders": [
+    "nes",
+    "fc",
+    "famicom"
+   ],
+   "extensions": [
+    ".7z",
+    ".fds",
+    ".nes",
+    ".unf",
+    ".unif",
+    ".zip"
+   ],
+   "emulators": [
+    "ra:mesen",
+    "ra:nestopia",
+    "ra:fceumm"
+   ],
+   "demand": "Runs on any handheld",
+   "note": ""
+  },
+  {
+   "id": "genesis",
+   "name": "Sega Genesis / Mega Drive",
+   "short": "MD",
+   "color": "#1E1E1E",
+   "folders": [
+    "genesis",
+    "megadrive",
+    "md"
+   ],
+   "extensions": [
+    ".32x",
+    ".7z",
+    ".bin",
+    ".gen",
+    ".md",
+    ".smd",
+    ".zip"
+   ],
+   "emulators": [
+    "ra:genesis_plus_gx",
+    "ra:picodrive"
+   ],
+   "demand": "Runs on any handheld",
+   "note": ""
+  },
+  {
+   "id": "segacd",
+   "name": "Sega CD",
+   "short": "SCD",
+   "color": "#37474F",
+   "folders": [
+    "segacd",
+    "megacd"
+   ],
+   "extensions": [
+    ".chd",
+    ".cue",
+    ".iso",
+    ".m3u"
+   ],
+   "emulators": [
+    "ra:genesis_plus_gx",
+    "ra:picodrive"
+   ],
+   "demand": "Runs on any handheld",
+   "note": ""
+  },
+  {
+   "id": "mastersystem",
+   "name": "Sega Master System",
+   "short": "SMS",
+   "color": "#B71C1C",
+   "folders": [
+    "mastersystem",
+    "sms"
+   ],
+   "extensions": [
+    ".7z",
+    ".bin",
+    ".sms",
+    ".zip"
+   ],
+   "emulators": [
+    "ra:genesis_plus_gx",
+    "ra:picodrive"
+   ],
+   "demand": "Runs on any handheld",
+   "note": ""
+  },
+  {
+   "id": "gamegear",
+   "name": "Sega Game Gear",
+   "short": "GG",
+   "color": "#263238",
+   "folders": [
+    "gamegear",
+    "gg"
+   ],
+   "extensions": [
+    ".7z",
+    ".bin",
+    ".gg",
+    ".zip"
+   ],
+   "emulators": [
+    "ra:genesis_plus_gx",
+    "ra:gearsystem"
+   ],
+   "demand": "Runs on any handheld",
+   "note": ""
+  },
+  {
+   "id": "pce",
+   "name": "PC Engine / TurboGrafx",
+   "short": "PCE",
+   "color": "#F57C00",
+   "folders": [
+    "pcengine",
+    "tg16",
+    "pce"
+   ],
+   "extensions": [
+    ".7z",
+    ".ccd",
+    ".chd",
+    ".cue",
+    ".pce",
+    ".sgx",
+    ".zip"
+   ],
+   "emulators": [
+    "ra:mednafen_pce_fast",
+    "ra:mednafen_pce"
+   ],
+   "demand": "Runs on any handheld",
+   "note": ""
+  },
+  {
+   "id": "arcade",
+   "name": "Arcade",
+   "short": "ARC",
+   "color": "#FFB300",
+   "folders": [
+    "arcade",
+    "fbneo",
+    "mame",
+    "neogeo"
+   ],
+   "extensions": [
+    ".7z",
+    ".zip"
+   ],
+   "emulators": [
+    "ra:fbneo",
+    "ra:mame2003_plus",
+    "ra:mamearcade"
+   ],
+   "demand": "Runs on any handheld",
+   "note": ""
+  },
+  {
+   "id": "atari2600",
+   "name": "Atari 2600",
+   "short": "2600",
+   "color": "#795548",
+   "folders": [
+    "atari2600"
+   ],
+   "extensions": [
+    ".7z",
+    ".a26",
+    ".bin",
+    ".zip"
+   ],
+   "emulators": [
+    "ra:stella"
+   ],
+   "demand": "Runs on any handheld",
+   "note": ""
+  },
+  {
+   "id": "ngpc",
+   "name": "Neo Geo Pocket Color",
+   "short": "NGP",
+   "color": "#C62828",
+   "folders": [
+    "ngpc",
+    "ngp"
+   ],
+   "extensions": [
+    ".7z",
+    ".ngc",
+    ".ngp",
+    ".ngpc",
+    ".zip"
+   ],
+   "emulators": [
+    "ra:mednafen_ngp",
+    "ra:race"
+   ],
+   "demand": "Runs on any handheld",
+   "note": ""
+  },
+  {
+   "id": "dos",
+   "name": "DOS",
+   "short": "DOS",
+   "color": "#455A64",
+   "folders": [
+    "dos",
+    "pc"
+   ],
+   "extensions": [
+    ".7z",
+    ".bat",
+    ".com",
+    ".dosz",
+    ".exe",
+    ".zip"
+   ],
+   "emulators": [
+    "ra:dosbox_pure"
+   ],
+   "demand": "Runs on any handheld",
+   "note": ""
+  }
+ ]
+}

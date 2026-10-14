@@ -3,3 +3,8 @@ __pycache__/
 *.pyc
 .pytest_cache/
 shots/
+.gradle/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties

@@ -1,0 +1,500 @@
+package com.ryzer.os
+
+import android.Manifest
+import android.app.Activity
+import android.app.Presentation
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.graphics.Canvas
+import android.graphics.RectF
+import android.hardware.display.DisplayManager
+import android.media.AudioAttributes
+import android.media.AudioFormat
+import android.media.AudioTrack
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.net.Uri
+import android.os.BatteryManager
+import android.os.Build
+import android.os.Bundle
+import android.os.Environment
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
+import android.provider.Settings
+import android.view.Display
+import android.view.InputDevice
+import android.view.KeyEvent
+import android.view.MotionEvent
+import android.view.View
+import android.view.WindowInsets
+import android.view.WindowInsetsController
+import android.view.WindowManager
+import java.io.File
+import java.util.concurrent.Executors
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.sin
+
+enum class Role { MAIN, TOP }
+
+/** App-wide state and actions shared by every screen. */
+class Ryzer(val ctx: MainActivity) {
+    val home: File = pickHome()
+    val cfg = Config(File(home, "config.json"))
+    val state = PlayState(File(home, "state.json"))
+    var themes = Themes.loadAll(this)
+    var theme: Theme = themes[cfg.theme] ?: themes.values.first()
+    private var preview: Theme? = null
+    val activeTheme get() = preview ?: theme
+    var emulators: Map<String, Emulator> = Library.loadEmulators(this)
+    var systems: List<GameSystem> = Library.loadSystems(this)
+    val stack = ArrayList<Screen>()
+    val current get() = stack.lastOrNull()
+    var scanning = false
+    private var toastMsg = ""
+    private var toastUntil = 0L
+    val sounds = Sounds(cfg.sound, cfg.volume)
+    private val particles = Particles()
+    private val io = Executors.newSingleThreadExecutor()
+    private val main = Handler(Looper.getMainLooper())
+    val dual get() = ctx.dualActive
+    var focusTheme: String? = null
+
+    private fun pickHome(): File {
+        val shared = File(Environment.getExternalStorageDirectory(), "RyzerOS")
+        if (hasStorageAccess(ctx) && (shared.isDirectory || shared.mkdirs())) return shared
+        return ctx.getExternalFilesDir(null) ?: ctx.filesDir
+    }
+
+    fun userThemesDir() = File(home, "themes").apply { mkdirs() }
+
+    fun romRoots(): List<File> = (cfg.romDirs.ifEmpty { Library.defaultRomDirs() }).map { File(it) }
+
+    // ----- screen stack -----
+    fun push(s: Screen) { stack.add(s); ctx.redraw() }
+    fun pop() { if (stack.size > 1) { stack.removeAt(stack.size - 1); current?.onResume() } ; ctx.redraw() }
+    fun replace(s: Screen) { if (stack.isNotEmpty()) stack.removeAt(stack.size - 1); stack.add(s) }
+    fun goHome() { while (stack.size > 1) stack.removeAt(stack.size - 1); current?.onResume() }
+
+    // ----- themes -----
+    fun setTheme(id: String, save: Boolean = true) {
+        themes[id]?.let { theme = it; preview = null; if (save) { cfg.theme = id; cfg.save() } }
+    }
+    fun previewTheme(t: Theme) { preview = t }
+    fun endPreview() { preview = null }
+
+    // ----- library -----
+    fun rescan(done: (() -> Unit)? = null) {
+        if (scanning) return
+        scanning = true
+        val roots = romRoots()
+        val list = systems
+        io.execute {
+            Library.scan(list, roots, cfg.cleanNames)
+            main.post { scanning = false; current?.onResume(); done?.invoke(); ctx.redraw() }
+        }
+    }
+
+    fun reloadData() {
+        emulators = Library.loadEmulators(this)
+        systems = Library.loadSystems(this)
+        rescan()
+    }
+
+    fun launch(game: Game) {
+        val sys = game.system
+        val choice = Launcher.chosen(this, sys)
+        val intent: Intent? = when {
+            choice == null -> null
+            choice == Launcher.CHOOSER -> Launcher.anyAppIntent(game, null)
+            choice.startsWith(Launcher.ANY_APP_PREFIX) -> Launcher.anyAppIntent(game, choice.removePrefix(Launcher.ANY_APP_PREFIX))
+            else -> Launcher.emulator(this, choice)?.let { Launcher.buildIntent(this, it, game) }
+        }
+        if (intent == null) {
+            sounds.play("error")
+            notify("No ${sys.short} emulator installed - pick one")
+            push(EmulatorPicker(this, sys))
+            return
+        }
+        val target = intent.component?.packageName ?: intent.`package` ?: ""
+        val start = Runnable {
+            try {
+                state.startPlay(game.key)
+                ctx.startActivity(intent)
+            } catch (e: ActivityNotFoundException) {
+                state.pendingKey = null
+                notify("Couldn't start ${Launcher.label(this, choice)}")
+            } catch (e: SecurityException) {
+                state.pendingKey = null
+                notify("${Launcher.label(this, choice)} refused the launch")
+            }
+        }
+        notify("Launching ${game.name}")
+        if (cfg.boost && Launcher.isHeavy(sys)) io.execute { Launcher.boost(ctx, target); main.post(start) } else start.run()
+    }
+
+    fun openSearch() {
+        push(Keyboard(this, "Search games") { q ->
+            if (q.isNotEmpty()) {
+                val r = Library.search(systems, q)
+                if (r.isEmpty()) notify("No games match \"$q\"") else push(GameList(this, "Search: \"$q\"", r))
+            }
+        })
+    }
+
+    fun openRandom() {
+        val games = systems.flatMap { it.games }
+        if (games.isEmpty()) { sounds.play("error"); notify("No games found yet"); return }
+        val g = games.random()
+        notify("Surprise! ${g.name}")
+        launch(g)
+    }
+
+    fun notify(msg: String, seconds: Float = 2.2f) {
+        toastMsg = msg; toastUntil = SystemClock.uptimeMillis() + (seconds * 1000).toLong(); ctx.redraw()
+    }
+
+    // ----- device status -----
+    fun battery(): Pair<Int, Boolean> {
+        val i = ctx.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED)) ?: return -1 to false
+        val level = i.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+        val scale = i.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
+        val status = i.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+        if (level < 0) return -1 to false
+        return level * 100 / scale to (status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL)
+    }
+
+    fun wifiConnected(): Boolean {
+        val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
+        return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+    }
+
+    // ----- drawing -----
+    val hits = HashMap<Role, MutableList<Pair<RectF, () -> Unit>>>()
+    private var hitRole = Role.MAIN
+
+    /** Screens call this while drawing to make a region tappable. */
+    fun hit(r: RectF, action: () -> Unit) { hits.getOrPut(hitRole) { mutableListOf() }.add(RectF(r) to action) }
+
+    fun tap(role: Role, x: Float, y: Float) {
+        val list = hits[role] ?: return
+        for ((r, action) in list.reversed()) if (r.contains(x, y)) { action(); ctx.redraw(); return }
+    }
+
+    fun drawBigClock(c: Canvas, w: Float, y: Float) {
+        val th = activeTheme
+        val now = java.util.Date()
+        val fmt = java.text.SimpleDateFormat(if (cfg.clock24) "HH:mm" else "h:mm", java.util.Locale.getDefault())
+        G.text(c, fmt.format(now), w / 2, y, 110f, th.c("text"), align = 'c', isBold = true)
+        G.text(c, java.text.SimpleDateFormat("EEEE, MMMM d", java.util.Locale.getDefault()).format(now), w / 2, y + 92, 28f,
+            th.c("accent"), align = 'c')
+    }
+
+    fun drawDefaultTop(c: Canvas, w: Float, h: Float) {
+        G.topBar(c, this, activeTheme, "", w)
+        drawBigClock(c, w, h / 2 - 80)
+    }
+
+    fun render(c: Canvas, role: Role, w: Float, h: Float, dt: Float, t: Float) {
+        val th = activeTheme
+        hitRole = role
+        hits[role] = mutableListOf()
+        G.background(c, th, w, h, t)
+        if (role == Role.MAIN) particles.draw(c, th, dt, w, h)
+        val scr = current ?: return
+        if (role == Role.MAIN) {
+            scr.draw(c, w, h)
+            G.hints(c, th, scr.hints(), w, h) { r, action -> hit(r) { handle(action) } }
+            val now = SystemClock.uptimeMillis()
+            if (now < toastUntil) G.toast(c, th, toastMsg, ((toastUntil - now) / 330f).coerceAtMost(1f), w, h)
+            if (scanning) G.text(c, "Scanning...", w - 16, 46f, 18f, th.c("accent"), align = 'r')
+        } else {
+            scr.drawTop(c, w, h)
+        }
+    }
+
+    fun handle(action: String) {
+        current?.handle(action)
+        ctx.redraw()
+    }
+
+    fun update(dt: Float) { current?.update(dt) }
+}
+
+/** One drawing surface: the main screen, the top screen, or both stacked on a tall single display. */
+class RyzerView(context: Context, private val app: () -> Ryzer?, var role: Role) : View(context) {
+    private var last = SystemClock.uptimeMillis()
+
+    init { isFocusable = role == Role.MAIN; isFocusableInTouchMode = role == Role.MAIN }
+
+    private fun regions(): List<Pair<Role, RectF>> {
+        val w = width.toFloat(); val h = height.toFloat()
+        val a = app() ?: return emptyList()
+        val split = role == Role.MAIN && !a.dual && a.cfg.dual != "off" && h >= w * 1.5f
+        return if (split) listOf(Role.TOP to RectF(0f, 0f, w, h / 2), Role.MAIN to RectF(0f, h / 2, w, h))
+        else listOf(role to RectF(0f, 0f, w, h))
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        val a = app() ?: return
+        val now = SystemClock.uptimeMillis()
+        val dt = ((now - last) / 1000f).coerceIn(0f, 0.1f)
+        last = now
+        for ((r, rect) in regions()) {
+            val scale = rect.height() / 480f
+            canvas.save()
+            canvas.translate(rect.left, rect.top)
+            canvas.clipRect(0f, 0f, rect.width(), rect.height())
+            canvas.scale(scale, scale)
+            a.render(canvas, r, rect.width() / scale, 480f, dt, now / 1000f)
+            canvas.restore()
+        }
+    }
+
+    override fun onTouchEvent(e: MotionEvent): Boolean {
+        val a = app() ?: return false
+        if (e.actionMasked != MotionEvent.ACTION_UP) return true
+        for ((r, rect) in regions()) if (rect.contains(e.x, e.y)) {
+            val scale = rect.height() / 480f
+            a.tap(r, (e.x - rect.left) / scale, (e.y - rect.top) / scale)
+        }
+        return true
+    }
+}
+
+/** Shows Ryzer on a second physical display (AYN Thor, RG DS, AYANEO Pocket DS, Retroid Dual...). */
+class SecondScreen(ctx: Context, display: Display, app: () -> Ryzer?, role: Role) : Presentation(ctx, display) {
+    val view = RyzerView(ctx, app, role)
+    init {
+        setContentView(view)
+        window?.addFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
+    }
+}
+
+class MainActivity : Activity() {
+    private var app: Ryzer? = null
+    private lateinit var mainView: RyzerView
+    private var second: SecondScreen? = null
+    var dualActive = false
+        private set
+    private val handler = Handler(Looper.getMainLooper())
+    private var resumed = false
+    private val held = HashSet<String>()
+    private var axisDir: String? = null
+    private var axisRepeatAt = 0L
+
+    private val tick = object : Runnable {
+        override fun run() {
+            val a = app ?: return
+            if (!resumed) return
+            val now = SystemClock.uptimeMillis()
+            axisDir?.let { if (now >= axisRepeatAt) { a.handle(it); axisRepeatAt = now + 75 } }
+            a.update(1f / a.cfg.fps)
+            redraw()
+            handler.postDelayed(this, (1000 / a.cfg.fps).toLong())
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        BuildInfo.currentContext = applicationContext
+        mainView = RyzerView(this, { app }, Role.MAIN)
+        setContentView(mainView)
+        mainView.requestFocus()
+        start()
+    }
+
+    private fun start() {
+        val a = Ryzer(this)
+        app = a
+        val homeScreen = HomeScreen(a)
+        a.stack.clear()
+        a.stack.add(if (a.cfg.boot) BootScreen(a, homeScreen) else homeScreen)
+        if (!hasStorageAccess(this)) a.push(PermissionScreen(a))
+        a.rescan()
+    }
+
+    /** Called by the permission screen once access is granted, so data moves to /RyzerOS. */
+    fun restart() { second?.dismiss(); second = null; start(); updateDisplays() }
+
+    override fun onResume() {
+        super.onResume()
+        resumed = true
+        hideSystemBars()
+        app?.let { a ->
+            a.state.finishPlay()
+            a.current?.onResume()
+        }
+        updateDisplays()
+        handler.removeCallbacks(tick)
+        handler.post(tick)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        resumed = false
+        // Free the second screen so dual-screen emulators (DraStic, Azahar, melonDS) can use it.
+        second?.dismiss()
+        second = null
+        dualActive = false
+    }
+
+    private fun hideSystemBars() {
+        if (Build.VERSION.SDK_INT >= 30) {
+            window.insetsController?.let {
+                it.hide(WindowInsets.Type.systemBars())
+                it.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or View.SYSTEM_UI_FLAG_LAYOUT_STABLE)
+        }
+    }
+
+    fun secondaryDisplays(): List<Display> {
+        val dm = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+        val mine = mainView.display?.displayId ?: Display.DEFAULT_DISPLAY
+        return dm.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION).filter { it.displayId != mine }
+    }
+
+    fun updateDisplays() {
+        val a = app ?: return
+        second?.dismiss(); second = null; dualActive = false
+        val disp = secondaryDisplays().firstOrNull()
+        if (disp != null && a.cfg.dual != "off" && resumed) {
+            runCatching {
+                val p = SecondScreen(this, disp, { app }, if (a.cfg.swapScreens) Role.MAIN else Role.TOP)
+                p.show()
+                second = p
+                dualActive = true
+            }
+        }
+        mainView.role = if (dualActive && a.cfg.swapScreens) Role.TOP else Role.MAIN
+        redraw()
+    }
+
+    fun redraw() { mainView.invalidate(); second?.view?.invalidate() }
+
+    // ----- input -----
+    private fun action(code: Int): String? = when (code) {
+        KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_W -> "up"
+        KeyEvent.KEYCODE_DPAD_DOWN -> "down"
+        KeyEvent.KEYCODE_DPAD_LEFT -> "left"
+        KeyEvent.KEYCODE_DPAD_RIGHT -> "right"
+        KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_Z -> "a"
+        KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE, KeyEvent.KEYCODE_X -> "b"
+        KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_C -> "x"
+        KeyEvent.KEYCODE_BUTTON_Y, KeyEvent.KEYCODE_V -> "y"
+        KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_PAGE_UP, KeyEvent.KEYCODE_Q -> "l"
+        KeyEvent.KEYCODE_BUTTON_R1, KeyEvent.KEYCODE_BUTTON_R2, KeyEvent.KEYCODE_PAGE_DOWN, KeyEvent.KEYCODE_E -> "r"
+        KeyEvent.KEYCODE_BUTTON_START, KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_S -> "start"
+        KeyEvent.KEYCODE_BUTTON_SELECT, KeyEvent.KEYCODE_A -> "select"
+        else -> null
+    }
+
+    private fun swap(a: String) = if (app?.cfg?.swapAB == true) when (a) { "a" -> "b"; "b" -> "a"; else -> a } else a
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        val a = app ?: return super.onKeyDown(keyCode, event)
+        val act = action(keyCode)?.let { swap(it) } ?: return super.onKeyDown(keyCode, event)
+        if (event.repeatCount > 0 && act !in setOf("up", "down", "left", "right")) return true
+        held.add(act)
+        a.handle(act)
+        return true
+    }
+
+    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
+        val act = action(keyCode)?.let { swap(it) } ?: return super.onKeyUp(keyCode, event)
+        held.remove(act)
+        return true
+    }
+
+    override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean {
+        val a = app
+        if (a != null && ev.isFromSource(InputDevice.SOURCE_JOYSTICK) && ev.action == MotionEvent.ACTION_MOVE) {
+            val x = ev.getAxisValue(MotionEvent.AXIS_X).let { if (abs(it) > 0.5f) it else ev.getAxisValue(MotionEvent.AXIS_HAT_X) }
+            val y = ev.getAxisValue(MotionEvent.AXIS_Y).let { if (abs(it) > 0.5f) it else ev.getAxisValue(MotionEvent.AXIS_HAT_Y) }
+            val dir = when {
+                y < -0.5f -> "up"; y > 0.5f -> "down"; x < -0.5f -> "left"; x > 0.5f -> "right"; else -> null
+            }
+            if (dir != axisDir) {
+                axisDir = dir
+                if (dir != null) { a.handle(dir); axisRepeatAt = SystemClock.uptimeMillis() + 350 }
+            }
+            return true
+        }
+        return super.dispatchGenericMotionEvent(ev)
+    }
+
+    @Deprecated("Back is handled as the B button")
+    override fun onBackPressed() { app?.handle("b") }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (hasStorageAccess(this)) restart()
+    }
+
+    fun requestStorage() {
+        if (Build.VERSION.SDK_INT >= 30) {
+            try {
+                startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:$packageName")))
+            } catch (e: ActivityNotFoundException) {
+                startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+            }
+        } else {
+            requestPermissions(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE), 1)
+        }
+    }
+}
+
+fun hasStorageAccess(ctx: Context): Boolean =
+    if (Build.VERSION.SDK_INT >= 30) Environment.isExternalStorageManager()
+    else ctx.checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+
+/** UI sound effects synthesised at startup, so the APK ships no audio files. */
+class Sounds(var enabled: Boolean, volume: Int) {
+    private val rate = 22050
+    private val tracks = HashMap<String, AudioTrack>()
+    private var vol = volume / 100f
+
+    init {
+        runCatching {
+            mapOf(
+                "move" to Triple(floatArrayOf(880f), 25, 0.12f), "select" to Triple(floatArrayOf(660f, 990f), 70, 0.2f),
+                "back" to Triple(floatArrayOf(600f, 400f), 70, 0.18f), "error" to Triple(floatArrayOf(220f, 180f), 140, 0.2f),
+                "boot" to Triple(floatArrayOf(220f, 330f, 440f, 660f, 880f), 700, 0.22f), "fav" to Triple(floatArrayOf(990f, 1320f), 90, 0.18f),
+            ).forEach { (name, spec) -> tracks[name] = tone(spec.first, spec.second, spec.third) }
+        }
+    }
+
+    private fun tone(freqs: FloatArray, ms: Int, volume: Float): AudioTrack {
+        val n = rate * ms / 1000
+        val buf = ShortArray(n) { i ->
+            val f = freqs[minOf(freqs.size - 1, i * freqs.size / n)]
+            val env = minOf(1f, i / 200f) * (1 - i.toFloat() / n).let { it * it }
+            (sin(2 * PI * f * i / rate) * env * volume * 32767).toInt().toShort()
+        }
+        val t = AudioTrack.Builder()
+            .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+            .setAudioFormat(AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_16BIT).setSampleRate(rate)
+                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build())
+            .setTransferMode(AudioTrack.MODE_STATIC).setBufferSizeInBytes(n * 2).build()
+        t.write(buf, 0, n)
+        return t
+    }
+
+    fun setVolume(v: Int) { vol = v / 100f }
+
+    fun play(name: String) {
+        if (!enabled) return
+        val t = tracks[name] ?: return
+        runCatching { t.stop(); t.reloadStaticData(); t.setVolume(vol); t.play() }
+    }
+}

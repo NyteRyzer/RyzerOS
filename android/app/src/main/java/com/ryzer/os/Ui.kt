@@ -1,0 +1,370 @@
+package com.ryzer.os
+
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.LinearGradient
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.RectF
+import android.graphics.Shader
+import android.graphics.Typeface
+import org.json.JSONObject
+import java.io.File
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.min
+import kotlin.math.max
+import kotlin.math.sin
+import kotlin.random.Random
+
+/** A theme: 12 colours plus a few style switches. Same JSON format as the Linux edition. */
+class Theme(
+    val id: String,
+    var name: String,
+    val colors: MutableMap<String, Int>,
+    val style: MutableMap<String, Any>,
+    val builtin: Boolean,
+    var author: String = "Ryzer",
+) {
+    fun c(key: String): Int = colors[key] ?: 0xFFFF00FF.toInt()
+    val radius get() = (style["corner_radius"] as Number).toFloat()
+    val tileStyle get() = style["tile_style"] as String
+    val background get() = style["background"] as String
+    val fontScale get() = (style["font_scale"] as Number).toFloat()
+    val particles get() = style["particles"] as Boolean
+
+    fun copy(newId: String, newName: String) =
+        Theme(newId, newName, colors.toMutableMap(), style.toMutableMap(), builtin = false, author = "You")
+
+    fun toJson(): JSONObject = JSONObject().apply {
+        put("id", id); put("name", name); put("author", author)
+        put("colors", JSONObject().apply { for (k in COLOR_KEYS) put(k, hex(c(k))) })
+        put("style", JSONObject(style as Map<*, *>))
+    }
+
+    companion object {
+        val COLOR_KEYS = listOf("bg_top", "bg_bottom", "panel", "panel_border", "accent", "accent2",
+            "text", "text_dim", "highlight_text", "good", "warn", "bad")
+        val BACKGROUNDS = listOf("gradient", "scanlines", "grid", "dots", "waves", "stars")
+        val TILE_STYLES = listOf("glow", "flat", "outline")
+
+        fun hex(c: Int) = String.format("#%06X", c and 0xFFFFFF)
+
+        fun parseColor(s: String): Int {
+            val h = s.trim().removePrefix("#")
+            require(h.length == 6 && h.all { it.isLetterOrDigit() }) { "bad colour $s" }
+            return (0xFF000000 or h.toLong(16)).toInt()
+        }
+
+        /** Returns null for a broken theme so one bad file never stops the UI from starting. */
+        fun parse(json: JSONObject, builtin: Boolean): Theme? = try {
+            val cj = json.getJSONObject("colors")
+            val colors = COLOR_KEYS.associateWith { parseColor(cj.getString(it)) }.toMutableMap()
+            val sj = json.optJSONObject("style") ?: JSONObject()
+            val style = mutableMapOf<String, Any>(
+                "corner_radius" to sj.optInt("corner_radius", 12).coerceIn(0, 32),
+                "tile_style" to sj.optString("tile_style", "glow").let { if (it in TILE_STYLES) it else "glow" },
+                "background" to sj.optString("background", "gradient").let { if (it in BACKGROUNDS) it else "gradient" },
+                "font_scale" to sj.optDouble("font_scale", 1.0).toFloat().coerceIn(0.8f, 1.4f),
+                "particles" to sj.optBoolean("particles", false),
+            )
+            Theme(json.getString("id"), json.optString("name", json.getString("id")), colors, style, builtin,
+                json.optString("author", "Ryzer"))
+        } catch (e: Exception) {
+            null
+        }
+    }
+}
+
+object Themes {
+    fun loadAll(app: Ryzer): LinkedHashMap<String, Theme> {
+        val out = LinkedHashMap<String, Theme>()
+        val am = app.ctx.assets
+        for (f in (am.list("themes") ?: emptyArray()).sorted()) {
+            if (!f.endsWith(".json")) continue
+            val t = am.open("themes/$f").bufferedReader().use { Theme.parse(JSONObject(it.readText()), true) }
+            if (t != null) out[t.id] = t
+        }
+        app.userThemesDir().listFiles { f -> f.name.endsWith(".json") }?.sortedBy { it.name }?.forEach { f ->
+            runCatching { Theme.parse(JSONObject(f.readText()), false) }.getOrNull()?.let { out[it.id] = it }
+        }
+        return out
+    }
+
+    fun save(app: Ryzer, t: Theme) = File(app.userThemesDir(), "${t.id}.json").writeText(t.toJson().toString(2))
+    fun delete(app: Ryzer, t: Theme) { if (!t.builtin) File(app.userThemesDir(), "${t.id}.json").delete() }
+
+    fun nextCustomId(themes: Map<String, Theme>): Pair<String, String> {
+        var n = 1
+        while ("custom-$n" in themes) n++
+        return "custom-$n" to "Custom $n"
+    }
+}
+
+fun mix(a: Int, b: Int, t: Float): Int {
+    val tt = t.coerceIn(0f, 1f)
+    fun ch(s: Int) = (((a shr s) and 255) + (((b shr s) and 255) - ((a shr s) and 255)) * tt).toInt()
+    return (0xFF shl 24) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
+}
+
+fun withAlpha(c: Int, a: Float) = ((a.coerceIn(0f, 1f) * 255).toInt() shl 24) or (c and 0xFFFFFF)
+
+/**
+ * Drawing toolkit. Everything is in logical units: the canvas is pre-scaled so the
+ * screen is always 480 units tall (width follows the display's aspect ratio), so the
+ * layout looks the same on a 640x480 RG DS panel and a 1080p AYN Odin.
+ */
+object G {
+    private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    private val textP = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val bold = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    private val bgCache = HashMap<String, Bitmap>()
+
+    /** Draws text with its top edge at y (pygame-style). `size` matches the Linux edition's font sizes. */
+    fun text(c: Canvas, s: String, x: Float, y: Float, size: Float, color: Int, align: Char = 'l',
+             isBold: Boolean = false, maxW: Float = 0f, theme: Theme? = null): RectF {
+        textP.textSize = size * 0.72f * (theme?.fontScale ?: 1f)
+        textP.typeface = if (isBold) bold else Typeface.DEFAULT
+        textP.color = color
+        var str = s
+        if (maxW > 0 && textP.measureText(str) > maxW) {
+            while (str.isNotEmpty() && textP.measureText("$str...") > maxW) str = str.dropLast(1)
+            str += "..."
+        }
+        val w = textP.measureText(str)
+        val left = when (align) { 'c' -> x - w / 2; 'r' -> x - w; else -> x }
+        val fm = textP.fontMetrics
+        c.drawText(str, left, y - fm.ascent, textP)
+        return RectF(left, y, left + w, y + fm.descent - fm.ascent)
+    }
+
+    fun measure(s: String, size: Float, isBold: Boolean = false): Float {
+        textP.textSize = size * 0.72f
+        textP.typeface = if (isBold) bold else Typeface.DEFAULT
+        return textP.measureText(s)
+    }
+
+    fun rect(c: Canvas, r: RectF, color: Int, radius: Float = 0f) {
+        fill.color = color; fill.shader = null
+        c.drawRoundRect(r, radius, radius, fill)
+    }
+
+    fun outline(c: Canvas, r: RectF, color: Int, width: Float, radius: Float = 0f) {
+        stroke.color = color; stroke.strokeWidth = width
+        c.drawRoundRect(r, radius, radius, stroke)
+    }
+
+    fun circle(c: Canvas, x: Float, y: Float, r: Float, color: Int) { fill.color = color; fill.shader = null; c.drawCircle(x, y, r, fill) }
+    fun ring(c: Canvas, x: Float, y: Float, r: Float, color: Int, w: Float) { stroke.color = color; stroke.strokeWidth = w; c.drawCircle(x, y, r, stroke) }
+    fun line(c: Canvas, x1: Float, y1: Float, x2: Float, y2: Float, color: Int, w: Float = 1f) {
+        stroke.color = color; stroke.strokeWidth = w; c.drawLine(x1, y1, x2, y2, stroke)
+    }
+    fun path(c: Canvas, p: Path, color: Int, filled: Boolean = true, w: Float = 2f) {
+        if (filled) { fill.color = color; fill.shader = null; c.drawPath(p, fill) }
+        else { stroke.color = color; stroke.strokeWidth = w; c.drawPath(p, stroke) }
+    }
+
+    fun background(c: Canvas, th: Theme, w: Float, h: Float, t: Float) {
+        val key = "${th.id}|${th.colors.values.hashCode()}|${th.background}|${w.toInt()}x${h.toInt()}"
+        val bmp = bgCache[key] ?: buildBg(th, w.toInt().coerceAtLeast(1), h.toInt().coerceAtLeast(1)).also {
+            if (bgCache.size > 6) bgCache.clear()
+            bgCache[key] = it
+        }
+        c.drawBitmap(bmp, 0f, 0f, null)
+        if (th.background == "waves") {
+            val col = mix(th.c("bg_bottom"), th.c("accent"), 0.18f)
+            for (k in 0 until 3) {
+                val p = Path()
+                var x = 0f
+                while (x <= w + 16) {
+                    val y = h * 0.72f + k * 18 + sin(x / 70 + t * (0.6f + k * 0.2f) + k) * 10
+                    if (x == 0f) p.moveTo(x, y) else p.lineTo(x, y)
+                    x += 16
+                }
+                path(c, p, col, filled = false, w = 2f)
+            }
+        }
+    }
+
+    private fun buildBg(th: Theme, w: Int, h: Int): Bitmap {
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val c = Canvas(bmp)
+        val p = Paint()
+        p.shader = LinearGradient(0f, 0f, 0f, h.toFloat(), th.c("bg_top"), th.c("bg_bottom"), Shader.TileMode.CLAMP)
+        c.drawRect(0f, 0f, w.toFloat(), h.toFloat(), p)
+        val lineCol = mix(th.c("bg_top"), th.c("accent"), 0.12f)
+        when (th.background) {
+            "scanlines" -> { var y = 0; while (y < h) { line(c, 0f, y.toFloat(), w.toFloat(), y.toFloat(), 0x55000000, 1f); y += 3 } }
+            "grid" -> {
+                var x = 0; while (x < w) { line(c, x.toFloat(), h / 2f, w / 2f + (x - w / 2f) * 2, h.toFloat(), lineCol); x += 32 }
+                for (i in 0 until 8) { val y = h / 2f + (h / 2f) * Math.pow(i / 8.0, 1.6).toFloat(); line(c, 0f, y, w.toFloat(), y, lineCol) }
+            }
+            "dots" -> { var y = 8; while (y < h) { var x = 8 + (y / 20 % 2) * 10; while (x < w) { circle(c, x.toFloat(), y.toFloat(), 1f, lineCol); x += 20 }; y += 20 } }
+            "stars" -> { val r = Random(7); repeat(w * h / 2200) { circle(c, r.nextInt(w).toFloat(), r.nextInt(h).toFloat(), 0.8f,
+                mix(th.c("bg_top"), th.c("text"), r.nextFloat() * 0.6f)) } }
+        }
+        return bmp
+    }
+
+    fun panel(c: Canvas, r: RectF, th: Theme, selected: Boolean = false, pulse: Float = 0f, fillColor: Int? = null) {
+        val rad = th.radius
+        if (selected && th.tileStyle == "glow") {
+            for (i in 3 downTo 1) {
+                val g = RectF(r).apply { inset(-i * 2f, -i * 2f) }
+                rect(c, g, withAlpha(th.c("accent"), 0.18f + 0.08f * (3 - i) + 0.1f * pulse), rad + i * 2)
+            }
+        }
+        val body = fillColor ?: when {
+            th.tileStyle == "outline" -> th.c("panel")
+            selected -> mix(th.c("panel"), th.c("accent"), 0.18f)
+            else -> th.c("panel")
+        }
+        rect(c, r, body, rad)
+        val border = if (selected) th.c("accent") else th.c("panel_border")
+        outline(c, r, border, if (selected) 3f else if (th.tileStyle == "outline") 2f else 1f, rad)
+    }
+
+    fun topBar(c: Canvas, app: Ryzer, th: Theme, title: String, w: Float) {
+        text(c, title, 16f, 10f, 26f, th.c("text"), isBold = true, theme = th, maxW = w * 0.55f)
+        val now = java.util.Date()
+        val clock = java.text.SimpleDateFormat(if (app.cfg.clock24) "HH:mm" else "h:mm a", java.util.Locale.getDefault()).format(now)
+        var x = w - 16
+        val r = text(c, clock, x, 11f, 24f, th.c("text"), align = 'r', theme = th)
+        x = r.left - 14
+        if (app.cfg.showBattery) {
+            val (pct, charging) = app.battery()
+            if (pct >= 0) {
+                val br = RectF(x - 30, 14f, x, 28f)
+                outline(c, br, th.c("text_dim"), 2f, 3f)
+                rect(c, RectF(br.right, br.top + 4, br.right + 3, br.top + 10), th.c("text_dim"))
+                val col = when { pct <= 15 -> th.c("bad"); pct <= 30 -> th.c("warn"); else -> th.c("good") }
+                rect(c, RectF(br.left + 3, br.top + 3, br.left + 3 + 24 * pct / 100f, br.bottom - 3), col)
+                val lr = text(c, "$pct%" + if (charging) " +" else "", br.left - 6, 12f, 20f, th.c("text_dim"), align = 'r', theme = th)
+                x = lr.left - 12
+            }
+        }
+        if (app.wifiConnected()) {
+            for (i in 0 until 3) {
+                stroke.color = th.c("text_dim"); stroke.strokeWidth = 2f
+                val rr = RectF(x - 10 - i * 5, 26f - i * 5, x + i * 5, 36f + i * 5)
+                c.drawArc(rr, 225f, 90f, false, stroke)
+            }
+        }
+        line(c, 12f, 42f, w - 12, 42f, th.c("panel_border"))
+    }
+
+    /** Bottom bar of button prompts. Registers tap targets so touch screens can press them too. */
+    fun hints(c: Canvas, th: Theme, items: List<Pair<String, String>>, w: Float, h: Float, hit: (RectF, String) -> Unit) {
+        line(c, 12f, h - 36, w - 12, h - 36, th.c("panel_border"))
+        var x = w - 16
+        for ((label, action) in items.reversed()) {
+            val r = text(c, action, x, h - 27, 20f, th.c("text_dim"), align = 'r', theme = th)
+            val left: Float
+            if (label.length == 1) {
+                circle(c, r.left - 16, h - 19, 11f, th.c("accent"))
+                text(c, label, r.left - 16, h - 27, 18f, th.c("highlight_text"), align = 'c', isBold = true)
+                left = r.left - 28
+            } else {
+                val tw = measure(label, 16f, true)
+                val pr = RectF(r.left - 12 - tw - 10, h - 28, r.left - 7, h - 10)
+                rect(c, pr, th.c("accent"), 8f)
+                text(c, label, pr.centerX(), h - 26, 16f, th.c("highlight_text"), align = 'c', isBold = true)
+                left = pr.left
+            }
+            hit(RectF(left - 4, h - 34, r.right + 4, h), label.lowercase().substringBefore("/"))
+            x = left - 14
+        }
+    }
+
+    fun toast(c: Canvas, th: Theme, msg: String, alpha: Float, w: Float, h: Float) {
+        val tw = min(w - 40, measure(msg, 22f) + 32)
+        val r = RectF(w / 2 - tw / 2, h - 86, w / 2 + tw / 2, h - 46)
+        rect(c, r, withAlpha(th.c("panel"), 0.92f * alpha), 12f)
+        outline(c, r, withAlpha(th.c("accent"), alpha), 2f, 12f)
+        text(c, msg, w / 2, r.top + 11, 22f, withAlpha(th.c("text"), alpha), align = 'c', maxW = tw - 24)
+    }
+
+    fun scrollbar(c: Canvas, th: Theme, r: RectF, offset: Int, visible: Int, total: Int) {
+        if (total <= visible) return
+        rect(c, r, th.c("panel"), 3f)
+        val hh = max(16f, r.height() * visible / total)
+        val y = r.top + (r.height() - hh) * offset / max(1, total - visible)
+        rect(c, RectF(r.left, y, r.right, y + hh), th.c("accent"), 3f)
+    }
+
+    fun scrollOffset(sel: Int, cur: Int, visible: Int, total: Int): Int {
+        if (total <= visible) return 0
+        var o = cur
+        if (sel < o + 1) o = sel - 1 else if (sel > o + visible - 2) o = sel - visible + 2
+        return o.coerceIn(0, total - visible)
+    }
+
+    fun wrap(s: String, size: Float, width: Float): List<String> {
+        val out = ArrayList<String>()
+        for (para in s.split("\n")) {
+            var line = ""
+            for (word in para.split(" ")) {
+                val trial = if (line.isEmpty()) word else "$line $word"
+                if (measure(trial, size) <= width) line = trial else { if (line.isNotEmpty()) out.add(line); line = word }
+            }
+            out.add(line)
+        }
+        return out
+    }
+
+    /** The hexagon "R" emblem used on the boot screen. */
+    fun emblem(c: Canvas, th: Theme, cx: Float, cy: Float, size: Float) {
+        val p = Path()
+        for (k in 0 until 6) {
+            val a = (60 * k + 30) * PI / 180
+            val x = cx + size * cos(a).toFloat(); val y = cy + size * sin(a).toFloat()
+            if (k == 0) p.moveTo(x, y) else p.lineTo(x, y)
+        }
+        p.close()
+        path(c, p, th.c("panel"))
+        path(c, p, th.c("accent"), filled = false, w = 4f)
+        text(c, "R", cx, cy - size * 0.62f, size * 1.4f, th.c("accent"), align = 'c', isBold = true)
+    }
+
+    private val imageCache = object : LinkedHashMap<String, Bitmap?>(32, 0.75f, true) {
+        override fun removeEldestEntry(e: MutableMap.MutableEntry<String, Bitmap?>) = size > 40
+    }
+
+    fun image(file: File?): Bitmap? {
+        if (file == null) return null
+        return imageCache.getOrPut(file.path) {
+            runCatching {
+                val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeFile(file.path, o)
+                var s = 1
+                while (o.outWidth / (s * 2) >= 400 && o.outHeight / (s * 2) >= 400) s *= 2
+                BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = s })
+            }.getOrNull()
+        }
+    }
+
+    fun drawImageFit(c: Canvas, bmp: Bitmap, box: RectF): RectF {
+        val sc = min(box.width() / bmp.width, box.height() / bmp.height)
+        val dw = bmp.width * sc; val dh = bmp.height * sc
+        val dst = RectF(box.centerX() - dw / 2, box.top, box.centerX() + dw / 2, box.top + dh)
+        c.drawBitmap(bmp, null, dst, Paint(Paint.FILTER_BITMAP_FLAG))
+        return dst
+    }
+}
+
+/** Floating dots for themes with particles on. */
+class Particles(private val n: Int = 24) {
+    private val items = ArrayList<FloatArray>()
+    fun draw(c: Canvas, th: Theme, dt: Float, w: Float, h: Float) {
+        if (!th.particles) return
+        while (items.size < n) items.add(floatArrayOf(Random.nextFloat() * w, Random.nextFloat() * h, 6 + Random.nextFloat() * 16, 1 + Random.nextFloat() * 1.5f))
+        val col = mix(th.c("bg_bottom"), th.c("accent2"), 0.45f)
+        for (p in items) {
+            p[1] -= p[2] * dt
+            if (p[1] < -4) { p[0] = Random.nextFloat() * w; p[1] = h + 4 }
+            G.circle(c, p[0], p[1], p[3], col)
+        }
+    }
+}

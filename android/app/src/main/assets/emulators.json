@@ -1,0 +1,371 @@
+{
+ "emulators": {
+  "azahar": {
+   "name": "Azahar",
+   "components": [
+    "org.azahar_emu.azahar/org.citra.citra_emu.activities.EmulationActivity",
+    "io.github.lime3ds.android/org.citra.citra_emu.activities.EmulationActivity"
+   ],
+   "action": null,
+   "category": null,
+   "data": "{saf}",
+   "extras": {},
+   "flags": [
+    "clear_task",
+    "clear_top"
+   ]
+  },
+  "azaharplus": {
+   "name": "AzaharPlus",
+   "components": [
+    "io.github.azaharplus.android/org.citra.citra_emu.activities.EmulationActivity"
+   ],
+   "action": null,
+   "category": null,
+   "data": "{saf}",
+   "extras": {},
+   "flags": [
+    "clear_task",
+    "clear_top"
+   ]
+  },
+  "citra": {
+   "name": "Citra",
+   "components": [
+    "org.citra.citra_emu/.activities.EmulationActivity"
+   ],
+   "action": null,
+   "category": null,
+   "data": "{saf}",
+   "extras": {},
+   "flags": [
+    "clear_task",
+    "clear_top"
+   ]
+  },
+  "citra_canary": {
+   "name": "Citra Canary",
+   "components": [
+    "org.citra.citra_emu.canary/org.citra.citra_emu.activities.EmulationActivity"
+   ],
+   "action": null,
+   "category": null,
+   "data": "{saf}",
+   "extras": {},
+   "flags": [
+    "clear_task",
+    "clear_top"
+   ]
+  },
+  "citra_mmj": {
+   "name": "Citra MMJ",
+   "components": [
+    "org.citra.emu/.ui.EmulationActivity"
+   ],
+   "action": null,
+   "category": null,
+   "data": null,
+   "extras": {
+    "GamePath": "{path}"
+   },
+   "flags": []
+  },
+  "mandarine": {
+   "name": "Mandarine",
+   "components": [
+    "io.github.mandarine3ds.mandarine/.activities.EmulationActivity"
+   ],
+   "action": null,
+   "category": null,
+   "data": "{saf}",
+   "extras": {},
+   "flags": [
+    "clear_task",
+    "clear_top"
+   ]
+  },
+  "lime3ds": {
+   "name": "Lime3DS",
+   "components": [
+    "io.github.lime3ds.android/.activities.EmulationActivity"
+   ],
+   "action": null,
+   "category": null,
+   "data": "{saf}",
+   "extras": {},
+   "flags": [
+    "clear_task",
+    "clear_top"
+   ]
+  },
+  "panda3ds": {
+   "name": "Panda3DS",
+   "components": [
+    "com.panda3ds.pandroid/.app.MainActivity"
+   ],
+   "action": null,
+   "category": null,
+   "data": "{provider}",
+   "extras": {},
+   "flags": []
+  },
+  "dolphin": {
+   "name": "Dolphin",
+   "components": [
+    "org.dolphinemu.dolphinemu/.ui.main.TvMainActivity"
+   ],
+   "action": "android.intent.action.MAIN",
+   "category": "android.intent.category.LEANBACK_LAUNCHER",
+   "data": null,
+   "extras": {
+    "AutoStartFile": "{saf}"
+   },
+   "flags": []
+  },
+  "dolphin_mmjr2": {
+   "name": "Dolphin MMJR2",
+   "components": [
+    "org.dolphinemu.mmjr/org.dolphinemu.dolphinemu.ui.main.MainActivity"
+   ],
+   "action": "android.intent.action.VIEW",
+   "category": null,
+   "data": null,
+   "extras": {
+    "AutoStartFile": "{saf}"
+   },
+   "flags": []
+  },
+  "nethersx2": {
+   "name": "NetherSX2",
+   "components": [
+    "xyz.aethersx2.android/.EmulationActivity"
+   ],
+   "action": "android.intent.action.MAIN",
+   "category": null,
+   "data": null,
+   "extras": {
+    "bootPath": "{saf}"
+   },
+   "flags": [
+    "clear_task",
+    "clear_top"
+   ]
+  },
+  "armsx2": {
+   "name": "ARMSX2",
+   "components": [
+    "come.nanodata.armsx2/com.armsx2.MainActivity",
+    "com.armsx2/.MainActivity",
+    "com.armsx2.nightly/com.armsx2.MainActivity",
+    "come.nanodata.armsx2/kr.co.iefriends.pcsx2.MainActivity"
+   ],
+   "action": "android.intent.action.VIEW",
+   "category": null,
+   "data": "{saf}",
+   "extras": {},
+   "flags": []
+  },
+  "duckstation": {
+   "name": "DuckStation",
+   "components": [
+    "com.github.stenzek.duckstation/.EmulationActivity"
+   ],
+   "action": null,
+   "category": null,
+   "data": null,
+   "extras": {
+    "bool:resumeState": "false",
+    "bootPath": "{saf}"
+   },
+   "flags": [
+    "clear_task",
+    "clear_top"
+   ]
+  },
+  "drastic": {
+   "name": "DraStic",
+   "components": [
+    "com.dsemu.drastic/.DraSticActivity"
+   ],
+   "action": null,
+   "category": null,
+   "data": "{saf}",
+   "extras": {},
+   "flags": [
+    "clear_task",
+    "clear_top"
+   ]
+  },
+  "melonds": {
+   "name": "melonDS",
+   "components": [
+    "me.magnum.melonds/.ui.emulator.EmulatorActivity",
+    "me.magnum.melondualds/me.magnum.melonds.ui.emulator.EmulatorActivity"
+   ],
+   "action": "me.magnum.melonds.LAUNCH_ROM",
+   "category": null,
+   "data": null,
+   "extras": {
+    "uri": "{saf}"
+   },
+   "flags": []
+  },
+  "ppsspp": {
+   "name": "PPSSPP",
+   "components": [
+    "org.ppsspp.ppssppgold/org.ppsspp.ppsspp.PpssppActivity",
+    "org.ppsspp.ppsspp/.PpssppActivity"
+   ],
+   "action": "android.intent.action.VIEW",
+   "category": "android.intent.category.DEFAULT",
+   "data": "{saf}",
+   "extras": {},
+   "flags": []
+  },
+  "flycast": {
+   "name": "Flycast",
+   "components": [
+    "com.flycast.emulator/com.flycast.emulator.MainActivity",
+    "com.flycast.emulator/com.reicast.emulator.MainActivity"
+   ],
+   "action": "android.intent.action.VIEW",
+   "category": null,
+   "data": "{saf}",
+   "extras": {},
+   "flags": []
+  },
+  "redream": {
+   "name": "Redream",
+   "components": [
+    "io.recompiled.redream/.MainActivity"
+   ],
+   "action": "android.intent.action.VIEW",
+   "category": null,
+   "data": "{saf}",
+   "extras": {},
+   "flags": []
+  },
+  "m64plus_fz": {
+   "name": "M64Plus FZ",
+   "components": [
+    "org.mupen64plusae.v3.fzurita.pro/paulscode.android.mupen64plusae.SplashActivity",
+    "org.mupen64plusae.v3.fzurita/paulscode.android.mupen64plusae.SplashActivity",
+    "org.mupen64plusae.v3.fzurita.amazon/paulscode.android.mupen64plusae.SplashActivity"
+   ],
+   "action": "android.intent.action.VIEW",
+   "category": null,
+   "data": "{saf}",
+   "extras": {},
+   "flags": []
+  },
+  "mupen64plus_ae": {
+   "name": "Mupen64Plus AE",
+   "components": [
+    "org.mupen64plusae.v3.alpha/paulscode.android.mupen64plusae.SplashActivity"
+   ],
+   "action": "android.intent.action.VIEW",
+   "category": null,
+   "data": "{saf}",
+   "extras": {},
+   "flags": []
+  },
+  "yabasanshiro2": {
+   "name": "Yaba Sanshiro 2",
+   "components": [
+    "org.devmiyax.yabasanshioro2.pro/org.uoyabause.android.Yabause",
+    "org.devmiyax.yabasanshioro2/org.uoyabause.android.Yabause"
+   ],
+   "action": "android.intent.action.VIEW",
+   "category": null,
+   "data": null,
+   "extras": {
+    "org.uoyabause.android.FileNameUri": "{saf}"
+   },
+   "flags": [
+    "clear_task",
+    "clear_top"
+   ]
+  },
+  "saturn_emu": {
+   "name": "Saturn.emu",
+   "components": [
+    "com.explusalpha.SaturnEmu/com.imagine.BaseActivity"
+   ],
+   "action": null,
+   "category": null,
+   "data": "{saf}",
+   "extras": {},
+   "flags": []
+  },
+  "eden": {
+   "name": "Eden",
+   "components": [
+    "dev.eden.eden_emulator/org.yuzu.yuzu_emu.activities.EmulationActivity",
+    "dev.legacy.eden_emulator/org.yuzu.yuzu_emu.activities.EmulationActivity",
+    "dev.eden.eden_emulator.nightly/org.yuzu.yuzu_emu.activities.EmulationActivity"
+   ],
+   "action": "android.nfc.action.TECH_DISCOVERED",
+   "category": null,
+   "data": "{provider}",
+   "extras": {},
+   "flags": []
+  },
+  "cemu": {
+   "name": "Cemu",
+   "components": [
+    "info.cemu.cemu/info.cemu.cemu.emulation.EmulationActivity",
+    "info.cemu.Cemu/info.cemu.Cemu.emulation.EmulationActivity"
+   ],
+   "action": null,
+   "category": null,
+   "data": "{saf}",
+   "extras": {},
+   "flags": []
+  },
+  "pizzaboy_gba": {
+   "name": "Pizza Boy GBA",
+   "components": [
+    "it.dbtecno.pizzaboygbapro/it.dbtecno.pizzaboygbapro.MainActivity",
+    "it.dbtecno.pizzaboygba/it.dbtecno.pizzaboygba.MainActivity"
+   ],
+   "action": null,
+   "category": null,
+   "data": null,
+   "extras": {
+    "rom_uri": "{saf}"
+   },
+   "flags": [
+    "clear_task",
+    "clear_top"
+   ]
+  },
+  "my_boy": {
+   "name": "My Boy!",
+   "components": [
+    "com.fastemulator.gba/.EmulatorActivity"
+   ],
+   "action": "android.intent.action.VIEW",
+   "category": null,
+   "data": "{saf}",
+   "extras": {},
+   "flags": []
+  },
+  "retroarch": {
+   "name": "RetroArch",
+   "components": [
+    "com.retroarch.aarch64/com.retroarch.browser.retroactivity.RetroActivityFuture",
+    "com.retroarch/com.retroarch.browser.retroactivity.RetroActivityFuture",
+    "com.retroarch.ra32/com.retroarch.browser.retroactivity.RetroActivityFuture"
+   ],
+   "action": null,
+   "category": null,
+   "data": null,
+   "extras": {
+    "CONFIGFILE": "{external}/Android/data/{package}/files/retroarch.cfg",
+    "LIBRETRO": "/data/data/{package}/cores/{core}_libretro_android.so",
+    "ROM": "{path}"
+   },
+   "flags": []
+  }
+ }
+}
