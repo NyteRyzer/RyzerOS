@@ -1,0 +1,26 @@
+{
+  "id": "gameboy",
+  "name": "Pocket DMG",
+  "author": "Ryzer",
+  "colors": {
+    "bg_top": "#9BBC0F",
+    "bg_bottom": "#8BAC0F",
+    "panel": "#8BAC0F",
+    "panel_border": "#306230",
+    "accent": "#0F380F",
+    "accent2": "#306230",
+    "text": "#0F380F",
+    "text_dim": "#306230",
+    "highlight_text": "#9BBC0F",
+    "good": "#0F380F",
+    "warn": "#306230",
+    "bad": "#0F380F"
+  },
+  "style": {
+    "corner_radius": 4,
+    "tile_style": "flat",
+    "background": "dots",
+    "font_scale": 1.0,
+    "particles": false
+  }
+}

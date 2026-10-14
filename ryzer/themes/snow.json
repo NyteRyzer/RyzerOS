@@ -1,0 +1,26 @@
+{
+  "id": "snow",
+  "name": "Snow",
+  "author": "Ryzer",
+  "colors": {
+    "bg_top": "#FFFFFF",
+    "bg_bottom": "#EEF0F4",
+    "panel": "#FFFFFF",
+    "panel_border": "#D5D9E0",
+    "accent": "#E03131",
+    "accent2": "#495057",
+    "text": "#212529",
+    "text_dim": "#868E96",
+    "highlight_text": "#FFFFFF",
+    "good": "#2F9E44",
+    "warn": "#F08C00",
+    "bad": "#E03131"
+  },
+  "style": {
+    "corner_radius": 18,
+    "tile_style": "flat",
+    "background": "gradient",
+    "font_scale": 1.0,
+    "particles": false
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "id": "vaporwave",
+  "name": "Vaporwave",
+  "author": "Ryzer",
+  "colors": {
+    "bg_top": "#2B1055",
+    "bg_bottom": "#7597DE",
+    "panel": "#3A1D6E",
+    "panel_border": "#FF71CE",
+    "accent": "#01CDFE",
+    "accent2": "#FF71CE",
+    "text": "#FFFFFF",
+    "text_dim": "#C9B6F2",
+    "highlight_text": "#1A0A33",
+    "good": "#05FFA1",
+    "warn": "#FFFB96",
+    "bad": "#FF5E8A"
+  },
+  "style": {
+    "corner_radius": 6,
+    "tile_style": "glow",
+    "background": "grid",
+    "font_scale": 1.0,
+    "particles": false
+  }
+}

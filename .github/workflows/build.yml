@@ -1,0 +1,22 @@
+name: build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test-and-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pygame-ce==2.5.8 pytest
+      - run: python -m pytest -q
+      - run: sh -n system/ryzer-perf && sh -n system/ryzer-tune && sh -n install/install.sh && sh -n install/uninstall.sh
+      - run: ./build/package.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RyzerOS
+          path: dist/RyzerOS-*.zip

@@ -1,0 +1,26 @@
+{
+  "id": "purple-haze",
+  "name": "Purple Haze",
+  "author": "Ryzer",
+  "colors": {
+    "bg_top": "#24103D",
+    "bg_bottom": "#0B0414",
+    "panel": "#2D1550",
+    "panel_border": "#5E35A0",
+    "accent": "#B57BFF",
+    "accent2": "#FF9EE5",
+    "text": "#F4EDFF",
+    "text_dim": "#9B87BD",
+    "highlight_text": "#14082A",
+    "good": "#7CF0B4",
+    "warn": "#FFD36E",
+    "bad": "#FF6B8B"
+  },
+  "style": {
+    "corner_radius": 12,
+    "tile_style": "glow",
+    "background": "stars",
+    "font_scale": 1.0,
+    "particles": true
+  }
+}

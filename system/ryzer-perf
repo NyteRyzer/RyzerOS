@@ -1,0 +1,98 @@
+#!/bin/sh
+# ryzer-perf - switch the RK3568 between performance profiles.
+#
+#   ryzer-perf battery|balanced|performance|turbo|status
+#
+# Only uses the stock frequency tables from the device tree: no overclocking,
+# no voltage changes. "turbo" pins CPU, GPU and memory at their highest stock
+# frequencies, which is the fastest the chip can safely run.
+# Needs root (ROCKNIX runs everything as root).
+
+set -u
+PROFILE="${1:-status}"
+
+write() { # write <value> <file...>; silently skip missing/readonly nodes
+	v="$1"; shift
+	for f in "$@"; do
+		[ -w "$f" ] && echo "$v" > "$f" 2>/dev/null
+	done
+	return 0
+}
+
+has_gov() { # has_gov <governor> <available_governors file>
+	[ -r "$2" ] && grep -qw "$1" "$2"
+}
+
+cpu_set() { # cpu_set <governor> <min: lowest|highest>
+	for pol in /sys/devices/system/cpu/cpufreq/policy*; do
+		[ -d "$pol" ] || continue
+		gov="$1"
+		has_gov "$gov" "$pol/scaling_available_governors" || gov=ondemand
+		has_gov "$gov" "$pol/scaling_available_governors" || gov=schedutil
+		write "$gov" "$pol/scaling_governor"
+		write "$(cat "$pol/cpuinfo_max_freq")" "$pol/scaling_max_freq"
+		if [ "$2" = highest ]; then
+			write "$(cat "$pol/cpuinfo_max_freq")" "$pol/scaling_min_freq"
+		else
+			write "$(cat "$pol/cpuinfo_min_freq")" "$pol/scaling_min_freq"
+		fi
+	done
+}
+
+devfreq_set() { # devfreq_set <match> <governor>
+	for d in /sys/class/devfreq/*; do
+		[ -d "$d" ] || continue
+		case "$(basename "$d")" in *$1*) ;; *) continue ;; esac
+		gov="$2"
+		has_gov "$gov" "$d/available_governors" || gov=simple_ondemand
+		write "$gov" "$d/governor"
+	done
+}
+
+io_set() { # io_set <scheduler>
+	for q in /sys/block/mmcblk*/queue; do
+		write "$1" "$q/scheduler"
+		write 512 "$q/read_ahead_kb"
+	done
+}
+
+case "$PROFILE" in
+	battery)
+		cpu_set powersave lowest
+		devfreq_set gpu powersave
+		devfreq_set dmc simple_ondemand
+		;;
+	balanced)
+		cpu_set schedutil lowest
+		devfreq_set gpu simple_ondemand
+		devfreq_set dmc simple_ondemand
+		io_set mq-deadline
+		;;
+	performance)
+		cpu_set performance lowest
+		devfreq_set gpu simple_ondemand
+		devfreq_set dmc performance
+		io_set mq-deadline
+		;;
+	turbo)
+		cpu_set performance highest
+		devfreq_set gpu performance
+		devfreq_set dmc performance
+		io_set none
+		;;
+	status)
+		for pol in /sys/devices/system/cpu/cpufreq/policy*; do
+			[ -d "$pol" ] && echo "$(basename "$pol"): $(cat "$pol/scaling_governor") $(( $(cat "$pol/scaling_cur_freq") / 1000 ))MHz"
+		done
+		for d in /sys/class/devfreq/*; do
+			[ -d "$d" ] && echo "$(basename "$d"): $(cat "$d/governor") $(( $(cat "$d/cur_freq") / 1000000 ))MHz"
+		done
+		exit 0
+		;;
+	*)
+		echo "usage: $0 battery|balanced|performance|turbo|status" >&2
+		exit 2
+		;;
+esac
+echo "$PROFILE" > /tmp/ryzer-profile 2>/dev/null
+exit 0

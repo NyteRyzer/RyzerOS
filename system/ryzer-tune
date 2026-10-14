@@ -1,0 +1,42 @@
+#!/bin/sh
+# ryzer-tune - one-time-per-boot system tweaks that make the RG DS feel faster.
+# Safe to run repeatedly. Every tweak is skipped if the kernel doesn't support it.
+
+set -u
+write() { [ -w "$2" ] && echo "$1" > "$2" 2>/dev/null; return 0; }
+
+# 1. Compressed RAM swap (zram). With only 3GB of RAM, GameCube/3DS emulators
+#    can run out of memory; zram gives ~1.5GB of fast compressed headroom
+#    instead of crashing or touching the slow SD card.
+if [ -e /sys/block/zram0 ] && ! grep -q zram0 /proc/swaps 2>/dev/null; then
+	write lz4 /sys/block/zram0/comp_algorithm
+	write 1536M /sys/block/zram0/disksize
+	mkswap /dev/zram0 >/dev/null 2>&1 && swapon -p 100 /dev/zram0 2>/dev/null
+fi
+
+# 2. Memory management: prefer keeping game data in RAM, swap to zram eagerly
+#    rather than dropping file cache (which would mean re-reading the SD card).
+write 100 /proc/sys/vm/swappiness
+write 50 /proc/sys/vm/vfs_cache_pressure
+write 0 /proc/sys/vm/page-cluster
+write 10 /proc/sys/vm/dirty_ratio
+write 5 /proc/sys/vm/dirty_background_ratio
+
+# 3. Scheduler: lower latency for the emulator thread.
+write 0 /proc/sys/kernel/sched_autogroup_enabled
+write 1 /proc/sys/kernel/sched_child_runs_first
+
+# 4. SD card / eMMC: bigger read-ahead helps large ISO streaming.
+for q in /sys/block/mmcblk*/queue; do
+	write 512 "$q/read_ahead_kb"
+	write 0 "$q/add_random"
+	write 0 "$q/iostats"
+done
+
+# 5. Transparent huge pages help JIT-heavy emulators (Dolphin, Azahar).
+write madvise /sys/kernel/mm/transparent_hugepage/enabled
+
+# 6. Start in the balanced profile; games switch to their own profile on launch.
+DIR="$(dirname "$0")"
+[ -x "$DIR/ryzer-perf" ] && "$DIR/ryzer-perf" balanced
+exit 0

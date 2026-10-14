@@ -1,0 +1,26 @@
+{
+  "id": "ryzer-red",
+  "name": "Ryzer Red",
+  "author": "Ryzer",
+  "colors": {
+    "bg_top": "#1A0508",
+    "bg_bottom": "#050102",
+    "panel": "#1E0B0E",
+    "panel_border": "#5A1A22",
+    "accent": "#FF2A3D",
+    "accent2": "#FF8A3D",
+    "text": "#F5F0F0",
+    "text_dim": "#9A8A8C",
+    "highlight_text": "#FFFFFF",
+    "good": "#3DDC84",
+    "warn": "#FFC23D",
+    "bad": "#FF3D57"
+  },
+  "style": {
+    "corner_radius": 12,
+    "tile_style": "glow",
+    "background": "gradient",
+    "font_scale": 1.0,
+    "particles": true
+  }
+}

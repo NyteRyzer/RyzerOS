@@ -1,0 +1,26 @@
+{
+  "id": "ocean-deep",
+  "name": "Ocean Deep",
+  "author": "Ryzer",
+  "colors": {
+    "bg_top": "#003049",
+    "bg_bottom": "#00121C",
+    "panel": "#023E5A",
+    "panel_border": "#0B6E99",
+    "accent": "#00B4D8",
+    "accent2": "#90E0EF",
+    "text": "#E6FAFF",
+    "text_dim": "#6FA8BF",
+    "highlight_text": "#00121C",
+    "good": "#52D1A0",
+    "warn": "#FFD166",
+    "bad": "#EF476F"
+  },
+  "style": {
+    "corner_radius": 12,
+    "tile_style": "glow",
+    "background": "waves",
+    "font_scale": 1.0,
+    "particles": true
+  }
+}

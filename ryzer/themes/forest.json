@@ -1,0 +1,26 @@
+{
+  "id": "forest",
+  "name": "Forest",
+  "author": "Ryzer",
+  "colors": {
+    "bg_top": "#0E2016",
+    "bg_bottom": "#040A06",
+    "panel": "#13291C",
+    "panel_border": "#2F5A3C",
+    "accent": "#5BD17A",
+    "accent2": "#C7E86B",
+    "text": "#EAF5EC",
+    "text_dim": "#87A08E",
+    "highlight_text": "#0A140D",
+    "good": "#5BD17A",
+    "warn": "#E8C547",
+    "bad": "#E8634A"
+  },
+  "style": {
+    "corner_radius": 12,
+    "tile_style": "glow",
+    "background": "waves",
+    "font_scale": 1.0,
+    "particles": false
+  }
+}

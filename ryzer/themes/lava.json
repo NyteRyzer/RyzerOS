@@ -1,0 +1,26 @@
+{
+  "id": "lava",
+  "name": "Lava",
+  "author": "Ryzer",
+  "colors": {
+    "bg_top": "#2B0A00",
+    "bg_bottom": "#0A0200",
+    "panel": "#360F02",
+    "panel_border": "#8A2A05",
+    "accent": "#FF5A00",
+    "accent2": "#FFD000",
+    "text": "#FFF0E0",
+    "text_dim": "#B07A5E",
+    "highlight_text": "#1A0500",
+    "good": "#8BE36B",
+    "warn": "#FFD000",
+    "bad": "#FF2E00"
+  },
+  "style": {
+    "corner_radius": 12,
+    "tile_style": "glow",
+    "background": "waves",
+    "font_scale": 1.0,
+    "particles": true
+  }
+}

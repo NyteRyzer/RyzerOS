@@ -1,0 +1,26 @@
+{
+  "id": "retro-amber",
+  "name": "Retro Amber CRT",
+  "author": "Ryzer",
+  "colors": {
+    "bg_top": "#140C00",
+    "bg_bottom": "#050300",
+    "panel": "#1A1000",
+    "panel_border": "#5C3A00",
+    "accent": "#FFB000",
+    "accent2": "#FFD580",
+    "text": "#FFC24D",
+    "text_dim": "#9C6B12",
+    "highlight_text": "#140C00",
+    "good": "#FFB000",
+    "warn": "#FFD580",
+    "bad": "#FF6A00"
+  },
+  "style": {
+    "corner_radius": 0,
+    "tile_style": "outline",
+    "background": "scanlines",
+    "font_scale": 1.0,
+    "particles": false
+  }
+}

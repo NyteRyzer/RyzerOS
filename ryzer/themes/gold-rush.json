@@ -1,0 +1,26 @@
+{
+  "id": "gold-rush",
+  "name": "Gold Rush",
+  "author": "Ryzer",
+  "colors": {
+    "bg_top": "#1C1606",
+    "bg_bottom": "#070501",
+    "panel": "#231C09",
+    "panel_border": "#6B5520",
+    "accent": "#F5C542",
+    "accent2": "#FFE9A8",
+    "text": "#FFF7E0",
+    "text_dim": "#A8955E",
+    "highlight_text": "#1C1606",
+    "good": "#9BD770",
+    "warn": "#F5C542",
+    "bad": "#E8603C"
+  },
+  "style": {
+    "corner_radius": 8,
+    "tile_style": "outline",
+    "background": "gradient",
+    "font_scale": 1.0,
+    "particles": false
+  }
+}

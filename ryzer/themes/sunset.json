@@ -1,0 +1,26 @@
+{
+  "id": "sunset",
+  "name": "Sunset",
+  "author": "Ryzer",
+  "colors": {
+    "bg_top": "#3A1240",
+    "bg_bottom": "#120614",
+    "panel": "#3A1838",
+    "panel_border": "#8A3C5C",
+    "accent": "#FF7A45",
+    "accent2": "#FFC145",
+    "text": "#FFF2EA",
+    "text_dim": "#C49AA8",
+    "highlight_text": "#1A0A12",
+    "good": "#7BE495",
+    "warn": "#FFC145",
+    "bad": "#FF4F6D"
+  },
+  "style": {
+    "corner_radius": 12,
+    "tile_style": "glow",
+    "background": "gradient",
+    "font_scale": 1.0,
+    "particles": true
+  }
+}
