@@ -19,6 +19,41 @@ Every version is listed on the [Releases page](https://github.com/NyteRyzer/Ryze
 
 If Ryzer ever closes by itself, it saves the error to `RyzerOS/crash.txt` and shows it the next time it starts. Send that text along with your bug report.
 
+### New in 1.2: dual-screen play
+
+On dual-screen handhelds (RG DS, AYN Thor, AYANEO Pocket DS, Retroid Dual), **single-screen systems** such as GBA, SNES, PSP, PS1, N64 and GameCube open the game on one screen. The other screen becomes a **Now Playing** touch panel showing:
+- box art, title, system and emulator
+- a live session timer, total play time and time left under your daily limit
+- the clock and battery
+- touch controls: volume, mute, favorite, rating, status, emulator controls, your notes, break reminder, screen off, and back to Ryzer
+
+DS and 3DS games still get both screens. If games open on the wrong screen, switch **Settings → Display & dual screen → Single-screen games open on**.
+
+### New in 1.2: 20 more features
+
+1. **Photo themes**: pick any picture from your gallery and Ryzer builds a full theme from its colours, with the photo as the background (Themes → START, or Look & feel)
+2. **Glass panels**: see-through panels over wallpapers and photo themes
+3. **Box-art colours**: panels take on the colours of the selected game's art
+4. **System colours**: the accent colour matches the system you're on
+5. **RGB mode**: slowly cycling rainbow accents
+6. **Night light**: a warm filter for night-time play
+7. **Custom system tiles**: your own picture for any system (`RyzerOS/tiles/gba.png`)
+8. **Grid Home layout** as an alternative to the console ribbon
+9. **Menu music** from your own songs in `RyzerOS/music`, paused during games
+10. **Sound packs**: Classic, Chiptune or Soft
+11. **Greeting with your name** on the top screen
+12. **Game of the Day** tile, favouring games you haven't played
+13. **Pin games to Home**
+14. **Session history**: your last 100 sessions in Stats
+15. **Game notes** (codes, where you left off), also shown on Now Playing
+16. **Break reminder** on the Now Playing screen
+17. **Daily play limit**, enforced in kid mode
+18. **Emulator controls cheat sheets** (how to open each emulator's menu and save states; editable in `RyzerOS/hotkeys.json`)
+19. **Swipe gestures** on the touch screens
+20. **Boot animation styles**: Classic, Glitch or Minimal
+
+Also: a **recently played shelf** on the top screen.
+
 ### What's in the Android edition
 
 **Library**
