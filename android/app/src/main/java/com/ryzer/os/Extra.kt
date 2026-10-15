@@ -73,6 +73,7 @@ class ThemePicker(app: Ryzer) : Screen(app) {
             "a" -> { app.setTheme(list[sel].id, save = true); app.sounds.play("select"); app.notify("Theme set: ${list[sel].name}"); app.pop() }
             "b" -> { app.setTheme(original, save = false); app.sounds.play("back"); app.pop() }
             "x" -> app.push(ThemeEditor(app, list[sel]))
+            "start" -> PhotoTheme.pickAndApply(app)
             "y" -> {
                 val t = list[sel]
                 if (t.builtin) app.notify("Built-in themes can't be deleted")
@@ -103,7 +104,7 @@ class ThemePicker(app: Ryzer) : Screen(app) {
         }
     }
 
-    override fun hints() = listOf("Y" to "Delete", "X" to "Edit copy", "B" to "Cancel", "A" to "Apply")
+    override fun hints() = listOf("START" to "Photo", "Y" to "Delete", "X" to "Edit copy", "A" to "Apply")
 }
 
 private val COLOR_LABELS = mapOf("bg_top" to "Background top", "bg_bottom" to "Background bottom", "panel" to "Panel",
@@ -188,6 +189,15 @@ fun settingsMenu(app: Ryzer): Menu {
             value = { cfg.dual.replaceFirstChar { it.uppercase() } }, change = { d -> cfg.dual = cycle(listOf("auto", "on", "off"), cfg.dual, d); cfg.save(); app.ctx.updateDisplays() }),
         toggle("Swap screens", "Put the menu on the second display and art/info on the main one.", { cfg.swapScreens }) { cfg.swapScreens = it; app.ctx.updateDisplays() },
         Item("Detected displays", value = { "${app.ctx.secondaryDisplays().size + 1}" }, help = "Ryzer frees the second screen while a game runs, so dual-screen emulators can use it."),
+        toggle("Now Playing screen", "For single-screen systems (GBA, SNES, PSP...) the game opens on one screen and the other shows the game, a timer and quick controls. DS and 3DS keep both screens.",
+            { cfg.companion }) { cfg.companion = it },
+        Item("Single-screen games open on", "If games open on the wrong screen, switch this.", value = { if (cfg.gameScreen == "second") "Second screen" else "Main screen" },
+            change = { cfg.gameScreen = if (cfg.gameScreen == "second") "main" else "second"; cfg.save() }),
+        Item("Break reminder", "The Now Playing screen buzzes and reminds you to take a break.", value = { if (cfg.breakMinutes == 0) "Off" else "Every ${cfg.breakMinutes} min" },
+            change = { d -> cfg.breakMinutes = cycle(listOf(0, 30, 45, 60, 90), cfg.breakMinutes, d); cfg.save() }),
+        Item("Daily play limit", "Shows time left on the Now Playing screen. In kid mode, games won't start once it's used up.",
+            value = { if (cfg.dailyLimit == 0) "Off" else formatDuration(cfg.dailyLimit * 60L) },
+            change = { d -> cfg.dailyLimit = cycle(listOf(0, 30, 60, 90, 120, 180, 240), cfg.dailyLimit, d); cfg.save() }),
         toggle("Animations", "Turn off for the snappiest menus.", { cfg.animations }) { cfg.animations = it },
         toggle("Boot animation", get = { cfg.boot }) { cfg.boot = it },
         Item("Menu frame rate", "30 fps saves battery; the menu still feels smooth.", value = { "${cfg.fps} fps" },
@@ -202,6 +212,24 @@ fun settingsMenu(app: Ryzer): Menu {
     )) }
 
     val look = { Menu(app, "Look & feel", listOf(
+        Item("Make a theme from a photo", "Pick any picture from your gallery: Ryzer uses it as the background and builds the colours from it.",
+            select = { PhotoTheme.pickAndApply(app) }),
+        Item("Your name", "Used for the greeting on the top screen.", value = { cfg.userName.ifEmpty { "Not set" } }, select = {
+            app.push(Keyboard(app, "Your name", cfg.userName, 16) { cfg.userName = it; cfg.save() }) }),
+        Item("Home layout", "Ribbon: console-style row of tiles. Grid: everything at once.", value = { cfg.homeLayout.replaceFirstChar { it.uppercase() } },
+            change = { d -> cfg.homeLayout = cycle(listOf("ribbon", "grid"), cfg.homeLayout, d); cfg.save() }),
+        toggle("Glass panels", "See-through panels when a wallpaper or photo theme is on.", { cfg.glass }) { cfg.glass = it },
+        toggle("Box-art colours", "Tints panels with the colours of the selected game's box art.", { cfg.artTint }) { cfg.artTint = it },
+        toggle("System colours", "The accent colour changes to match the system you're on.", { cfg.systemAccent }) { cfg.systemAccent = it },
+        toggle("RGB mode", "Rainbow accent colours that slowly cycle, like gaming RGB.", { cfg.rgb }) { cfg.rgb = it },
+        Item("Night light", "A warm filter that's easier on the eyes at night.", value = { if (cfg.nightLight == 0) "Off" else "${cfg.nightLight}%" },
+            change = { d -> cfg.nightLight = (cfg.nightLight + d * 10).coerceIn(0, 50); cfg.save() }),
+        Item("Boot animation style", value = { cfg.bootStyle.replaceFirstChar { it.uppercase() } },
+            change = { d -> cfg.bootStyle = cycle(listOf("classic", "glitch", "minimal"), cfg.bootStyle, d); cfg.save() }),
+        Item("Custom system tiles", "Put a picture named after a system in RyzerOS/tiles (e.g. gba.png, ps2.jpg) to use it as that system's tile.",
+            select = { java.io.File(app.home, "tiles").mkdirs(); app.push(Message(app, "Custom system tiles",
+                "Put pictures in ${app.home}/tiles named by system id:\n\n" + app.systems.joinToString(", ") { it.id } +
+                "\n\nPNG, JPG or WEBP. They show on Home right away.")) }),
         Item("Interface size", "Bigger text and tiles for small screens, or more on screen for big ones.",
             value = { cfg.uiSize.replaceFirstChar { it.uppercase() } }, change = { d -> cfg.uiSize = cycle(listOf("small", "normal", "large"), cfg.uiSize, d); cfg.save() }),
         Item("Font", value = { cfg.font.replaceFirstChar { it.uppercase() } }, change = { d -> cfg.font = cycle(G.FONTS, cfg.font, d); G.setFont(cfg.font); cfg.save() }),
@@ -221,9 +249,15 @@ fun settingsMenu(app: Ryzer): Menu {
                 if (!cfg.hiddenSystems.remove(s.id)) cfg.hiddenSystems.add(s.id); cfg.save() }) })) }),
     )) }
 
-    val sound = { Menu(app, "Sound", listOf(
+    val sound = { Menu(app, "Sound & music", listOf(
         toggle("Menu sounds", get = { cfg.sound }) { cfg.sound = it; app.sounds.enabled = it },
         Item("Menu volume", value = { "${cfg.volume}%" }, change = { d -> cfg.volume = (cfg.volume + d * 10).coerceIn(0, 100); cfg.save(); app.sounds.setVolume(cfg.volume); app.sounds.play("move") }),
+        Item("Sound pack", "Classic tones, 8-bit chiptune, or soft and quiet.", value = { cfg.soundPack.replaceFirstChar { it.uppercase() } },
+            change = { d -> cfg.soundPack = cycle(listOf("classic", "chiptune", "soft"), cfg.soundPack, d); cfg.save(); app.sounds.setPack(cfg.soundPack); app.sounds.play("select") }),
+        toggle("Menu music", "Plays your own songs from RyzerOS/music while you browse (MP3, OGG, M4A, FLAC, WAV). Pauses during games.",
+            { cfg.music }) { cfg.music = it; if (it) { if (app.music.trackCount() == 0) app.notify("Add songs to ${app.music.dir()} first"); app.music.next() } else app.music.stop() },
+        Item("Music volume", value = { "${cfg.musicVolume}%" }, change = { d -> cfg.musicVolume = (cfg.musicVolume + d * 10).coerceIn(0, 100); cfg.save(); app.music.setVolume() }),
+        Item("Next song", value = { app.music.nowPlaying.ifEmpty { "-" } }, select = { app.music.next() }),
     )) }
 
     val library = { Menu(app, "Library", listOf(
@@ -265,7 +299,7 @@ fun settingsMenu(app: Ryzer): Menu {
         Item("Play stats", "Play time, 7-day chart, top games and milestones.", select = { app.push(StatsScreen(app)) }),
         Item("Performance", select = { app.push(performance()) }),
         Item("Themes", "Pick one of 20+ themes or build your own.", select = { app.push(ThemePicker(app)) }),
-        Item("Sound", select = { app.push(sound()) }),
+        Item("Sound & music", select = { app.push(sound()) }),
         Item("Controls", select = { app.push(controls()) }),
         Item("Set as home screen", "Make Ryzer OS your device's home screen, like Cocoon or iiSU.", select = {
             runCatching { app.ctx.startActivity(Intent(android.provider.Settings.ACTION_HOME_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }

@@ -227,6 +227,31 @@ class BootScreen(app: Ryzer, private val next: Screen) : Screen(app) {
     override fun draw(c: Canvas, w: Float, h: Float) {
         val p = min(1f, t / (duration * 0.85f))
         val cx = w / 2; val cy = h / 2 - 20
+        when (app.cfg.bootStyle) {
+            "minimal" -> {   // a quiet fade-in
+                val a = min(1f, p * 1.5f)
+                c.saveLayerAlpha(0f, 0f, w, h, (a * 255).toInt())
+                G.emblem(c, th, cx, cy, 46f)
+                G.text(c, "RYZER OS", cx, cy + 62, 46f, th.c("text"), align = 'c', isBold = true)
+                c.restore()
+                return
+            }
+            "glitch" -> {   // RGB-split title with jittering slices and scanlines
+                val jitter = if (p < 0.8f) ((t * 37).toInt() % 7 - 3).toFloat() * 2 else 0f
+                G.emblem(c, th, cx + jitter, cy, 46f)
+                G.text(c, "RYZER OS", cx - 3 + jitter, cy + 62, 54f, withAlpha(0xFFFF0040.toInt(), 0.7f), align = 'c', isBold = true)
+                G.text(c, "RYZER OS", cx + 3 - jitter, cy + 62, 54f, withAlpha(0xFF00E5FF.toInt(), 0.7f), align = 'c', isBold = true)
+                G.text(c, "RYZER OS", cx, cy + 62, 54f, th.c("text"), align = 'c', isBold = true)
+                var y = 0f
+                while (y < h) { G.line(c, 0f, y, w, y, 0x22000000, 1f); y += 3 }
+                if (p < 0.8f) {
+                    val sy = (t * 211 % h)
+                    G.rect(c, RectF(0f, sy, w, sy + 6), withAlpha(th.c("accent"), 0.25f))
+                }
+                if (p > 0.6f) G.text(c, "v${BuildInfo.version}  |  ${BuildInfo.device}", cx, cy + 128, 22f, th.c("text_dim"), align = 'c', maxW = w - 40)
+                return
+            }
+        }
         for (i in 0 until 3) {
             val q = p * 1.4f - i * 0.18f
             if (q in 0f..1f) G.ring(c, cx, cy, 40 + q * 200, mix(th.c("bg_bottom"), th.c("accent"), 1 - q), 3f)

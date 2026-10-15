@@ -37,19 +37,31 @@ import java.io.File
 import java.util.concurrent.Executors
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.min
 import kotlin.math.sin
 
 enum class Role { MAIN, TOP }
 
 /** App-wide state and actions shared by every screen. */
 class Ryzer(val ctx: MainActivity) {
+    companion object {
+        /** The running instance, so the Now Playing panel (its own activity) can reach it. */
+        var instance: Ryzer? = null
+    }
+
     val home: File = pickHome()
     val cfg = Config(File(home, "config.json"))
     val state = PlayState(File(home, "state.json"))
     var themes = Themes.loadAll(this)
     var theme: Theme = themes[cfg.theme] ?: themes.values.first()
     private var preview: Theme? = null
-    val activeTheme get() = preview ?: theme
+    /** The theme chosen by the user (or being previewed), before live effects. */
+    val baseTheme get() = preview ?: theme
+    private var frameTheme: Theme? = null
+    /** The theme to draw with this frame: base theme plus RGB / system-colour effects. */
+    val activeTheme: Theme get() = frameTheme ?: baseTheme
+    /** Set by Home to the selected system's colour when "System colours" is on. */
+    var accentOverride: Int? = null
     var emulators: Map<String, Emulator> = Library.loadEmulators(this)
     var systems: List<GameSystem> = Library.loadSystems(this)
     val stack = ArrayList<Screen>()
@@ -57,7 +69,8 @@ class Ryzer(val ctx: MainActivity) {
     var scanning = false
     private var toastMsg = ""
     private var toastUntil = 0L
-    val sounds = Sounds(cfg.sound, cfg.volume)
+    val sounds = Sounds(cfg.sound, cfg.volume, cfg.soundPack)
+    val music = MenuMusic(this)
     private val particles = Particles()
     private val io = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
@@ -71,6 +84,7 @@ class Ryzer(val ctx: MainActivity) {
     private var timeTheme: String? = null
 
     init {
+        instance = this
         G.setFont(cfg.font)
         when (cfg.themeMode) {   // theme of the day / random theme on every start
             "daily" -> themes.keys.sorted().let { ids -> setTheme(ids[(today().hashCode() and 0x7fffffff) % ids.size], save = false) }
@@ -111,6 +125,23 @@ class Ryzer(val ctx: MainActivity) {
         themes[id]?.let { theme = it; preview = null; if (save) { cfg.theme = id; cfg.save() } }
     }
     fun previewTheme(t: Theme) { preview = t }
+
+    private fun decorate(base: Theme, now: Float): Theme {
+        val hue = (now * 40f) % 360f
+        val accent = when {
+            cfg.rgb -> android.graphics.Color.HSVToColor(floatArrayOf(hue, 0.75f, 1f))
+            cfg.systemAccent -> accentOverride
+            else -> null
+        } ?: return base
+        val colors = base.colors.toMutableMap()
+        colors["accent"] = accent
+        if (cfg.rgb) colors["accent2"] = android.graphics.Color.HSVToColor(floatArrayOf((hue + 120f) % 360f, 0.6f, 1f))
+        return Theme(base.id, base.name, colors, base.style, base.builtin, base.author)
+    }
+
+    fun runInBackground(work: () -> Unit, done: (Throwable?) -> Unit) {
+        io.execute { val e = runCatching(work).exceptionOrNull(); main.post { done(e) } }
+    }
     fun endPreview() { preview = null }
 
     // ----- library -----
@@ -151,21 +182,47 @@ class Ryzer(val ctx: MainActivity) {
             push(EmulatorPicker(this, sys))
             return
         }
+        if (cfg.dailyLimit > 0 && state.playedToday() >= cfg.dailyLimit * 60L) {
+            if (cfg.kidMode) {
+                sounds.play("error")
+                push(Message(this, "Time's up for today", "Today's play time limit (${formatDuration(cfg.dailyLimit * 60L)}) has been reached. " +
+                    "See you tomorrow!"))
+                return
+            }
+            notify("Over today's ${formatDuration(cfg.dailyLimit * 60L)} play limit", 3f)
+        }
         val first = intents.first()
         val target = first.component?.packageName ?: first.`package` ?: ""
         val name = Launcher.label(this, choice)
+        // Dual-screen devices: single-screen systems get the game on one display and the
+        // Now Playing panel on the other. DS / 3DS keep both screens for the emulator.
+        val screens = if (DualPlay.wanted(this, game)) DualPlay.displays(this) else null
         val start = Runnable {
             var lastError: Throwable? = null
             state.startPlay(game.key)
+            music.pause()
+            var gameOptions: android.os.Bundle? = null
+            if (screens != null) {
+                ctx.releaseSecondScreen()
+                val (gameDisplay, panelDisplay) = screens
+                DualPlay.open(this, game, panelDisplay)
+                if (gameDisplay != ctx.mainDisplayId()) gameOptions = DualPlay.optionsFor(gameDisplay)
+            }
             for (intent in intents) {
                 try {
-                    ctx.startActivity(intent)
+                    try {
+                        ctx.startActivity(intent, gameOptions)
+                    } catch (e: SecurityException) {
+                        if (gameOptions == null) throw e
+                        ctx.startActivity(intent)   // this device won't open apps on that screen: use the default one
+                    }
                     return@Runnable
                 } catch (e: Exception) {   // ActivityNotFound, SecurityException, FileUriExposed...
                     lastError = e
                     Crash.log(ctx, RuntimeException("Launch attempt failed for $name: ${intent.toUri(0)}", e))
                 }
             }
+            DualPlay.close()
             state.pendingKey = null
             state.save()
             sounds.play("error")
@@ -258,11 +315,13 @@ class Ryzer(val ctx: MainActivity) {
     private var wallpaperName = ""
     private var wallpaperBmp: android.graphics.Bitmap? = null
     fun wallpaperDir() = File(home, "wallpapers").apply { mkdirs() }
+    /** A photo theme's own picture wins over the wallpaper setting. */
     fun wallpaper(): android.graphics.Bitmap? {
-        if (cfg.wallpaper.isEmpty()) return null
-        if (cfg.wallpaper != wallpaperName) {
-            wallpaperName = cfg.wallpaper
-            wallpaperBmp = G.image(File(wallpaperDir(), cfg.wallpaper))
+        val name = baseTheme.wallpaper.ifEmpty { cfg.wallpaper }
+        if (name.isEmpty()) return null
+        if (name != wallpaperName) {
+            wallpaperName = name
+            wallpaperBmp = G.image(File(wallpaperDir(), name))
         }
         return wallpaperBmp
     }
@@ -283,11 +342,21 @@ class Ryzer(val ctx: MainActivity) {
     }
 
     fun render(c: Canvas, role: Role, w: Float, h: Float, dt: Float, t: Float) {
+        if (current !is HomeScreen) accentOverride = null
+        frameTheme = decorate(baseTheme, t)
         val th = activeTheme
         hitRole = role
         hits[role] = mutableListOf()
         G.background(c, th, w, h, t)
-        wallpaper()?.let { G.wallpaper(c, th, it, w, h) }
+        val wp = wallpaper()
+        if (wp != null) G.wallpaper(c, th, wp, w, h)
+        G.panelAlpha = if (wp != null && cfg.glass) min(th.panelAlpha, 0.8f) else th.panelAlpha
+        try { renderContent(c, role, th, w, h, dt) } finally {
+            if (cfg.nightLight > 0) G.rect(c, RectF(0f, 0f, w, h), withAlpha(0xFFFF8A00.toInt(), cfg.nightLight / 100f * 0.5f))
+        }
+    }
+
+    private fun renderContent(c: Canvas, role: Role, th: Theme, w: Float, h: Float, dt: Float) {
         if (role == Role.MAIN && animationsOn) particles.draw(c, th, dt, w, h)
         val scr = current ?: return
         if (role == Role.MAIN) {
@@ -398,9 +467,24 @@ class RyzerView(context: Context, private val app: () -> Ryzer?, var role: Role)
         }
     }
 
+    private var downX = 0f
+    private var downY = 0f
+
     override fun onTouchEvent(e: MotionEvent): Boolean {
         val a = app() ?: return false
+        if (e.actionMasked == MotionEvent.ACTION_DOWN) { downX = e.x; downY = e.y; return true }
         if (e.actionMasked != MotionEvent.ACTION_UP) return true
+        // Swipes: sideways moves through Home / pages, up-down scrolls lists
+        val dx = e.x - downX; val dy = e.y - downY
+        val step = 48 * resources.displayMetrics.density
+        if (abs(dx) > step && abs(dx) > abs(dy)) {
+            repeat((abs(dx) / (step * 2)).toInt().coerceIn(1, 5)) { a.handle(if (dx < 0) "right" else "left") }
+            return true
+        }
+        if (abs(dy) > step && abs(dy) > abs(dx)) {
+            repeat((abs(dy) / (step / 1.5f)).toInt().coerceIn(1, 10)) { a.handle(if (dy < 0) "down" else "up") }
+            return true
+        }
         for ((r, rect) in regions()) if (rect.contains(e.x, e.y)) {
             val scale = rect.height() / a.logicalH
             a.tap(r, (e.x - rect.left) / scale, (e.y - rect.top) / scale)
@@ -483,6 +567,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        DualPlay.close()   // a game just ended (or never started): the panel's job is done
         resumed = true
         hideSystemBars()
         app?.let { a ->
@@ -491,6 +576,7 @@ class MainActivity : Activity() {
             a.safely { a.current?.onResume() }
         }
         updateDisplays()
+        app?.music?.resume()
         handler.removeCallbacks(tick)
         handler.post(tick)
     }
@@ -499,9 +585,34 @@ class MainActivity : Activity() {
         super.onPause()
         resumed = false
         // Free the second screen so dual-screen emulators (DraStic, Azahar, melonDS) can use it.
+        releaseSecondScreen()
+        app?.music?.pause()
+    }
+
+    fun releaseSecondScreen() {
         second?.dismiss()
         second = null
         dualActive = false
+    }
+
+    fun mainDisplayId(): Int = mainView.display?.displayId ?: Display.DEFAULT_DISPLAY
+
+    // ----- photo themes -----
+    private var onPhoto: ((Uri) -> Unit)? = null
+
+    fun pickPhoto(done: (Uri) -> Unit) {
+        onPhoto = done
+        val i = Intent(Intent.ACTION_GET_CONTENT).setType("image/*").addCategory(Intent.CATEGORY_OPENABLE)
+        runCatching { startActivityForResult(Intent.createChooser(i, "Pick a picture for your theme"), 42) }
+            .onFailure { app?.notify("No gallery app found") }
+    }
+
+    @Deprecated("Uses the platform API on purpose: Ryzer has no AndroidX dependency")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        val uri = data?.data
+        if (requestCode == 42 && resultCode == RESULT_OK && uri != null) onPhoto?.invoke(uri)
+        onPhoto = null
     }
 
     private fun hideSystemBars() {
@@ -639,18 +750,33 @@ fun hasStorageAccess(ctx: Context): Boolean =
     else ctx.checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
 
 /** UI sound effects synthesised at startup, so the APK ships no audio files. */
-class Sounds(var enabled: Boolean, volume: Int) {
+class Sounds(var enabled: Boolean, volume: Int, pack: String = "classic") {
     private val rate = 22050
     private val tracks = HashMap<String, AudioTrack>()
     private var vol = volume / 100f
+    private var pack = pack
 
-    init {
+    init { build() }
+
+    /** Sound packs: classic (clean tones), chiptune (8-bit square waves), soft (lower and quieter). */
+    fun setPack(p: String) {
+        pack = p
+        tracks.values.forEach { runCatching { it.release() } }
+        tracks.clear()
+        build()
+    }
+
+    private fun build() {
         runCatching {
             mapOf(
                 "move" to Triple(floatArrayOf(880f), 25, 0.12f), "select" to Triple(floatArrayOf(660f, 990f), 70, 0.2f),
                 "back" to Triple(floatArrayOf(600f, 400f), 70, 0.18f), "error" to Triple(floatArrayOf(220f, 180f), 140, 0.2f),
                 "boot" to Triple(floatArrayOf(220f, 330f, 440f, 660f, 880f), 700, 0.22f), "fav" to Triple(floatArrayOf(990f, 1320f), 90, 0.18f),
-            ).forEach { (name, spec) -> tracks[name] = tone(spec.first, spec.second, spec.third) }
+            ).forEach { (name, spec) ->
+                val f = if (pack == "soft") FloatArray(spec.first.size) { spec.first[it] * 0.7f } else spec.first
+                val v = if (pack == "soft") spec.third * 0.6f else spec.third
+                tracks[name] = tone(f, if (pack == "chiptune") (spec.second * 0.8f).toInt() else spec.second, v)
+            }
         }
     }
 
@@ -659,7 +785,9 @@ class Sounds(var enabled: Boolean, volume: Int) {
         val buf = ShortArray(n) { i ->
             val f = freqs[minOf(freqs.size - 1, i * freqs.size / n)]
             val env = minOf(1f, i / 200f) * (1 - i.toFloat() / n).let { it * it }
-            (sin(2 * PI * f * i / rate) * env * volume * 32767).toInt().toShort()
+            val wave = sin(2 * PI * f * i / rate)
+            val sample = if (pack == "chiptune") (if (wave >= 0) 0.6 else -0.6) else wave
+            (sample * env * volume * 32767).toInt().toShort()
         }
         val t = AudioTrack.Builder()
             .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)

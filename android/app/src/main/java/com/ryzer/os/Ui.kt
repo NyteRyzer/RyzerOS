@@ -33,6 +33,9 @@ class Theme(
     val background get() = style["background"] as String
     val fontScale get() = (style["font_scale"] as Number).toFloat()
     val particles get() = style["particles"] as Boolean
+    val panelAlpha get() = (style["panel_alpha"] as? Number)?.toFloat() ?: 1f
+    val wallpaper get() = style["wallpaper"] as? String ?: ""
+    val wallpaperDim get() = (style["wallpaper_dim"] as? Number)?.toFloat() ?: 0.55f
 
     fun copy(newId: String, newName: String) =
         Theme(newId, newName, colors.toMutableMap(), style.toMutableMap(), builtin = false, author = "You")
@@ -69,6 +72,10 @@ class Theme(
                 "font_scale" to sj.optDouble("font_scale", 1.0).toFloat().coerceIn(0.8f, 1.4f),
                 "particles" to sj.optBoolean("particles", false),
             )
+            // Optional keys used by photo themes
+            if (sj.has("panel_alpha")) style["panel_alpha"] = sj.optDouble("panel_alpha", 1.0).toFloat().coerceIn(0.3f, 1f)
+            if (sj.has("wallpaper")) style["wallpaper"] = sj.optString("wallpaper")
+            if (sj.has("wallpaper_dim")) style["wallpaper_dim"] = sj.optDouble("wallpaper_dim", 0.55).toFloat().coerceIn(0f, 0.9f)
             Theme(json.getString("id"), json.optString("name", json.getString("id")), colors, style, builtin,
                 json.optString("author", "Ryzer"))
         } catch (e: Exception) {
@@ -181,7 +188,8 @@ object G {
     }
 
     fun background(c: Canvas, th: Theme, w: Float, h: Float, t: Float) {
-        val key = "${th.id}|${th.colors.values.hashCode()}|${th.background}|${w.toInt()}x${h.toInt()}"
+        // Keyed on the background colours only, so live accent effects (RGB mode) don't rebuild it every frame
+        val key = "${th.id}|${th.c("bg_top")}|${th.c("bg_bottom")}|${th.c("text")}|${th.background}|${w.toInt()}x${h.toInt()}"
         val bmp = bgCache[key] ?: buildBg(th, w.toInt().coerceAtLeast(1), h.toInt().coerceAtLeast(1)).also {
             if (bgCache.size > 6) bgCache.clear()
             bgCache[key] = it
@@ -227,8 +235,18 @@ object G {
         val sc = max(w / bmp.width, h / bmp.height)
         val dw = bmp.width * sc; val dh = bmp.height * sc
         c.drawBitmap(bmp, null, RectF((w - dw) / 2, (h - dh) / 2, (w + dw) / 2, (h + dh) / 2), Paint(Paint.FILTER_BITMAP_FLAG))
-        rect(c, RectF(0f, 0f, w, h), withAlpha(th.c("bg_bottom"), 0.55f))
+        rect(c, RectF(0f, 0f, w, h), withAlpha(th.c("bg_bottom"), th.wallpaperDim))
     }
+
+    /** Panel opacity for this frame: below 1 when "glass" panels sit over a wallpaper. */
+    var panelAlpha = 1f
+
+    private val colorCache = object : LinkedHashMap<Bitmap, Int>(16, 0.75f, true) {
+        override fun removeEldestEntry(e: MutableMap.MutableEntry<Bitmap, Int>) = size > 40
+    }
+
+    /** The most vivid common colour of an image (used to tint the UI around box art). */
+    fun dominant(bmp: Bitmap): Int = colorCache.getOrPut(bmp) { Palette.from(bmp).firstOrNull() ?: 0xFF808080.toInt() }
 
     fun analogClock(c: Canvas, th: Theme, cx: Float, cy: Float, r: Float) {
         val cal = java.util.Calendar.getInstance()
@@ -259,11 +277,12 @@ object G {
                 rect(c, g, withAlpha(th.c("accent"), 0.18f + 0.08f * (3 - i) + 0.1f * pulse), rad + i * 2)
             }
         }
-        val body = fillColor ?: when {
+        val body0 = fillColor ?: when {
             th.tileStyle == "outline" -> th.c("panel")
             selected -> mix(th.c("panel"), th.c("accent"), 0.18f)
             else -> th.c("panel")
         }
+        val body = if (fillColor == null && panelAlpha < 1f) withAlpha(body0, panelAlpha) else body0
         rect(c, r, body, rad)
         val border = if (selected) th.c("accent") else th.c("panel_border")
         outline(c, r, border, if (selected) 3f else if (th.tileStyle == "outline") 2f else 1f, rad)
@@ -410,4 +429,39 @@ class Particles(private val n: Int = 24) {
             G.circle(c, p[0], p[1], p[3], col)
         }
     }
+}
+
+
+/**
+ * Picks out the main colours of a picture: shrink it, bucket the pixels by colour and
+ * rank the buckets by how common and how vivid they are. Used for photo themes and art tints.
+ */
+object Palette {
+    data class Swatch(val color: Int, val count: Int, val sat: Float, val lum: Float)
+
+    fun swatches(src: Bitmap): List<Swatch> {
+        val small = Bitmap.createScaledBitmap(src, 48, (48f * src.height / src.width).toInt().coerceIn(8, 96), true)
+        val buckets = HashMap<Int, IntArray>()   // key -> [count, r, g, b]
+        val hsv = FloatArray(3)
+        for (y in 0 until small.height) for (x in 0 until small.width) {
+            val p = small.getPixel(x, y)
+            if ((p ushr 24) < 128) continue
+            val r = (p shr 16) and 255; val g = (p shr 8) and 255; val b = p and 255
+            val key = ((r shr 5) shl 6) or ((g shr 5) shl 3) or (b shr 5)
+            val acc = buckets.getOrPut(key) { IntArray(4) }
+            acc[0]++; acc[1] += r; acc[2] += g; acc[3] += b
+        }
+        if (small !== src) small.recycle()
+        return buckets.values.map { a ->
+            val col = (0xFF shl 24) or ((a[1] / a[0]) shl 16) or ((a[2] / a[0]) shl 8) or (a[3] / a[0])
+            android.graphics.Color.colorToHSV(col, hsv)
+            Swatch(col, a[0], hsv[1], hsv[2])
+        }.sortedByDescending { it.count }
+    }
+
+    /** Vivid colours first, weighted by how much of the picture they cover. */
+    fun from(src: Bitmap): List<Int> = swatches(src)
+        .filter { it.lum > 0.25f }
+        .sortedByDescending { it.count * (0.25f + it.sat) * (0.4f + it.lum) }
+        .map { it.color }
 }

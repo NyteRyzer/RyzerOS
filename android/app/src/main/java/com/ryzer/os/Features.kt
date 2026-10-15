@@ -89,7 +89,7 @@ object Milestones {
 class StatsScreen(app: Ryzer) : Screen(app) {
     override val title = "Play stats"
     private var page = 0
-    private val pages = listOf("Overview", "Systems", "Milestones")
+    private val pages = listOf("Overview", "Systems", "History", "Milestones")
 
     override fun handle(a: String) {
         when (a) {
@@ -104,6 +104,7 @@ class StatsScreen(app: Ryzer) : Screen(app) {
         when (page) {
             0 -> overview(c, w, h)
             1 -> systems(c, w, h)
+            2 -> history(c, w, h)
             else -> milestones(c, w, h)
         }
     }
@@ -167,6 +168,22 @@ class StatsScreen(app: Ryzer) : Screen(app) {
             G.rect(c, RectF(90f, y + 4, w - 210, y + 22), th.c("panel"), 4f)
             G.rect(c, bar, s.color, 4f)
             G.text(c, "${formatDuration(secs)}  |  $n games", w - 20, y + 4, 18f, th.c("text_dim"), align = 'r')
+        }
+    }
+
+    /** The last play sessions, newest first. */
+    private fun history(c: Canvas, w: Float, h: Float) {
+        val list = app.state.sessions
+        if (list.isEmpty()) { G.text(c, "No sessions yet. Play something!", w / 2, h / 2, 24f, th.c("text_dim"), align = 'c'); return }
+        val fmt = java.text.SimpleDateFormat("EEE MMM d, h:mm a", java.util.Locale.getDefault())
+        val rows = ((h - 100) / 30).toInt()
+        list.take(rows).forEachIndexed { i, (k, start, secs) ->
+            val g = Library.find(app.systems, k)
+            val y = 54 + i * 30f
+            G.text(c, fmt.format(java.util.Date(start)), 20f, y + 4, 18f, th.c("text_dim"))
+            G.text(c, (g?.let { app.title(it) } ?: File(k).nameWithoutExtension) + (g?.let { "  [${it.system.short}]" } ?: ""),
+                220f, y + 3, 20f, th.c("text"), maxW = w - 340)
+            G.text(c, formatDuration(secs), w - 20, y + 4, 19f, th.c("accent"), align = 'r')
         }
     }
 

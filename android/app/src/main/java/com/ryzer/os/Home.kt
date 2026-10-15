@@ -36,8 +36,23 @@ fun drawIcon(c: Canvas, kind: String, cx: Float, cy: Float, s: Float, color: Int
         "continue" -> { val p = Path(); p.moveTo(cx - s * 0.5f, cy - s * 0.8f); p.lineTo(cx - s * 0.5f, cy + s * 0.8f); p.lineTo(cx + s * 0.8f, cy); p.close(); G.path(c, p, color) }
         "played", "stats" -> for (i in 0 until 3) { val bh = s * (0.6f + 0.5f * i); G.rect(c, RectF(cx - s + i * s * 0.7f, cy + s - bh, cx - s + i * s * 0.7f + s * 0.5f, cy + s), color, 2f) }
         "added" -> { G.ring(c, cx, cy, s, color, 4f); G.line(c, cx - s * 0.5f, cy, cx + s * 0.5f, cy, color, 5f); G.line(c, cx, cy - s * 0.5f, cx, cy + s * 0.5f, color, 5f) }
+        "gotd" -> { G.ring(c, cx, cy, s, color, 4f); G.text(c, "1", cx, cy - s * 0.7f, s * 1.6f, color, align = 'c', isBold = true) }
         "collection" -> for (i in 0 until 3) G.outline(c, RectF(cx - s + i * 6, cy - s * 0.7f + i * 6, cx + s * 0.6f + i * 6, cy + s * 0.5f + i * 6), color, 3f, 4f)
     }
+}
+
+/** Today's pick: the same game all day, favouring ones you haven't played yet. */
+fun gameOfTheDay(app: Ryzer): Game? {
+    val all = app.allGames()
+    if (all.isEmpty()) return null
+    val fresh = all.filter { (app.state.launches[it.key] ?: 0) == 0 }.ifEmpty { all }
+    return fresh.sortedBy { it.key }[(today().hashCode() and 0x7fffffff) % fresh.size]
+}
+
+fun greeting(app: Ryzer): String {
+    val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+    val part = when (hour) { in 5..11 -> "Good morning"; in 12..17 -> "Good afternoon"; in 18..22 -> "Good evening"; else -> "Up late" }
+    return if (app.cfg.userName.isNotBlank()) "$part, ${app.cfg.userName}" else part
 }
 
 class HomeScreen(app: Ryzer) : Screen(app) {
@@ -48,17 +63,28 @@ class HomeScreen(app: Ryzer) : Screen(app) {
     private var tiles = listOf<Tile>()
     private val tileW = 132f; private val tileH = 150f; private val selW = 160f; private val selH = 180f; private val gap = 16f
     private val kid get() = app.cfg.kidMode
+    private val grid get() = app.cfg.homeLayout == "grid"
+    private var cols = 5
+    private var gridOffset = 0
 
     init { rebuild() }
 
     fun rebuild() {
-        val old = tiles.getOrNull(sel)?.label
+        val old = tiles.getOrNull(sel)?.let { it.kind + it.label }
         val st = app.state
         val out = ArrayList<Tile>()
         val recent = app.visible(st.recent.mapNotNull { Library.find(app.systems, it) })
         recent.firstOrNull()?.let { g ->
             out += Tile("continue", "Continue", app.title(g), game = g, system = g.system,
                 note = "Resume ${app.title(g)} (${g.system.short}). Played ${formatDuration(st.playtime(g.key))}.")
+        }
+        for (g in st.pins.mapNotNull { Library.find(app.systems, it) }) {
+            out += Tile("pinned", app.title(g), g.system.short, g.system.color, g.system, g,
+                note = "Pinned to Home. ${g.system.name}, played ${formatDuration(st.playtime(g.key))}. Unpin it in the game's options (START).")
+        }
+        gameOfTheDay(app)?.let { g ->
+            out += Tile("gotd", "Game of the Day", app.title(g), g.system.color, g.system, g,
+                note = "Today's pick: ${app.title(g)} (${g.system.name}). A new suggestion every day, favouring games you haven't tried.")
         }
         val favs = app.visible(st.favorites.mapNotNull { Library.find(app.systems, it) }).size
         out += Tile("favorites", "Favorites", plural(favs, "game"), note = "Games you starred with X.")
@@ -75,14 +101,14 @@ class HomeScreen(app: Ryzer) : Screen(app) {
         if (app.cfg.showApps && !kid) out += Tile("apps", "Apps", "Android apps", note = "Launch any app on your device, like a console home screen.")
         out += Tile("random", "Surprise", "Random game", note = "Can't decide? Launch a random game from your library.")
         out += Tile("search", "Search", "All systems", note = "Find any game by name.")
-        out += Tile("stats", "Stats", "${st.streak()} day streak", note = "Play time, a 7-day activity chart, your top games and milestones.")
+        out += Tile("stats", "Stats", "${st.streak()} day streak", note = "Play time, a 7-day activity chart, session history, top games and milestones.")
         if (!kid) {
-            out += Tile("themes", "Themes", "${app.themes.size} themes", note = "Pick from 20+ themes or design your own.")
+            out += Tile("themes", "Themes", "${app.themes.size} themes", note = "Pick a theme, design your own, or turn any photo into a theme.")
             out += Tile("settings", "Settings", "Ryzer", note = "Emulators, ROM folders, dual screen, display, sound and controls.")
             out += Tile("device", "Device", "Android settings", note = "Open the Android settings app (Wi-Fi, Bluetooth, performance mode).")
         }
         tiles = out
-        val i = tiles.indexOfFirst { it.label == old }
+        val i = tiles.indexOfFirst { it.kind + it.label == old }
         sel = if (i >= 0) i else min(sel, tiles.size - 1)
     }
 
@@ -90,10 +116,11 @@ class HomeScreen(app: Ryzer) : Screen(app) {
 
     override fun handle(a: String) {
         val n = tiles.size
+        val rowStep = if (grid) cols else 4
         when (a) {
-            "left", "right" -> { sel = (sel + (if (a == "right") 1 else -1) + n) % n; app.sounds.play("move") }
-            "up" -> { sel = (sel - 4).coerceAtLeast(0); app.sounds.play("move") }
-            "down" -> { sel = (sel + 4).coerceAtMost(n - 1); app.sounds.play("move") }
+            "left", "right" -> { sel = if (grid) (sel + if (a == "right") 1 else -1).coerceIn(0, n - 1) else (sel + (if (a == "right") 1 else -1) + n) % n; app.sounds.play("move") }
+            "up" -> { sel = (sel - rowStep).coerceAtLeast(0); app.sounds.play("move") }
+            "down" -> { sel = (sel + rowStep).coerceAtMost(n - 1); app.sounds.play("move") }
             "l", "r" -> { sel = (sel + if (a == "r") 4 else -4).coerceIn(0, n - 1); app.sounds.play("move") }
             "a" -> { app.sounds.play("select"); open(tiles[sel]) }
             "y" -> app.openSearch()
@@ -105,7 +132,7 @@ class HomeScreen(app: Ryzer) : Screen(app) {
 
     private fun open(t: Tile) {
         when (t.kind) {
-            "continue" -> t.game?.let { app.launch(it) }
+            "continue", "pinned", "gotd" -> t.game?.let { app.launch(it) }
             "system" -> t.system?.let { app.push(GameList(app, it.name, it.games, it)) }
             "favorites" -> app.push(GameList(app, "Favorites", null, source = "favorites"))
             "recent" -> app.push(GameList(app, "Recently Played", null, source = "recent"))
@@ -127,20 +154,38 @@ class HomeScreen(app: Ryzer) : Screen(app) {
         scroll = if (app.animationsOn) scroll + (sel - scroll) * min(1f, dt * 12) else sel.toFloat()
     }
 
+    /** A custom picture for a system tile: RyzerOS/tiles/<system id>.png (or .jpg). */
+    private fun tileArt(tile: Tile): android.graphics.Bitmap? {
+        tile.game?.let { if (tile.kind == "pinned" || tile.kind == "gotd") return G.image(it.image()) }
+        val s = tile.system ?: return null
+        if (tile.kind != "system") return null
+        val dir = java.io.File(app.home, "tiles")
+        return listOf("png", "jpg", "webp").firstNotNullOfOrNull { ext -> java.io.File(dir, "${s.id}.$ext").takeIf { it.isFile } }?.let { G.image(it) }
+    }
+
     private fun drawTile(c: Canvas, tile: Tile, r: RectF, selected: Boolean) {
         val pulse = if (selected && app.animationsOn) ((sin(t * 4) + 1) / 2) else 0f
         G.panel(c, r, th, selected, pulse)
         val band = RectF(r.left + 6, r.top + 6, r.right - 6, r.top + 6 + r.height() * 0.55f)
         G.rect(c, band, mix(th.c("panel"), tile.color ?: th.c("accent"), if (selected) 0.75f else 0.5f), max(0f, th.radius - 4))
         val iconCol = if (selected) th.c("highlight_text") else mix(th.c("highlight_text"), th.c("panel"), 0.3f)
-        if (tile.kind == "system") G.text(c, tile.label, band.centerX(), band.centerY() - 20, if (selected) 44f else 38f, iconCol, align = 'c', isBold = true, maxW = band.width() - 6)
-        else drawIcon(c, tile.kind, band.centerX(), band.centerY(), if (selected) 26f else 22f, iconCol)
+        val art = tileArt(tile)
+        when {
+            art != null -> { c.save(); c.clipRect(band); G.drawImageFit(c, art, band); c.restore() }
+            tile.kind == "system" -> G.text(c, tile.label, band.centerX(), band.centerY() - 20, if (selected) 44f else 38f, iconCol, align = 'c', isBold = true, maxW = band.width() - 6)
+            tile.kind == "pinned" || tile.kind == "gotd" -> G.text(c, tile.system?.short ?: "", band.centerX(), band.centerY() - 20, 38f, iconCol, align = 'c', isBold = true)
+            else -> drawIcon(c, tile.kind, band.centerX(), band.centerY(), if (selected) 26f else 22f, iconCol)
+        }
+        if (tile.kind == "pinned") G.text(c, "PIN", band.right - 6, band.top + 4, 15f, th.c("highlight_text"), align = 'r', isBold = true)
         G.text(c, tile.label, r.centerX(), band.bottom + 10, if (selected) 24f else 22f, th.c("text"), align = 'c', isBold = selected, maxW = r.width() - 12, theme = th)
         G.text(c, tile.sub, r.centerX(), band.bottom + 36, 18f, th.c("text_dim"), align = 'c', maxW = r.width() - 12)
     }
 
     override fun draw(c: Canvas, w: Float, h: Float) {
+        val tile = tiles[sel]
+        if (app.cfg.systemAccent) app.accentOverride = tile.system?.color
         G.topBar(c, app, th, if (kid) "RYZER  |  KID MODE" else "RYZER", w)
+        if (grid) { drawGrid(c, w, h); return }
         val cy = 70 + selH / 2
         val order = tiles.indices.sortedBy { it == sel }
         for (i in order) {
@@ -154,10 +199,10 @@ class HomeScreen(app: Ryzer) : Screen(app) {
             drawTile(c, tiles[i], r, s)
             app.hit(r) { if (sel == i) handle("a") else { sel = i; app.sounds.play("move") } }
         }
-        val tile = tiles[sel]
         val info = RectF(16f, cy + selH / 2 + 16, w - 16, h - 46)
-        G.panel(c, info, th)
-        val title = when (tile.kind) { "system" -> tile.system!!.name; "continue" -> tile.sub; else -> tile.label }
+        val tint = tile.game?.image()?.let { G.image(it) }?.takeIf { app.cfg.artTint }?.let { G.dominant(it) }
+        G.panel(c, info, th, fillColor = tint?.let { withAlpha(mix(th.c("panel"), it, 0.3f), G.panelAlpha) })
+        val title = when (tile.kind) { "system" -> tile.system!!.name; "continue", "gotd" -> tile.sub; else -> tile.label }
         G.text(c, title, info.left + 14, info.top + 10, 28f, th.c("text"), isBold = true, maxW = info.width() - 40, theme = th)
         G.wrap(tile.note, 20f, info.width() - 28).take(max(1, ((info.height() - 46) / 21).toInt())).forEachIndexed { i, l ->
             G.text(c, l, info.left + 14, info.top + 42 + i * 21, 20f, th.c("text_dim")) }
@@ -168,14 +213,50 @@ class HomeScreen(app: Ryzer) : Screen(app) {
         }
     }
 
+    /** Grid layout: every tile at once, like a dashboard. */
+    private fun drawGrid(c: Canvas, w: Float, h: Float) {
+        cols = max(4, (w / 125).toInt())
+        val gp = 10f
+        val cw = (w - 32 - (cols - 1) * gp) / cols
+        val ch = 118f
+        val top = 52f
+        val rowsVisible = max(1, ((h - top - 80) / (ch + gp)).toInt())
+        val row = sel / cols
+        if (row < gridOffset) gridOffset = row else if (row >= gridOffset + rowsVisible) gridOffset = row - rowsVisible + 1
+        tiles.forEachIndexed { i, tile ->
+            val rr = i / cols - gridOffset; val cc = i % cols
+            if (rr < 0 || rr >= rowsVisible) return@forEachIndexed
+            val r = RectF(16 + cc * (cw + gp), top + rr * (ch + gp), 16 + cc * (cw + gp) + cw, top + rr * (ch + gp) + ch)
+            drawTile(c, tile, r, i == sel)
+            app.hit(r) { if (sel == i) handle("a") else { sel = i; app.sounds.play("move") } }
+        }
+        val tile = tiles[sel]
+        G.text(c, tile.note, 20f, h - 72, 19f, th.c("text_dim"), maxW = w - 40)
+    }
+
     override fun drawTop(c: Canvas, w: Float, h: Float) {
-        G.topBar(c, app, th, "", w)
-        app.drawBigClock(c, w, h / 2 - 90)
+        G.topBar(c, app, th, greeting(app), w)
+        app.drawBigClock(c, w, h / 2 - 120)
         val tile = tiles.getOrNull(sel) ?: return
-        G.image(tile.game?.image())?.let { G.drawImageFit(c, it, RectF(40f, h / 2 + 10, w - 40, h - 20)); return }
-        G.text(c, "Total play time  ${formatDuration(app.state.total())}", w / 2, h / 2 + 40, 24f, th.c("text_dim"), align = 'c')
-        G.text(c, "${app.allGames().size} games  |  ${app.state.favorites.size} favorites  |  ${app.state.streak()} day streak", w / 2, h / 2 + 72, 22f,
+        G.image(tile.game?.image())?.let { G.drawImageFit(c, it, RectF(40f, h / 2 - 10, w - 40, h - 20)); return }
+        G.text(c, "Total play time  ${formatDuration(app.state.total())}  |  ${app.state.streak()} day streak", w / 2, h / 2 + 10, 22f,
             th.c("text_dim"), align = 'c', maxW = w - 30)
+        // Recently played shelf
+        val recent = app.visible(app.state.recent.mapNotNull { Library.find(app.systems, it) }).take(5)
+        if (recent.isEmpty()) return
+        val bw = min(110f, (w - 40 - 4 * 12) / 5)
+        val startX = w / 2 - (recent.size * bw + (recent.size - 1) * 12) / 2
+        G.text(c, "Recently played", w / 2, h / 2 + 44, 18f, th.c("accent"), align = 'c', isBold = true)
+        recent.forEachIndexed { i, g ->
+            val r = RectF(startX + i * (bw + 12), h / 2 + 70, startX + i * (bw + 12) + bw, h / 2 + 70 + bw)
+            val bmp = G.image(g.image())
+            if (bmp != null) G.drawImageFit(c, bmp, r) else {
+                G.rect(c, r, mix(th.c("panel"), g.system.color, 0.6f), 8f)
+                G.text(c, g.system.short, r.centerX(), r.centerY() - 14, 28f, th.c("highlight_text"), align = 'c', isBold = true)
+            }
+            G.text(c, app.title(g), r.centerX(), r.bottom + 4, 15f, th.c("text_dim"), align = 'c', maxW = bw)
+            app.hit(r) { app.launch(g) }
+        }
     }
 
     override fun hints() = if (kid) listOf("START" to "Unlock", "X" to "Random", "A" to "Open")
@@ -281,6 +362,16 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
                 if (s.isEmpty()) st.status.remove(g.key) else st.status[g.key] = s
                 st.save(); Milestones.check(app) }),
             Item("Add to collection", select = { app.push(addToCollectionMenu(app, g)) }),
+            Item("Pin to Home", "Puts this game on its own Home tile.", value = { if (g.key in st.pins) "Pinned" else "No" }, change = {
+                if (!st.pins.remove(g.key)) st.pins.add(g.key); st.save() }),
+            Item("Notes", "Codes, passwords, where you left off. Shown on the Now Playing screen too.",
+                value = { st.notes[g.key]?.takeIf { it.isNotBlank() }?.let { if (it.length > 18) it.take(18) + "..." else it } ?: "None" },
+                select = { app.push(Keyboard(app, "Notes for ${app.title(g)}", st.notes[g.key] ?: "", 120) { text ->
+                    if (text.isBlank()) st.notes.remove(g.key) else st.notes[g.key] = text
+                    st.save() }) }),
+            Item("Emulator controls", "How to open the emulator's menu, save states and more.", select = {
+                app.push(Message(app, "Controls: ${Launcher.label(app, st.gameEmu[g.key] ?: Launcher.chosen(app, g.system))}",
+                    DualPlay.hotkeys(app, st.gameEmu[g.key] ?: Launcher.chosen(app, g.system)))) }),
         )
         if (collection != null) items += Item("Remove from '$collection'", select = {
             st.collections[collection]?.remove(g.key); st.save(); app.pop(); refresh() })
@@ -315,6 +406,7 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
         return "System: ${g.system.name}\nFile: ${g.file.name}\nFolder: ${g.file.parent}\nSize: ${"%.1f".format(g.file.length() / 1e6)} MB\n" +
             "Play time: ${formatDuration(st.playtime(g.key))}\nLaunches: ${st.launches[g.key] ?: 0}\n" +
             "Rating: ${ListView.stars(st.ratings[g.key] ?: 0)}\nStatus: ${ListView.label(st.status[g.key] ?: "")}\n" +
+            (st.notes[g.key]?.let { "Notes: $it\n" } ?: "") +
             "Emulator: ${Launcher.label(app, st.gameEmu[g.key] ?: Launcher.chosen(app, g.system))}\n\n${g.system.demand}. ${g.system.note}"
     }
 
@@ -389,7 +481,8 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
 
     private fun details(c: Canvas, r: RectF, compact: Boolean) {
         val g = current() ?: return
-        G.panel(c, r, th)
+        val tint = if (app.cfg.artTint) G.image(g.image())?.let { G.dominant(it) } else null
+        G.panel(c, r, th, fillColor = tint?.let { withAlpha(mix(th.c("panel"), it, 0.3f), G.panelAlpha) })
         var y = r.top + 10
         val bmp = G.image(g.image())
         if (bmp != null) {

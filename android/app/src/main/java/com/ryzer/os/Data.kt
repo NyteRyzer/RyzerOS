@@ -68,6 +68,23 @@ class Config(private val file: File) {
     var kidMode = false
     var kidPin = ""
     var romAccess = "auto"       // auto | provider | folder: how games are handed to emulators
+    // Dual screen while playing
+    var companion = true         // "Now Playing" panel on the other screen for single-screen games
+    var gameScreen = "main"      // main | second: where single-screen games open
+    var breakMinutes = 0         // break reminder on the companion, 0 = off
+    var dailyLimit = 0           // minutes per day, 0 = no limit
+    // Extra looks
+    var artTint = true           // tint panels with the selected game's box-art colours
+    var systemAccent = false     // accent colour follows the selected system on Home
+    var rgb = false              // animated rainbow accent
+    var nightLight = 0           // warm filter strength 0..50
+    var glass = true             // see-through panels over wallpapers
+    var homeLayout = "ribbon"    // ribbon | grid
+    var bootStyle = "classic"    // classic | glitch | minimal
+    var soundPack = "classic"    // classic | chiptune | soft
+    var music = false            // play RyzerOS/music in the menus
+    var musicVolume = 40
+    var userName = ""
 
     init { load() }
 
@@ -94,6 +111,13 @@ class Config(private val file: File) {
         haptics = j.optBoolean("haptics", haptics); batterySaver = j.optBoolean("batterySaver", batterySaver)
         kidMode = j.optBoolean("kidMode", kidMode); kidPin = j.optString("kidPin", kidPin)
         romAccess = j.optString("romAccess", romAccess)
+        companion = j.optBoolean("companion", companion); gameScreen = j.optString("gameScreen", gameScreen)
+        breakMinutes = j.optInt("breakMinutes", breakMinutes); dailyLimit = j.optInt("dailyLimit", dailyLimit)
+        artTint = j.optBoolean("artTint", artTint); systemAccent = j.optBoolean("systemAccent", systemAccent)
+        rgb = j.optBoolean("rgb", rgb); nightLight = j.optInt("nightLight", nightLight); glass = j.optBoolean("glass", glass)
+        homeLayout = j.optString("homeLayout", homeLayout); bootStyle = j.optString("bootStyle", bootStyle)
+        soundPack = j.optString("soundPack", soundPack); music = j.optBoolean("music", music)
+        musicVolume = j.optInt("musicVolume", musicVolume); userName = j.optString("userName", userName)
     }
 
     fun save() = writeJson(file, JSONObject().apply {
@@ -109,6 +133,10 @@ class Config(private val file: File) {
         put("font", font); put("uiSize", uiSize); put("wallpaper", wallpaper); put("screensaver", screensaver)
         put("haptics", haptics); put("batterySaver", batterySaver); put("kidMode", kidMode); put("kidPin", kidPin)
         put("romAccess", romAccess)
+        put("companion", companion); put("gameScreen", gameScreen); put("breakMinutes", breakMinutes); put("dailyLimit", dailyLimit)
+        put("artTint", artTint); put("systemAccent", systemAccent); put("rgb", rgb); put("nightLight", nightLight); put("glass", glass)
+        put("homeLayout", homeLayout); put("bootStyle", bootStyle); put("soundPack", soundPack); put("music", music)
+        put("musicVolume", musicVolume); put("userName", userName)
     })
 }
 
@@ -135,6 +163,9 @@ class PlayState(private val file: File) {
     val collections = LinkedHashMap<String, MutableList<String>>()
     val daily = HashMap<String, Long>()           // yyyy-MM-dd -> seconds played
     val milestones = mutableSetOf<String>()
+    val notes = HashMap<String, String>()         // per-game notes (codes, where you left off...)
+    val pins = mutableListOf<String>()            // games pinned to Home
+    val sessions = mutableListOf<Triple<String, Long, Long>>()   // (game, start ms, seconds), newest first
     var pendingKey: String? = null
     var pendingStart = 0L
 
@@ -152,6 +183,10 @@ class PlayState(private val file: File) {
             j.optJSONObject("collections")?.let { c -> c.keys().forEach { collections[it] = c.getJSONArray(it).strings().toMutableList() } }
             j.optJSONObject("daily").longMap(daily)
             milestones += j.optJSONArray("milestones").strings()
+            notes.putAll(j.optJSONObject("notes").stringMap())
+            pins += j.optJSONArray("pins").strings()
+            j.optJSONArray("sessions")?.let { a -> for (i in 0 until a.length()) a.optJSONArray(i)?.let { e ->
+                sessions += Triple(e.optString(0), e.optLong(1), e.optLong(2)) } }
             pendingKey = j.optString("pendingKey").ifEmpty { null }
             pendingStart = j.optLong("pendingStart", 0)
         }
@@ -165,6 +200,8 @@ class PlayState(private val file: File) {
         put("hidden", JSONArray(hidden.toList()))
         put("collections", JSONObject().apply { collections.forEach { (k, v) -> put(k, JSONArray(v)) } })
         put("daily", JSONObject(daily as Map<*, *>)); put("milestones", JSONArray(milestones.toList()))
+        put("notes", JSONObject(notes as Map<*, *>)); put("pins", JSONArray(pins))
+        put("sessions", JSONArray().apply { sessions.forEach { (k, t, secs) -> put(JSONArray().put(k).put(t).put(secs)) } })
         put("pendingKey", pendingKey ?: ""); put("pendingStart", pendingStart)
     })
 
@@ -201,6 +238,8 @@ class PlayState(private val file: File) {
         if (ok) {
             times[k] = (times[k] ?: 0) + secs
             daily[today()] = (daily[today()] ?: 0) + secs
+            sessions.add(0, Triple(k, pendingStart, secs))
+            while (sessions.size > 100) sessions.removeAt(sessions.size - 1)
         }
         save()
         return if (ok) k to secs else null
@@ -208,12 +247,13 @@ class PlayState(private val file: File) {
 
     fun forget(k: String) {
         favorites.remove(k); recent.remove(k); times.remove(k); launches.remove(k); ratings.remove(k)
-        status.remove(k); titles.remove(k); gameEmu.remove(k); hidden.remove(k)
+        status.remove(k); titles.remove(k); gameEmu.remove(k); hidden.remove(k); notes.remove(k); pins.remove(k)
         collections.values.forEach { it.remove(k) }
         save()
     }
 
     fun playtime(k: String) = times[k] ?: 0L
+    fun playedToday() = daily[today()] ?: 0L
     fun total() = times.values.sum()
 
     /** Consecutive days with play time, ending today (or yesterday if nothing played yet today). */

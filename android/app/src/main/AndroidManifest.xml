@@ -58,6 +58,16 @@
             </intent-filter>
         </activity>
 
+        <!-- "Now Playing" panel shown on the second screen while a single-screen game runs -->
+        <activity
+            android:name=".NowPlayingActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity="com.ryzer.os.nowplaying"
+            android:resizeableActivity="true"
+            android:screenOrientation="unspecified"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density" />
+
         <provider
             android:name=".RomProvider"
             android:authorities="com.ryzer.os.roms"
