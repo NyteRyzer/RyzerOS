@@ -72,7 +72,7 @@ class ThemePicker(app: Ryzer) : Screen(app) {
             "left" -> move(-1); "right" -> move(1); "up" -> move(-cols); "down" -> move(cols)
             "a" -> { app.setTheme(list[sel].id, save = true); app.sounds.play("select"); app.notify("Theme set: ${list[sel].name}"); app.pop() }
             "b" -> { app.setTheme(original, save = false); app.sounds.play("back"); app.pop() }
-            "x" -> app.push(ThemeEditor(app, list[sel]))
+            "x" -> app.push(ThemeStudio(app, list[sel]))
             "start" -> PhotoTheme.pickAndApply(app)
             "y" -> {
                 val t = list[sel]
@@ -104,7 +104,7 @@ class ThemePicker(app: Ryzer) : Screen(app) {
         }
     }
 
-    override fun hints() = listOf("START" to "Photo", "Y" to "Delete", "X" to "Edit copy", "A" to "Apply")
+    override fun hints() = listOf("START" to "Photo", "Y" to "Delete", "X" to "Theme Studio", "A" to "Apply")
 }
 
 private val COLOR_LABELS = mapOf("bg_top" to "Background top", "bg_bottom" to "Background bottom", "panel" to "Panel",
@@ -188,6 +188,13 @@ fun settingsMenu(app: Ryzer): Menu {
         Item("Dual screen", "Auto uses a second display when the device has one (AYN Thor, RG DS, AYANEO Pocket DS, Retroid Dual).",
             value = { cfg.dual.replaceFirstChar { it.uppercase() } }, change = { d -> cfg.dual = cycle(listOf("auto", "on", "off"), cfg.dual, d); cfg.save(); app.ctx.updateDisplays() }),
         toggle("Swap screens", "Put the menu on the second display and art/info on the main one.", { cfg.swapScreens }) { cfg.swapScreens = it; app.ctx.updateDisplays() },
+        Item("Swap button", "L3 / R3 (stick clicks) always swap the screens. Press A here, then press any other button to use it as well (e.g. a dedicated screen button).",
+            value = { if (cfg.swapKey > 0) android.view.KeyEvent.keyCodeToString(cfg.swapKey).removePrefix("KEYCODE_") else "L3 / R3" },
+            select = {
+                app.notify("Press the button you want to use for swapping...", 6f)
+                app.ctx.learningSwapKey = { code -> cfg.swapKey = code; cfg.save(); app.notify("Swap button set: ${android.view.KeyEvent.keyCodeToString(code).removePrefix("KEYCODE_")}") }
+            }),
+        Item("Reset swap button", select = { cfg.swapKey = -1; cfg.save(); app.notify("Swap button: L3 / R3") }),
         Item("Detected displays", value = { "${app.ctx.secondaryDisplays().size + 1}" }, help = "Ryzer frees the second screen while a game runs, so dual-screen emulators can use it."),
         toggle("Now Playing screen", "For single-screen systems (GBA, SNES, PSP...) the game opens on one screen and the other shows the game, a timer and quick controls. DS and 3DS keep both screens.",
             { cfg.companion }) { cfg.companion = it },
@@ -216,8 +223,13 @@ fun settingsMenu(app: Ryzer): Menu {
             select = { PhotoTheme.pickAndApply(app) }),
         Item("Your name", "Used for the greeting on the top screen.", value = { cfg.userName.ifEmpty { "Not set" } }, select = {
             app.push(Keyboard(app, "Your name", cfg.userName, 16) { cfg.userName = it; cfg.save() }) }),
-        Item("Home layout", "Ribbon: console-style row of tiles. Grid: everything at once.", value = { cfg.homeLayout.replaceFirstChar { it.uppercase() } },
-            change = { d -> cfg.homeLayout = cycle(listOf("ribbon", "grid"), cfg.homeLayout, d); cfg.save() }),
+        Item("Home layout", "3DS: banner on top, icon grid below. Ribbon: console-style row. Grid: everything at once.",
+            value = { mapOf("3ds" to "3DS style", "ribbon" to "Ribbon", "grid" to "Grid")[cfg.homeLayout] ?: cfg.homeLayout },
+            change = { d -> cfg.homeLayout = cycle(listOf("3ds", "ribbon", "grid"), cfg.homeLayout, d); cfg.save(); app.applyHomeLayout() }),
+        Item("Icon rows (3DS layout)", value = { "${cfg.iconRows}" }, change = { d -> cfg.iconRows = (cfg.iconRows + d).coerceIn(2, 4); cfg.save() }),
+        Item("Live wallpaper", "Animated backgrounds tinted by your theme. A theme can also set its own in Theme Studio.",
+            value = { cfg.live.replaceFirstChar { it.uppercase() } }, change = { d -> cfg.live = cycle(Live.KINDS, cfg.live, d); cfg.save() }),
+        Item("Live wallpaper speed", value = { "${cfg.liveSpeed}%" }, change = { d -> cfg.liveSpeed = (cfg.liveSpeed + d * 25).coerceIn(25, 300); cfg.save() }),
         toggle("Glass panels", "See-through panels when a wallpaper or photo theme is on.", { cfg.glass }) { cfg.glass = it },
         toggle("Box-art colours", "Tints panels with the colours of the selected game's box art.", { cfg.artTint }) { cfg.artTint = it },
         toggle("System colours", "The accent colour changes to match the system you're on.", { cfg.systemAccent }) { cfg.systemAccent = it },
@@ -291,7 +303,19 @@ fun settingsMenu(app: Ryzer): Menu {
             "START: options / settings   SELECT: themes (Home) or grid/list (game lists)\nTouch: tap anything, including the button hints.")) }),
     )) }
 
+    val personalize = { Menu(app, "Personalize", listOf(
+        Item("Theme Studio", "Design every colour, pattern, effect and font of your own theme.", select = { app.push(ThemeStudio(app, app.theme)) }),
+        Item("Themes", "Pick from your themes.", select = { app.push(ThemePicker(app)) }),
+        Item("Theme from a photo", select = { PhotoTheme.pickAndApply(app) }),
+        Item("Profile", "Your name and picture.", select = { app.push(profileMenu(app)) }),
+        Item("Look & feel", "Layout, live wallpaper, effects, sizes and fonts.", select = { app.push(look()) }),
+        Item("Sound & music", select = { app.push(sound()) }),
+        Item("Swap screens now", select = { app.ctx.toggleSwap() }),
+    )) }
+
     return Menu(app, "Settings", listOf(
+        Item("Personalize", "Theme Studio, themes, profile, layout, live wallpaper, sounds.", select = { app.push(personalize()) }),
+        Item("Notifications", "Notification centre, banners and do not disturb.", value = { "${Notifs.unread()} new" }, select = { app.push(NotificationsScreen(app)) }),
         Item("Emulators", "Choose which emulator each system uses. Any installed app works.", select = { app.push(emulators()) }),
         Item("Library", "ROM folders, rescanning and naming.", select = { app.push(library()) }),
         Item("Display & dual screen", select = { app.push(display()) }),

@@ -35,6 +35,9 @@ open class Menu(app: Ryzer, override val title: String, var items: List<Item>, p
 
     fun current() = items.getOrNull(sel)
 
+    /** How wide the list is; screens with a side panel (Theme Studio's preview) make it narrower. */
+    open fun listWidth(w: Float) = w
+
     override fun handle(a: String) {
         val s = app.sounds
         when (a) {
@@ -54,12 +57,13 @@ open class Menu(app: Ryzer, override val title: String, var items: List<Item>, p
         var top = 52f
         if (subtitle.isNotEmpty()) { G.text(c, subtitle, 20f, top, 20f, th.c("text_dim"), maxW = w - 40, theme = th); top += 26 }
         val helpH = 30f
+        val lw = listWidth(w)
         val visible = max(1, ((h - top - 40 - helpH) / rowH).toInt())
         offset = G.scrollOffset(sel, offset, visible, items.size)
         for (i in offset until min(items.size, offset + visible)) {
             val it = items[i]
             val y = top + (i - offset) * rowH
-            val r = RectF(16f, y, w - 28, y + rowH - 6)
+            val r = RectF(16f, y, lw - 28, y + rowH - 6)
             val selected = i == sel
             G.panel(c, r, th, selected)
             app.hit(r) { if (sel == i) handle("a") else sel = i }
@@ -78,8 +82,8 @@ open class Menu(app: Ryzer, override val title: String, var items: List<Item>, p
                     maxW = r.width() / 2 - 20, theme = th)
             }
         }
-        G.scrollbar(c, th, RectF(w - 20, top, w - 15, top + visible * rowH - 6), offset, visible, items.size)
-        current()?.help?.takeIf { it.isNotEmpty() }?.let { G.text(c, it, 20f, h - 36 - helpH + 4, 20f, th.c("text_dim"), maxW = w - 40, theme = th) }
+        G.scrollbar(c, th, RectF(lw - 20, top, lw - 15, top + visible * rowH - 6), offset, visible, items.size)
+        current()?.help?.takeIf { it.isNotEmpty() }?.let { G.text(c, it, 20f, h - 36 - helpH + 4, 20f, th.c("text_dim"), maxW = lw - 40, theme = th) }
     }
 
     override fun drawTop(c: Canvas, w: Float, h: Float) {

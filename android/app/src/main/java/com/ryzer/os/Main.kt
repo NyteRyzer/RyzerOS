@@ -62,6 +62,7 @@ class Ryzer(val ctx: MainActivity) {
     val activeTheme: Theme get() = frameTheme ?: baseTheme
     /** Set by Home to the selected system's colour when "System colours" is on. */
     var accentOverride: Int? = null
+    private var appliedFont = ""
     /** Last time the top screen (second display or split half) was drawn. */
     var topShownAt = 0L
     var emulators: Map<String, Emulator> = Library.loadEmulators(this)
@@ -359,7 +360,10 @@ class Ryzer(val ctx: MainActivity) {
         G.background(c, th, w, h, t)
         val wp = wallpaper()
         if (wp != null) G.wallpaper(c, th, wp, w, h)
-        if (cfg.live != "off" && animationsOn) Live.draw(c, th, cfg.live, w, h, t, cfg.liveSpeed / 100f)
+        val liveKind = (baseTheme.style["live"] as? String)?.takeIf { it != "off" } ?: cfg.live
+        if (liveKind != "off" && animationsOn) Live.draw(c, th, liveKind, w, h, t, cfg.liveSpeed / 100f)
+        val font = (baseTheme.style["font"] as? String)?.takeIf { it != "default" } ?: cfg.font
+        if (font != appliedFont) { appliedFont = font; G.setFont(font) }
         G.panelAlpha = if (wp != null && cfg.glass) min(th.panelAlpha, 0.8f) else th.panelAlpha
         try { renderContent(c, role, th, w, h, dt) } finally {
             if (cfg.nightLight > 0) G.rect(c, RectF(0f, 0f, w, h), withAlpha(0xFFFF8A00.toInt(), cfg.nightLight / 100f * 0.5f))

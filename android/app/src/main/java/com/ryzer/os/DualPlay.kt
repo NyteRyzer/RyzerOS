@@ -204,6 +204,12 @@ class NowPlayingView(private val act: NowPlayingActivity, private val app: Ryzer
         } else ""
         G.text(c, "Total ${formatDuration(total)}$limitLine", x, 178f, 19f, th.c("text_dim"), maxW = w - x - 16)
 
+        // Newest notification (if any arrived while playing)
+        if (app.cfg.notifOnPanel && !app.cfg.notifDnd) Notifs.list.firstOrNull()?.let { n ->
+            if (System.currentTimeMillis() - n.time < 10 * 60_000) {
+                G.text(c, "${n.app}: ${n.title} - ${n.text}", 16f, 194f, 17f, th.c("accent2"), maxW = w - 32)
+            }
+        }
         // Break reminder
         val brk = app.cfg.breakMinutes
         if (brk > 0 && secs > 0 && secs / (brk * 60L) > lastBreak) {

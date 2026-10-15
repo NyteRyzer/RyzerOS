@@ -49,7 +49,7 @@ class Theme(
     companion object {
         val COLOR_KEYS = listOf("bg_top", "bg_bottom", "panel", "panel_border", "accent", "accent2",
             "text", "text_dim", "highlight_text", "good", "warn", "bad")
-        val BACKGROUNDS = listOf("gradient", "scanlines", "grid", "dots", "waves", "stars")
+        val BACKGROUNDS = listOf("gradient", "solid", "scanlines", "grid", "dots", "waves", "stars", "stripes", "checker", "diagonal")
         val TILE_STYLES = listOf("glow", "flat", "outline")
 
         fun hex(c: Int) = String.format("#%06X", c and 0xFFFFFF)
@@ -76,6 +76,9 @@ class Theme(
             if (sj.has("panel_alpha")) style["panel_alpha"] = sj.optDouble("panel_alpha", 1.0).toFloat().coerceIn(0.3f, 1f)
             if (sj.has("wallpaper")) style["wallpaper"] = sj.optString("wallpaper")
             if (sj.has("wallpaper_dim")) style["wallpaper_dim"] = sj.optDouble("wallpaper_dim", 0.55).toFloat().coerceIn(0f, 0.9f)
+            // Theme Studio extras: a theme can carry its own live wallpaper and font
+            if (sj.has("live")) style["live"] = sj.optString("live")
+            if (sj.has("font")) style["font"] = sj.optString("font")
             Theme(json.getString("id"), json.optString("name", json.getString("id")), colors, style, builtin,
                 json.optString("author", "Ryzer"))
         } catch (e: Exception) {
@@ -224,6 +227,10 @@ object G {
                 for (i in 0 until 8) { val y = h / 2f + (h / 2f) * Math.pow(i / 8.0, 1.6).toFloat(); line(c, 0f, y, w.toFloat(), y, lineCol) }
             }
             "dots" -> { var y = 8; while (y < h) { var x = 8 + (y / 20 % 2) * 10; while (x < w) { circle(c, x.toFloat(), y.toFloat(), 1f, lineCol); x += 20 }; y += 20 } }
+            "solid" -> c.drawColor(th.c("bg_bottom"))
+            "stripes" -> { var x = 0; while (x < w) { rect(c, RectF(x.toFloat(), 0f, x + 12f, h.toFloat()), withAlpha(lineCol, 0.35f)); x += 24 } }
+            "checker" -> { var y = 0; while (y < h) { var x = if (y / 24 % 2 == 0) 0 else 24; while (x < w) { rect(c, RectF(x.toFloat(), y.toFloat(), x + 24f, y + 24f), withAlpha(lineCol, 0.35f)); x += 48 }; y += 24 } }
+            "diagonal" -> { var x = -h; while (x < w) { line(c, x.toFloat(), h.toFloat(), (x + h).toFloat(), 0f, withAlpha(lineCol, 0.7f), 2f); x += 22 } }
             "stars" -> { val r = Random(7); repeat(w * h / 2200) { circle(c, r.nextInt(w).toFloat(), r.nextInt(h).toFloat(), 0.8f,
                 mix(th.c("bg_top"), th.c("text"), r.nextFloat() * 0.6f)) } }
         }
