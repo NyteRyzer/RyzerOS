@@ -95,6 +95,18 @@ class Config(private val file: File) {
     var liveSpeed = 100          // percent
     var iconRows = 3             // 3DS home: rows of icons (2-4)
     var avatar = ""              // profile picture file in the Ryzer folder
+    // 2.1
+    var launchAnim = true        // short splash before a game starts
+    var newBadges = true         // "NEW" on games added in the last week
+    var neon = false             // glowing outlines on panels
+    var transitions = true       // slide between screens
+    var iconShape = "rounded"    // 3DS home icons: rounded | circle | square | hexagon
+    var bedtime = -1             // hour (0-23) for a bedtime reminder, -1 = off
+    var bootMessage = ""         // custom text on the boot screen
+    var seasonal = true          // snow in winter, petals in spring...
+    var photoFrame = false       // screensaver shows pictures from RyzerOS/photos
+    var resumePrompt = true      // "continue playing X?" at startup
+    val hiddenTiles = mutableSetOf<String>()   // Home tiles switched off in the tile editor
 
     init { load() }
 
@@ -132,6 +144,12 @@ class Config(private val file: File) {
         notifOnPanel = j.optBoolean("notifOnPanel", notifOnPanel); ryzerNotices = j.optBoolean("ryzerNotices", ryzerNotices)
         swapKey = j.optInt("swapKey", swapKey); live = j.optString("live", live); liveSpeed = j.optInt("liveSpeed", liveSpeed)
         iconRows = j.optInt("iconRows", iconRows); avatar = j.optString("avatar", avatar)
+        launchAnim = j.optBoolean("launchAnim", launchAnim); newBadges = j.optBoolean("newBadges", newBadges)
+        neon = j.optBoolean("neon", neon); transitions = j.optBoolean("transitions", transitions)
+        iconShape = j.optString("iconShape", iconShape); bedtime = j.optInt("bedtime", bedtime)
+        bootMessage = j.optString("bootMessage", bootMessage); seasonal = j.optBoolean("seasonal", seasonal)
+        photoFrame = j.optBoolean("photoFrame", photoFrame); resumePrompt = j.optBoolean("resumePrompt", resumePrompt)
+        hiddenTiles.clear(); hiddenTiles += j.optJSONArray("hiddenTiles").strings()
         if (j.optInt("uiVersion", 1) < 2) homeLayout = "3ds"   // 2.0 introduces the new Home; old configs switch once
     }
 
@@ -154,6 +172,9 @@ class Config(private val file: File) {
         put("musicVolume", musicVolume); put("userName", userName)
         put("notifBanners", notifBanners); put("notifDnd", notifDnd); put("notifOnPanel", notifOnPanel); put("ryzerNotices", ryzerNotices)
         put("swapKey", swapKey); put("live", live); put("liveSpeed", liveSpeed); put("iconRows", iconRows); put("avatar", avatar); put("uiVersion", 2)
+        put("launchAnim", launchAnim); put("newBadges", newBadges); put("neon", neon); put("transitions", transitions)
+        put("iconShape", iconShape); put("bedtime", bedtime); put("bootMessage", bootMessage); put("seasonal", seasonal)
+        put("photoFrame", photoFrame); put("resumePrompt", resumePrompt); put("hiddenTiles", JSONArray(hiddenTiles.toList()))
     })
 }
 
@@ -183,6 +204,8 @@ class PlayState(private val file: File) {
     val notes = HashMap<String, String>()         // per-game notes (codes, where you left off...)
     val pins = mutableListOf<String>()            // games pinned to Home
     val sessions = mutableListOf<Triple<String, Long, Long>>()   // (game, start ms, seconds), newest first
+    val bestScores = HashMap<String, Int>()       // mini-game high scores
+    val firstSeen = HashMap<String, Long>()       // when a ROM first showed up, for NEW badges
     var pendingKey: String? = null
     var pendingStart = 0L
 
@@ -204,6 +227,8 @@ class PlayState(private val file: File) {
             pins += j.optJSONArray("pins").strings()
             j.optJSONArray("sessions")?.let { a -> for (i in 0 until a.length()) a.optJSONArray(i)?.let { e ->
                 sessions += Triple(e.optString(0), e.optLong(1), e.optLong(2)) } }
+            j.optJSONObject("bestScores").intMap(bestScores)
+            j.optJSONObject("firstSeen").longMap(firstSeen)
             pendingKey = j.optString("pendingKey").ifEmpty { null }
             pendingStart = j.optLong("pendingStart", 0)
         }
@@ -219,6 +244,7 @@ class PlayState(private val file: File) {
         put("daily", JSONObject(daily as Map<*, *>)); put("milestones", JSONArray(milestones.toList()))
         put("notes", JSONObject(notes as Map<*, *>)); put("pins", JSONArray(pins))
         put("sessions", JSONArray().apply { sessions.forEach { (k, t, secs) -> put(JSONArray().put(k).put(t).put(secs)) } })
+        put("bestScores", JSONObject(bestScores as Map<*, *>)); put("firstSeen", JSONObject(firstSeen as Map<*, *>))
         put("pendingKey", pendingKey ?: ""); put("pendingStart", pendingStart)
     })
 
@@ -268,6 +294,18 @@ class PlayState(private val file: File) {
         collections.values.forEach { it.remove(k) }
         save()
     }
+
+    /** Remembers when each ROM first appeared; true if anything new was recorded. */
+    fun noteSeen(keys: Collection<String>): Boolean {
+        val now = System.currentTimeMillis()
+        // The very first scan isn't "new": everything was already there.
+        val stamp = if (firstSeen.isEmpty()) 0L else now
+        var changed = false
+        for (k in keys) if (k !in firstSeen) { firstSeen[k] = stamp; changed = true }
+        return changed
+    }
+
+    fun isNew(k: String) = (firstSeen[k] ?: 0L).let { it > 0 && System.currentTimeMillis() - it < 7 * 86_400_000L }
 
     fun playtime(k: String) = times[k] ?: 0L
     fun playedToday() = daily[today()] ?: 0L

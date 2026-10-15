@@ -231,6 +231,8 @@ class BootScreen(app: Ryzer, private val next: Screen) : Screen(app) {
     override fun draw(c: Canvas, w: Float, h: Float) {
         val p = min(1f, t / (duration * 0.85f))
         val cx = w / 2; val cy = h / 2 - 20
+        if (app.cfg.bootMessage.isNotBlank() && p > 0.5f)
+            G.text(c, app.cfg.bootMessage, cx, h - 60, 24f, withAlpha(th.c("accent"), min(1f, (p - 0.5f) * 3)), align = 'c', maxW = w - 40)
         when (app.cfg.bootStyle) {
             "minimal" -> {   // a quiet fade-in
                 val a = min(1f, p * 1.5f)
@@ -275,7 +277,7 @@ class BootScreen(app: Ryzer, private val next: Screen) : Screen(app) {
 
     override fun drawTop(c: Canvas, w: Float, h: Float) {
         val p = min(1f, t / duration)
-        G.text(c, "Starting up", w / 2, h / 2 - 30, 30f, th.c("text_dim"), align = 'c')
+        G.text(c, app.cfg.bootMessage.ifBlank { "Starting up" }, w / 2, h / 2 - 30, 30f, th.c("text_dim"), align = 'c', maxW = w - 40)
         val bar = RectF(w / 4, h / 2 + 10, w * 3 / 4, h / 2 + 18)
         G.rect(c, bar, th.c("panel"), 4f)
         G.rect(c, RectF(bar.left, bar.top, bar.left + bar.width() * p, bar.bottom), th.c("accent"), 4f)

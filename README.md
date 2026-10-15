@@ -19,6 +19,46 @@ Every version is listed on the [Releases page](https://github.com/NyteRyzer/Ryze
 
 If Ryzer ever closes by itself, it saves the error to `RyzerOS/crash.txt` and shows it the next time it starts. Send that text along with your bug report.
 
+### New in 2.1: 30 new features
+
+**Play**
+1. **Snake**, a mini-game with saved high scores (Tools).
+2. **2048**, the other mini-game, also with high scores.
+3. **Game Roulette**: a slot-machine reel spins through your games and you play whichever it lands on.
+4. **Launch animation**: the box art zooms in before the game starts.
+5. **"Continue playing?"** at startup offers your last game, along with your notes for it.
+
+**Library**
+6. **For You**: recommendations from the systems you play most and the games you rate highest.
+7. **Smart collections** that fill themselves: Now Playing, Backlog, Top Rated, Never Played and New This Week.
+8. **NEW badges** on games added in the last 7 days.
+9. **Search everything**: Y finds games, Android apps and Ryzer screens in one place.
+10. **ROM check (CRC32)** in any game's options, to spot a damaged file.
+11. **Per-system backgrounds**: `RyzerOS/backgrounds/gba.jpg` shows behind your GBA list.
+
+**Look**
+12. **Home tile editor**: choose which Home tiles appear.
+13. **Icon shapes** for the 3DS layout: rounded, circle, square or hexagon.
+14. **Neon mode**: glowing outlines on every panel.
+15. **Screen transitions**: screens slide in as they open.
+16. **Binary clock**, a new top-screen clock style.
+17. **Word clock** ("quarter past seven"), another new clock style.
+18. **4 new live wallpapers**: fireflies, leaves, hearts and matrix.
+19. **Seasonal effects**: snow in winter, petals in spring, fireflies in summer, leaves in autumn and hearts on Valentine's Day.
+20. **Photo-frame screensaver**, using your pictures in `RyzerOS/photos`.
+21. **Custom boot message**.
+22. **5 unlockable bonus themes** (Bronze, Silver, Gold, Platinum, Ryzer Legend) that you earn with milestones.
+
+**Tools** (a new Home tile, toolbar button and Settings entry)
+23. **Play calendar**: a month view of the days you played, shaded by how long.
+24. **Share my stats**: makes a picture card of your stats and opens the share menu.
+25. **Screenshots** of Ryzer, from the Tools or Quick menu.
+26. **Stopwatch and timer**, with laps; the timer sends a notification when it finishes.
+27. **Controller test**: every button, stick and trigger, live.
+28. **Battery info**: charge, temperature, voltage, current and health.
+29. **System brightness** control and a **bedtime reminder**.
+30. **What's New** and **Help & tips** screens.
+
 ### New in 2.0
 
 - **New 3DS-style Home** (default): the top screen shows a big floating banner for the selected item, with your profile, the clock, the date and notifications. The bottom screen has a toolbar (Settings, Theme Studio, Notifications, Stats, Search, Swap, Quick menu, Profile) above a sideways-scrolling grid of icons. Ryzer's glow, colour bands and themes are all still there. The Ribbon and Grid layouts are one setting away (Personalize → Look & feel → Home layout).

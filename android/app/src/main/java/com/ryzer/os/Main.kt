@@ -85,6 +85,7 @@ class Ryzer(val ctx: MainActivity) {
     private var warned15 = false
     private var warned5 = false
     private var timeTheme: String? = null
+    private var bedtimeShown = ""
 
     init {
         instance = this
@@ -164,6 +165,7 @@ class Ryzer(val ctx: MainActivity) {
             main.post {
                 scanning = false
                 if (error != null) notify("Scan problem: ${error.javaClass.simpleName}", 4f)
+                else if (state.noteSeen(systems.flatMap { s -> s.games.map { it.key } })) state.save()
                 safely { current?.onResume(); done?.invoke() }
                 ctx.redraw()
             }
@@ -176,7 +178,12 @@ class Ryzer(val ctx: MainActivity) {
         rescan()
     }
 
+    /** Starts a game, with the launch animation first when it's on. */
     fun launch(game: Game) {
+        if (cfg.launchAnim && animationsOn && current !is LaunchSplash) push(LaunchSplash(this, game)) else launchNow(game)
+    }
+
+    fun launchNow(game: Game) {
         val sys = game.system
         val choice = state.gameEmu[game.key] ?: Launcher.chosen(this, sys)
         val intents: List<Intent> = when {
@@ -250,12 +257,8 @@ class Ryzer(val ctx: MainActivity) {
     }
 
     fun openSearch() {
-        push(Keyboard(this, "Search games") { q ->
-            if (q.isNotEmpty()) {
-                val query = q.lowercase()
-                val r = allGames().filter { query in title(it).lowercase() }
-                if (r.isEmpty()) notify("No games match \"$q\"") else push(GameList(this, "Search: \"$q\"", r))
-            }
+        push(Keyboard(this, "Search games, apps & settings") { q ->
+            if (q.isNotEmpty()) push(universalSearch(this, q))
         })
     }
 
@@ -338,11 +341,55 @@ class Ryzer(val ctx: MainActivity) {
     fun drawBigClock(c: Canvas, w: Float, y: Float) {
         val th = activeTheme
         if (cfg.clockStyle == "analog") { G.analogClock(c, th, w / 2, y + 60, 70f); return }
+        if (cfg.clockStyle == "binary") { drawBinaryClock(c, th, w, y); return }
+        if (cfg.clockStyle == "words") {
+            val lines = G.wrap(wordTime(), 40f, w - 60)
+            lines.forEachIndexed { i, l -> G.text(c, l, w / 2, y + 10 + i * 42, 40f, th.c("text"), align = 'c', isBold = true) }
+            G.text(c, java.text.SimpleDateFormat("EEEE, MMMM d", java.util.Locale.getDefault()).format(java.util.Date()), w / 2, y + 20 + lines.size * 42, 24f,
+                th.c("accent"), align = 'c')
+            return
+        }
         val now = java.util.Date()
         val fmt = java.text.SimpleDateFormat(if (cfg.clock24) "HH:mm" else "h:mm", java.util.Locale.getDefault())
         G.text(c, fmt.format(now), w / 2, y, 110f, th.c("text"), align = 'c', isBold = true)
         G.text(c, java.text.SimpleDateFormat("EEEE, MMMM d", java.util.Locale.getDefault()).format(now), w / 2, y + 92, 28f,
             th.c("accent"), align = 'c')
+    }
+
+    /** Hours, minutes and seconds as columns of lit dots (binary-coded decimal). */
+    private fun drawBinaryClock(c: Canvas, th: Theme, w: Float, y: Float) {
+        val cal = java.util.Calendar.getInstance()
+        val hour = cal.get(java.util.Calendar.HOUR_OF_DAY).let { if (cfg.clock24) it else (it + 11) % 12 + 1 }
+        val digits = "%02d%02d%02d".format(hour, cal.get(java.util.Calendar.MINUTE), cal.get(java.util.Calendar.SECOND))
+        val r = 11f; val gap = 34f
+        val left = w / 2 - (6 * gap + 20) / 2 + gap / 2
+        digits.forEachIndexed { i, ch ->
+            val v = ch - '0'
+            val x = left + i * gap + (i / 2) * 10
+            for (bit in 0 until 4) {
+                val cy = y + 120 - bit * gap
+                if (v and (1 shl bit) != 0) G.circle(c, x, cy, r, th.c("accent")) else G.ring(c, x, cy, r, withAlpha(th.c("text_dim"), 0.5f), 2f)
+            }
+        }
+        G.text(c, "%s:%s:%s".format(digits.substring(0, 2), digits.substring(2, 4), digits.substring(4)), w / 2, y + 146, 24f, th.c("text_dim"), align = 'c')
+    }
+
+    /** "quarter past seven", "twenty to nine"... */
+    fun wordTime(): String {
+        val n = listOf("twelve", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve")
+        val cal = java.util.Calendar.getInstance()
+        val m = (cal.get(java.util.Calendar.MINUTE) + 2) / 5 * 5
+        val h = cal.get(java.util.Calendar.HOUR) + if (m > 30) 1 else 0
+        val hour = n[h % 12]
+        val fives = mapOf(5 to "five", 10 to "ten", 20 to "twenty", 25 to "twenty-five")
+        return when (m) {
+            0, 60 -> "$hour o'clock"
+            15 -> "quarter past $hour"
+            30 -> "half past $hour"
+            45 -> "quarter to $hour"
+            in 1..29 -> "${fives[m]} past $hour"
+            else -> "${fives[60 - m]} to $hour"
+        }
     }
 
     fun drawDefaultTop(c: Canvas, w: Float, h: Float) {
@@ -362,6 +409,8 @@ class Ryzer(val ctx: MainActivity) {
         if (wp != null) G.wallpaper(c, th, wp, w, h)
         val liveKind = (baseTheme.style["live"] as? String)?.takeIf { it != "off" } ?: cfg.live
         if (liveKind != "off" && animationsOn) Live.draw(c, th, liveKind, w, h, t, cfg.liveSpeed / 100f)
+        if (cfg.seasonal && animationsOn && liveKind == "off" && (role == Role.TOP || SystemClock.uptimeMillis() - topShownAt > 1000)) Live.draw(c, th, Live.seasonal(), w, h, t, 0.8f)
+        G.neon = cfg.neon
         val font = (baseTheme.style["font"] as? String)?.takeIf { it != "default" } ?: cfg.font
         if (font != appliedFont) { appliedFont = font; G.setFont(font) }
         G.panelAlpha = if (wp != null && cfg.glass) min(th.panelAlpha, 0.8f) else th.panelAlpha
@@ -370,12 +419,19 @@ class Ryzer(val ctx: MainActivity) {
         }
     }
 
+    private var lastDrawn: Screen? = null
+    private var transitionAt = 0L
+
     private fun renderContent(c: Canvas, role: Role, th: Theme, w: Float, h: Float, dt: Float) {
         if (role == Role.MAIN && animationsOn) particles.draw(c, th, dt, w, h)
         val scr = current ?: return
         if (role == Role.MAIN) {
+            if (scr !== lastDrawn) { lastDrawn = scr; transitionAt = SystemClock.uptimeMillis() }
+            val age = SystemClock.uptimeMillis() - transitionAt
+            val slide = if (cfg.transitions && animationsOn && age < 180) (1f - age / 180f).let { it * it } * 40f else 0f
             try {
-                scr.draw(c, w, h)
+                c.save(); c.translate(slide, 0f)
+                try { scr.draw(c, w, h) } finally { c.restore() }
             } catch (e: Throwable) {
                 Crash.log(ctx, e)
                 G.text(c, "This screen hit an error and was closed.", w / 2, h / 2, 24f, th.c("bad"), align = 'c')
@@ -444,12 +500,29 @@ class Ryzer(val ctx: MainActivity) {
             val want = if (hour in 7..18) cfg.dayTheme else cfg.nightTheme
             if (want != timeTheme && themes.containsKey(want)) { timeTheme = want; setTheme(want, save = false) }
         }
+        // Bedtime reminder, once per night
+        if (cfg.bedtime >= 0) {
+            val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+            if (hour == cfg.bedtime && bedtimeShown != today()) {
+                bedtimeShown = today()
+                sounds.play("boot")
+                Notifs.ryzer("It's bedtime", "Time to save your game and get some rest. Good night${if (cfg.userName.isNotBlank()) ", ${cfg.userName}" else ""}!")
+            }
+        }
         // Screensaver
         val idle = (SystemClock.uptimeMillis() - lastInput) / 60000f
         if (cfg.screensaver > 0 && idle >= cfg.screensaver && current !is Screensaver && current !is BootScreen) push(Screensaver(this))
     }
 
     fun checkSoon() { checkTimer = 99f }
+
+    /** "Continue playing X?" once at startup, after the boot animation. */
+    fun offerResume(tries: Int = 0) {
+        if (current is BootScreen) { if (tries < 20) main.postDelayed({ offerResume(tries + 1) }, 400); return }
+        if (stack.size != 1) return
+        val g = visible(state.recent.mapNotNull { Library.find(systems, it) }).firstOrNull() ?: return
+        push(ResumePrompt(this, g))
+    }
 }
 
 /** One drawing surface: the main screen, the top screen, or both stacked on a tall single display. */
@@ -580,7 +653,8 @@ class MainActivity : Activity() {
             a.push(Message(a, "Ryzer closed unexpectedly", "Sorry about that. The error is below and saved in crash.txt; " +
                 "send it to the developer and it can be fixed.\n\n$report"))
         }
-        a.rescan()
+        val offer = a.cfg.resumePrompt && a.stack.size == 1
+        a.rescan { if (offer) a.offerResume() }
     }
 
     /** Called by the permission screen once access is granted, so data moves to /RyzerOS. */
@@ -673,6 +747,20 @@ class MainActivity : Activity() {
 
     fun redraw() { mainView.invalidate(); second?.view?.invalidate() }
 
+    /** Draws the main screen into a PNG. */
+    fun captureScreen(f: File): File? = runCatching {
+        val w = mainView.width; val h = mainView.height
+        if (w <= 0 || h <= 0) return null
+        val bmp = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+        mainView.draw(Canvas(bmp))
+        f.outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+        bmp.recycle()
+        f
+    }.getOrNull()
+
+    /** Takes the screenshot a moment later, once the menu that asked for it has closed. */
+    fun postScreenshot() { handler.postDelayed({ app?.let { Sharing.screenshot(it) } }, 350) }
+
     private val vibrator by lazy { getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator }
 
     /** A tiny tick of rumble on button presses, for handhelds with a vibration motor. */
@@ -724,6 +812,7 @@ class MainActivity : Activity() {
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         val a = app ?: return super.onKeyDown(keyCode, event)
+        (a.current as? ControllerTest)?.let { it.key(keyCode, true); redraw(); return true }
         learningSwapKey?.let { learn ->
             if (keyCode != KeyEvent.KEYCODE_BACK) { learningSwapKey = null; learn(keyCode); return true }
         }
@@ -744,6 +833,7 @@ class MainActivity : Activity() {
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
+        (app?.current as? ControllerTest)?.let { it.key(keyCode, false); redraw(); return true }
         val act = action(keyCode)?.let { swap(it) } ?: return super.onKeyUp(keyCode, event)
         held.remove(act)
         return true
@@ -752,6 +842,14 @@ class MainActivity : Activity() {
     override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean {
         val a = app
         if (a != null && ev.isFromSource(InputDevice.SOURCE_JOYSTICK) && ev.action == MotionEvent.ACTION_MOVE) {
+            (a.current as? ControllerTest)?.let { t ->
+                t.axes = floatArrayOf(ev.getAxisValue(MotionEvent.AXIS_X), ev.getAxisValue(MotionEvent.AXIS_Y),
+                    ev.getAxisValue(MotionEvent.AXIS_Z), ev.getAxisValue(MotionEvent.AXIS_RZ),
+                    maxOf(ev.getAxisValue(MotionEvent.AXIS_LTRIGGER), ev.getAxisValue(MotionEvent.AXIS_BRAKE)),
+                    maxOf(ev.getAxisValue(MotionEvent.AXIS_RTRIGGER), ev.getAxisValue(MotionEvent.AXIS_GAS)))
+                redraw()
+                return true
+            }
             val x = ev.getAxisValue(MotionEvent.AXIS_X).let { if (abs(it) > 0.5f) it else ev.getAxisValue(MotionEvent.AXIS_HAT_X) }
             val y = ev.getAxisValue(MotionEvent.AXIS_Y).let { if (abs(it) > 0.5f) it else ev.getAxisValue(MotionEvent.AXIS_HAT_Y) }
             val dir = when {

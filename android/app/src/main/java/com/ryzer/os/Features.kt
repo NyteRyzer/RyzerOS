@@ -82,6 +82,7 @@ object Milestones {
             app.notify("Milestone unlocked: ${m.name}!", 3.5f)
             if (app.cfg.ryzerNotices) Notifs.ryzer("Milestone unlocked: ${m.name}", m.desc, banner = false)
         }
+        BonusThemes.refresh(app)
     }
 }
 
@@ -307,6 +308,9 @@ class Screensaver(app: Ryzer) : Screen(app) {
     private val art = app.allGames().shuffled().asSequence().mapNotNull { g -> g.image()?.let { g to it } }.take(8).toList()
     private var idx = 0
     private var x = 0.3f; private var y = 0.3f; private var dx = 0.07f; private var dy = 0.05f
+    /** Photo-frame mode: pictures from RyzerOS/photos, full screen with a slow zoom. */
+    private val photos = if (app.cfg.photoFrame) (java.io.File(app.home, "photos").listFiles() ?: emptyArray())
+        .filter { it.isFile && it.extension.lowercase() in setOf("jpg", "jpeg", "png", "webp") }.shuffled() else emptyList()
 
     init { app.ctx.setMenuBrightness(0.15f) }
 
@@ -324,6 +328,22 @@ class Screensaver(app: Ryzer) : Screen(app) {
     }
 
     override fun draw(c: Canvas, w: Float, h: Float) {
+        if (photos.isNotEmpty()) {
+            G.rect(c, RectF(0f, 0f, w, h), 0xFF000000.toInt())
+            G.image(photos[idx % photos.size])?.let { bmp ->
+                val zoom = 1f + t / 8f * 0.08f
+                c.save(); c.scale(zoom, zoom, w / 2, h / 2)
+                val fit = max(w / bmp.width, h / bmp.height)
+                val dw = bmp.width * fit; val dh = bmp.height * fit
+                c.drawBitmap(bmp, null, RectF((w - dw) / 2, (h - dh) / 2, (w + dw) / 2, (h + dh) / 2), null)
+                c.restore()
+                val fade = when { t < 0.6f -> 1 - t / 0.6f; t > 7.4f -> (t - 7.4f) / 0.6f; else -> 0f }
+                if (fade > 0) G.rect(c, RectF(0f, 0f, w, h), withAlpha(0xFF000000.toInt(), fade))
+            }
+            val clock = java.text.SimpleDateFormat(if (app.cfg.clock24) "HH:mm" else "h:mm", java.util.Locale.getDefault()).format(java.util.Date())
+            G.text(c, clock, w - 24, h - 90, 60f, withAlpha(0xFFFFFFFF.toInt(), 0.85f), align = 'r', isBold = true)
+            return
+        }
         G.rect(c, RectF(0f, 0f, w, h), withAlpha(0xFF000000.toInt(), 0.75f))
         val bw = 200f; val bh = 200f
         val px = 20 + x * (w - bw - 40); val py = 20 + y * (h - bh - 120)
@@ -373,6 +393,9 @@ class QuickMenu(app: Ryzer) : Menu(app, "Quick menu", emptyList(), "Opened with 
                 change = { d -> brightness = (brightness + d * 0.1f).coerceIn(0.1f, 1f); app.ctx.setMenuBrightness(brightness) }),
             Item("Battery", value = { app.battery().let { (p, ch) -> if (p < 0) "?" else "$p%" + if (ch) " (charging)" else "" } }),
             Item("Swap screens", select = { app.pop(); app.ctx.toggleSwap() }),
+            Item("Take a screenshot", select = { app.pop(); app.ctx.postScreenshot() }),
+            Item("Tools & games", select = { app.pop(); app.push(toolsMenu(app)) }),
+            Item("Stopwatch & timer", select = { app.pop(); app.push(StopwatchTimer(app)) }),
             Item("Notifications", value = { "${Notifs.unread()} new" }, select = { app.pop(); app.push(NotificationsScreen(app)) }),
             Item("Do not disturb", value = { if (app.cfg.notifDnd) "On" else "Off" }, change = { app.cfg.notifDnd = !app.cfg.notifDnd; app.cfg.save() }),
             Item("Wi-Fi settings", select = { settings(Settings.ACTION_WIFI_SETTINGS) }),

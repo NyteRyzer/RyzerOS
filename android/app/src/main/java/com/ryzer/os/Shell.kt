@@ -64,6 +64,7 @@ class HomeShell(app: Ryzer) : Screen(app) {
         add(Tool("search", "Search") { app.openSearch() })
         add(Tool("swap", "Swap screens") { app.ctx.toggleSwap() })
         add(Tool("quick", "Quick menu") { app.push(QuickMenu(app)) })
+        add(Tool("tools", "Tools & games") { app.push(toolsMenu(app)) })
         add(Tool("profile", "Profile") { if (kid) KidMode.unlock(app) else app.push(profileMenu(app)) })
     }
 
@@ -223,10 +224,41 @@ class HomeShell(app: Ryzer) : Screen(app) {
         }
     }
 
+    /** Outline for the "circle" and "hexagon" icon shapes. */
+    private fun shapePath(r: RectF, shape: String) = android.graphics.Path().apply {
+        if (shape == "circle") addCircle(r.centerX(), r.centerY(), r.width() / 2, android.graphics.Path.Direction.CW)
+        else {
+            for (k in 0 until 6) {
+                val a = Math.toRadians(30.0 + k * 60)
+                val x = r.centerX() + r.width() / 2 * Math.cos(a).toFloat(); val y = r.centerY() + r.height() / 2 * Math.sin(a).toFloat()
+                if (k == 0) moveTo(x, y) else lineTo(x, y)
+            }
+            close()
+        }
+    }
+
     private fun drawIconTile(c: Canvas, tile: Tile, r: RectF, selected: Boolean) {
-        val rad = max(8f, th.radius)
+        val shape = app.cfg.iconShape
+        if (shape == "circle" || shape == "hexagon") {
+            val path = shapePath(r, shape)
+            c.save(); c.translate(3f, 5f); G.path(c, path, 0x40000000); c.restore()   // drop shadow
+            if (selected) { c.save(); c.scale(1.08f, 1.08f, r.centerX(), r.centerY()); G.path(c, path, withAlpha(th.c("accent"), 0.3f + 0.2f * (sin(t * 4) + 1) / 2)); c.restore() }
+            c.save(); c.clipPath(path)
+            drawIconBody(c, tile, r, 0f)
+            c.restore()
+            G.path(c, path, if (selected) th.c("accent") else withAlpha(th.c("panel_border"), 0.8f), filled = false, w = if (selected) 3f else 1f)
+            if (tile.kind == "pinned") G.text(c, "PIN", r.centerX(), r.top + 6, 14f, th.c("highlight_text"), align = 'c', isBold = true)
+            return
+        }
+        val rad = if (shape == "square") 2f else max(8f, th.radius)
         G.rect(c, RectF(r.left + 3, r.top + 5, r.right + 3, r.bottom + 5), 0x40000000, rad)   // drop shadow
         if (selected) G.panel(c, r, th, true, (sin(t * 4) + 1) / 2)
+        drawIconBody(c, tile, r, rad)
+        G.outline(c, r, if (selected) th.c("accent") else withAlpha(th.c("panel_border"), 0.8f), if (selected) 3f else 1f, rad)
+        if (tile.kind == "pinned") G.text(c, "PIN", r.right - 6, r.top + 4, 14f, th.c("highlight_text"), align = 'r', isBold = true)
+    }
+
+    private fun drawIconBody(c: Canvas, tile: Tile, r: RectF, rad: Float) {
         val base = tile.color ?: mix(th.c("panel"), th.c("accent"), 0.35f)
         G.rect(c, r, mix(th.c("panel"), base, 0.7f), rad)
         val art = tileArt(app, tile)
@@ -241,8 +273,6 @@ class HomeShell(app: Ryzer) : Screen(app) {
         val band = RectF(r.left, r.bottom - r.height() * 0.24f, r.right, r.bottom)
         G.rect(c, band, withAlpha(th.c("bg_bottom"), 0.72f), rad)
         G.text(c, tile.label, band.centerX(), band.top + 3, min(18f, r.height() * 0.15f), th.c("text"), align = 'c', maxW = r.width() - 8)
-        G.outline(c, r, if (selected) th.c("accent") else withAlpha(th.c("panel_border"), 0.8f), if (selected) 3f else 1f, rad)
-        if (tile.kind == "pinned") G.text(c, "PIN", r.right - 6, r.top + 4, 14f, ic, align = 'r', isBold = true)
     }
 
     // ----- top screen: status bar + 3D-style banner -----

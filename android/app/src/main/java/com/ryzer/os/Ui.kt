@@ -96,6 +96,7 @@ object Themes {
             val t = am.open("themes/$f").bufferedReader().use { Theme.parse(JSONObject(it.readText()), true) }
             if (t != null) out[t.id] = t
         }
+        BonusThemes.unlocked(app).forEach { out[it.id] = it }
         app.userThemesDir().listFiles { f -> f.name.endsWith(".json") }?.sortedBy { it.name }?.forEach { f ->
             runCatching { Theme.parse(JSONObject(f.readText()), false) }.getOrNull()?.let { out[it.id] = it }
         }
@@ -131,6 +132,8 @@ object G {
     private val textP = Paint(Paint.ANTI_ALIAS_FLAG)
     private var regular: Typeface = Typeface.DEFAULT
     private var bold: Typeface = Typeface.DEFAULT_BOLD
+    /** Neon mode: glowing outlines on every panel. */
+    var neon = false
     val FONTS = listOf("default", "condensed", "mono", "serif", "rounded")
 
     fun setFont(name: String) {
@@ -291,6 +294,10 @@ object G {
         }
         val body = if (fillColor == null && panelAlpha < 1f) withAlpha(body0, panelAlpha) else body0
         rect(c, r, body, rad)
+        if (neon) {   // glowing edges, brighter on the selected panel
+            val col = if (selected) th.c("accent") else th.c("accent2")
+            for (i in 1..3) outline(c, RectF(r).apply { inset(-i * 1.5f, -i * 1.5f) }, withAlpha(col, (if (selected) 0.35f else 0.16f) / i), 2f, rad + i * 1.5f)
+        }
         val border = if (selected) th.c("accent") else th.c("panel_border")
         outline(c, r, border, if (selected) 3f else if (th.tileStyle == "outline") 2f else 1f, rad)
     }
@@ -478,8 +485,30 @@ object Palette {
  * Everything is computed from time and an index, so there is no state to keep.
  */
 object Live {
-    val KINDS = listOf("off", "aurora", "starfield", "bubbles", "rain", "snow", "waves")
+    val KINDS = listOf("off", "aurora", "starfield", "bubbles", "rain", "snow", "waves", "fireflies", "leaves", "hearts", "matrix")
+
+    /** Seasonal effect for today's date (northern-hemisphere seasons and a few holidays). */
+    fun seasonal(): String {
+        val cal = java.util.Calendar.getInstance()
+        val m = cal.get(java.util.Calendar.MONTH) + 1; val d = cal.get(java.util.Calendar.DAY_OF_MONTH)
+        return when {
+            m == 2 && d in 10..15 -> "hearts"
+            m == 12 || m <= 2 -> "snow"
+            m in 3..5 -> "petals"
+            m in 9..11 -> "leaves"
+            else -> "fireflies"
+        }
+    }
+
+    private fun heart(c: Canvas, x: Float, y: Float, s: Float) {
+        val path = Path()
+        path.moveTo(x, y + s * 0.35f)
+        path.cubicTo(x - s, y - s * 0.4f, x - s * 0.4f, y - s, x, y - s * 0.35f)
+        path.cubicTo(x + s * 0.4f, y - s, x + s, y - s * 0.4f, x, y + s * 0.35f)
+        c.drawPath(path, p)
+    }
     private val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+    private val tp = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 14f; typeface = Typeface.MONOSPACE }
 
     private fun rnd(i: Int, salt: Int): Float {
         var x = i * 374761393 + salt * 668265263
@@ -549,6 +578,52 @@ object Live {
                     val x = (rnd(i, 3) * w + sin(t * 0.6f + i) * 18 + w) % w
                     p.color = withAlpha(0xFFFFFFFF.toInt(), 0.4f + rnd(i, 4) * 0.5f)
                     c.drawCircle(x, y, 1f + rnd(i, 5) * 2.5f, p)
+                }
+            }
+            "fireflies" -> {
+                p.style = android.graphics.Paint.Style.FILL
+                for (i in 0 until 36) {
+                    val x = (rnd(i, 1) * w + sin(t * 0.3f + i * 1.7f) * 60 + w) % w
+                    val y = (rnd(i, 2) * h + cos(t * 0.25f + i) * 40 + h) % h
+                    val glow = (0.5f + 0.5f * sin(t * 2f + i * 3.1f)).coerceAtLeast(0f)
+                    p.color = withAlpha(0xFFFFE680.toInt(), 0.12f * glow); c.drawCircle(x, y, 9f, p)
+                    p.color = withAlpha(0xFFFFF4B0.toInt(), 0.3f + 0.6f * glow); c.drawCircle(x, y, 2.2f, p)
+                }
+            }
+            "leaves", "petals" -> {
+                p.style = android.graphics.Paint.Style.FILL
+                val cols = if (kind == "petals") listOf(0xFFFFB7D0.toInt(), 0xFFFFD6E4.toInt(), 0xFFFFFFFF.toInt())
+                    else listOf(0xFFE07A2C.toInt(), 0xFFC9442A.toInt(), 0xFFE8B23A.toInt())
+                for (i in 0 until 30) {
+                    val y = (rnd(i, 1) * h + t * (14 + rnd(i, 2) * 22)) % (h + 20) - 10
+                    val x = (rnd(i, 3) * w + sin(t * 0.7f + i) * 30 + w) % w
+                    val sz = if (kind == "petals") 3f + rnd(i, 4) * 3 else 4f + rnd(i, 4) * 5
+                    p.color = withAlpha(cols[i % 3], 0.75f)
+                    c.save(); c.rotate((t * 40 + i * 37) % 360, x, y)
+                    c.drawOval(RectF(x - sz, y - sz * 0.5f, x + sz, y + sz * 0.5f), p)
+                    c.restore()
+                }
+            }
+            "hearts" -> {
+                p.style = android.graphics.Paint.Style.FILL
+                for (i in 0 until 22) {
+                    val y = h + 20 - ((rnd(i, 1) * h + t * (16 + rnd(i, 2) * 24)) % (h + 40))
+                    val x = rnd(i, 3) * w + sin(t + i) * 16
+                    p.color = withAlpha(mix(0xFFFF4D7A.toInt(), th.c("accent"), rnd(i, 4) * 0.5f), 0.35f + rnd(i, 5) * 0.3f)
+                    heart(c, x, y, 6f + rnd(i, 6) * 8)
+                }
+            }
+            "matrix" -> {
+                val cols = (w / 16).toInt()
+                val glyphs = "01アイウエオカキクケコサシスセソ"
+                for (i in 0 until cols) {
+                    val head = ((rnd(i, 1) * h + t * (50 + rnd(i, 2) * 90)) % (h + 200))
+                    for (k in 0 until 10) {
+                        val y = head - k * 16
+                        if (y < -16 || y > h) continue
+                        tp.color = if (k == 0) withAlpha(0xFFE0FFE0.toInt(), 0.8f) else withAlpha(th.c("accent"), 0.5f * (1 - k / 10f))
+                        c.drawText(glyphs[((rnd(i, k + 3) * 97 + t * 4).toInt()) % glyphs.length].toString(), i * 16f + 2, y, tp)
+                    }
                 }
             }
             "waves" -> {

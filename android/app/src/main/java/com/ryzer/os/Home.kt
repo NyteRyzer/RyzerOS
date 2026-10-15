@@ -12,6 +12,9 @@ import kotlin.math.sin
 
 private fun plural(n: Int, w: String) = "$n $w${if (n == 1) "" else "s"}"
 
+/** Smart collection tile label -> id, filled in by homeTiles. */
+private val smartIds = HashMap<String, String>()
+
 class Tile(val kind: String, val label: String, val sub: String = "", val color: Int? = null,
            val system: GameSystem? = null, val game: Game? = null, val note: String = "")
 
@@ -37,6 +40,12 @@ fun drawIcon(c: Canvas, kind: String, cx: Float, cy: Float, s: Float, color: Int
         "played", "stats" -> for (i in 0 until 3) { val bh = s * (0.6f + 0.5f * i); G.rect(c, RectF(cx - s + i * s * 0.7f, cy + s - bh, cx - s + i * s * 0.7f + s * 0.5f, cy + s), color, 2f) }
         "added" -> { G.ring(c, cx, cy, s, color, 4f); G.line(c, cx - s * 0.5f, cy, cx + s * 0.5f, cy, color, 5f); G.line(c, cx, cy - s * 0.5f, cx, cy + s * 0.5f, color, 5f) }
         "gotd" -> { G.ring(c, cx, cy, s, color, 4f); G.text(c, "1", cx, cy - s * 0.7f, s * 1.6f, color, align = 'c', isBold = true) }
+        "foryou" -> { val p = Path(); p.moveTo(cx, cy + s * 0.8f)
+            p.cubicTo(cx - s * 1.4f, cy - s * 0.2f, cx - s * 0.5f, cy - s * 1.2f, cx, cy - s * 0.35f)
+            p.cubicTo(cx + s * 0.5f, cy - s * 1.2f, cx + s * 1.4f, cy - s * 0.2f, cx, cy + s * 0.8f); G.path(c, p, color) }
+        "smart" -> { G.outline(c, RectF(cx - s, cy - s * 0.7f, cx + s, cy + s * 0.7f), color, 4f, 6f)
+            G.line(c, cx - s * 0.5f, cy, cx - s * 0.1f, cy + s * 0.35f, color, 4f); G.line(c, cx - s * 0.1f, cy + s * 0.35f, cx + s * 0.6f, cy - s * 0.35f, color, 4f) }
+        "tools" -> { G.line(c, cx - s * 0.7f, cy + s * 0.7f, cx + s * 0.4f, cy - s * 0.4f, color, 7f); G.ring(c, cx + s * 0.5f, cy - s * 0.5f, s * 0.4f, color, 4f) }
         "collection" -> for (i in 0 until 3) G.outline(c, RectF(cx - s + i * 6, cy - s * 0.7f + i * 6, cx + s * 0.6f + i * 6, cy + s * 0.5f + i * 6), color, 3f, 4f)
     }
 }
@@ -55,8 +64,61 @@ fun greeting(app: Ryzer): String {
     return if (app.cfg.userName.isNotBlank()) "$part, ${app.cfg.userName}" else part
 }
 
+/**
+ * Recommendations: unplayed games from the systems you play most and rate highest,
+ * plus well-rated games you haven't opened in a while.
+ */
+fun forYou(app: Ryzer): List<Game> {
+    val st = app.state
+    val sysScore = HashMap<String, Double>()
+    for ((k, secs) in st.times) Library.find(app.systems, k)?.let { g -> sysScore[g.system.id] = (sysScore[g.system.id] ?: 0.0) + secs / 3600.0 + 1 }
+    for ((k, r) in st.ratings) Library.find(app.systems, k)?.let { g -> sysScore[g.system.id] = (sysScore[g.system.id] ?: 0.0) + r }
+    val week = 7 * 86_400_000L
+    val lastPlayed = HashMap<String, Long>()
+    for ((k, t, _) in st.sessions) if (k !in lastPlayed) lastPlayed[k] = t
+    return app.allGames().map { g ->
+        val played = (st.launches[g.key] ?: 0) > 0
+        var score = sysScore[g.system.id] ?: 0.0
+        if (!played) score += 3
+        if (g.key in st.favorites) score += 2
+        st.ratings[g.key]?.let { if (it >= 4 && System.currentTimeMillis() - (lastPlayed[g.key] ?: 0) > 2 * week) score += it }
+        if (st.status[g.key] == "beaten" || st.status[g.key] == "completed") score -= 6
+        // A stable daily shuffle so the list changes a little every day
+        score += ((g.key + today()).hashCode() and 0xff) / 255.0 * 2
+        g to score
+    }.sortedByDescending { it.second }.take(30).map { it.first }
+}
+
+/** Built-in smart collections: id, name, games. Empty ones are left out. */
+fun smartCollections(app: Ryzer): List<Triple<String, String, List<Game>>> {
+    val st = app.state
+    val all = app.allGames()
+    return listOf(
+        Triple("playing", "Now Playing", all.filter { st.status[it.key] == "playing" }),
+        Triple("backlog", "Backlog", all.filter { st.status[it.key] == "backlog" }),
+        Triple("top", "Top Rated", all.filter { (st.ratings[it.key] ?: 0) >= 4 }.sortedByDescending { st.ratings[it.key] ?: 0 }),
+        Triple("unplayed", "Never Played", all.filter { (st.launches[it.key] ?: 0) == 0 }),
+        Triple("new", "New This Week", all.filter { st.isNew(it.key) }),
+    ).filter { it.third.isNotEmpty() }
+}
+
+/** Tiles the Home tile editor can switch off. */
+val EDITABLE_TILES = listOf("continue" to "Continue", "gotd" to "Game of the Day", "foryou" to "For You", "smart" to "Smart collections",
+    "favorites" to "Favorites", "recent" to "Recent", "played" to "Most Played", "added" to "New", "collection" to "Your collections",
+    "apps" to "Apps", "random" to "Surprise", "search" to "Search", "stats" to "Stats", "tools" to "Tools", "themes" to "Themes",
+    "settings" to "Settings", "device" to "Device")
+
+fun tileEditor(app: Ryzer) = Menu(app, "Home tiles", EDITABLE_TILES.map { (k, name) ->
+    Item(name, value = { if (k in app.cfg.hiddenTiles) "Hidden" else "Shown" }, change = {
+        if (k == "settings") app.notify("Settings stays on Home (it's how you get back here)")
+        else { if (!app.cfg.hiddenTiles.remove(k)) app.cfg.hiddenTiles += k; app.cfg.save() }
+    })
+}, "Choose which tiles appear on Home. Systems are shown or hidden in Settings > Library.")
+
 /** Everything Home shows, in order. Shared by the 3DS, ribbon and grid layouts. */
-fun homeTiles(app: Ryzer): List<Tile> {
+fun homeTiles(app: Ryzer): List<Tile> = buildTiles(app).filter { it.kind == "system" || it.kind == "pinned" || it.kind !in app.cfg.hiddenTiles }
+
+private fun buildTiles(app: Ryzer): List<Tile> {
     val kid = app.cfg.kidMode
     val st = app.state
     val out = ArrayList<Tile>()
@@ -73,6 +135,8 @@ fun homeTiles(app: Ryzer): List<Tile> {
         out += Tile("gotd", "Game of the Day", app.title(g), g.system.color, g.system, g,
             note = "Today's pick: ${app.title(g)} (${g.system.name}). A new suggestion every day, favouring games you haven't tried.")
     }
+    if (app.allGames().size >= 3) out += Tile("foryou", "For You", "Picked for you", note = "Recommendations from the systems you play most and the games you rate highest.")
+    for ((id, name, games) in smartCollections(app)) out += Tile("smart", name, plural(games.size, "game"), note = "Smart collection: fills itself from your ratings, status and play history.").also { smartIds[name] = id }
     val favs = app.visible(st.favorites.mapNotNull { Library.find(app.systems, it) }).size
     out += Tile("favorites", "Favorites", plural(favs, "game"), note = "Games you starred with X.")
     out += Tile("recent", "Recent", plural(recent.size, "game"), note = "Your recently played games.")
@@ -89,6 +153,7 @@ fun homeTiles(app: Ryzer): List<Tile> {
     out += Tile("random", "Surprise", "Random game", note = "Can't decide? Launch a random game from your library.")
     out += Tile("search", "Search", "All systems", note = "Find any game by name.")
     out += Tile("stats", "Stats", "${st.streak()} day streak", note = "Play time, a 7-day activity chart, session history, top games and milestones.")
+    out += Tile("tools", "Tools", "Games & gadgets", note = "Snake, 2048, Game Roulette, play calendar, stats card, screenshots, timer, controller test and battery info.")
     if (!kid) {
         out += Tile("themes", "Themes", "${app.themes.size} themes", note = "Pick a theme, design your own, or turn any photo into a theme.")
         out += Tile("settings", "Settings", "Ryzer", note = "Emulators, ROM folders, dual screen, display, sound and controls.")
@@ -107,6 +172,9 @@ fun openTile(app: Ryzer, t: Tile) {
         "played" -> app.push(GameList(app, "Most Played", null, source = "played"))
         "added" -> app.push(GameList(app, "Recently Added", null, source = "added"))
         "collection" -> app.push(GameList(app, t.label, null, source = "collection:${t.label}"))
+        "foryou" -> app.push(GameList(app, "For You", null, source = "foryou"))
+        "smart" -> app.push(GameList(app, t.label, null, source = "smart:${smartIds[t.label] ?: "top"}"))
+        "tools" -> app.push(toolsMenu(app))
         "stats" -> app.push(StatsScreen(app))
         "apps" -> app.push(AppsScreen(app))
         "random" -> app.openRandom()
@@ -294,6 +362,9 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
                 .mapNotNull { Library.find(app.systems, it.key) }, sortIt = false)
             source == "added" -> ListView.apply(app, app.systems.flatMap { it.games }.sortedByDescending { it.file.lastModified() }.take(60), sortIt = false)
             collection != null -> ListView.apply(app, collectionGames(app, collection))
+            source == "foryou" -> ListView.apply(app, forYou(app), sortIt = false)
+            source?.startsWith("smart:") == true -> ListView.apply(app, smartCollections(app).firstOrNull { it.first == source.orEmpty().removePrefix("smart:") }?.third ?: emptyList(),
+                sortIt = source == "smart:unplayed" || source == "smart:new")
             else -> ListView.apply(app, system?.games ?: initial ?: emptyList())
         }
         sel = games.indexOfFirst { it.key == keep }.let { if (it >= 0) it else sel.coerceIn(0, max(0, games.size - 1)) }
@@ -402,6 +473,7 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
         }
         items += viewItems()
         items += Item("Game info", select = { app.push(Message(app, app.title(g), info(g))) })
+        items += Item("Check ROM (CRC32)", "Reads the whole file and shows its checksum, to spot a damaged download.", select = { app.pop(); Sharing.checksum(app, g) })
         if (!kid) items += Item("Delete ROM file", "Permanently deletes the file from your storage.", select = {
             app.push(Confirm(app, "Delete ${g.file.name} permanently? This can't be undone.", yes = "Delete") {
                 if (g.file.delete()) { st.forget(g.key); app.notify("Deleted ${app.title(g)}"); app.pop(); app.rescan() }
@@ -420,7 +492,12 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
             "Emulator: ${Launcher.label(app, st.gameEmu[g.key] ?: Launcher.chosen(app, g.system))}\n\n${g.system.demand}. ${g.system.note}"
     }
 
+    private val sysBackground by lazy {
+        system?.let { s -> listOf("jpg", "png", "webp").map { java.io.File(app.home, "backgrounds/${s.id}.$it") }.firstOrNull { it.isFile } }?.let { G.image(it) }
+    }
+
     override fun draw(c: Canvas, w: Float, h: Float) {
+        sysBackground?.let { G.wallpaper(c, th, it, w, h) }
         val tag = listOfNotNull(ListView.label(app.cfg.sort).takeIf { app.cfg.sort != "name" }, ListView.label(app.cfg.filter).takeIf { app.cfg.filter != "all" })
         G.topBar(c, app, th, title + if (tag.isEmpty()) "" else "  (${tag.joinToString(", ")})", w)
         if (games.isEmpty()) {
@@ -451,7 +528,7 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
             app.hit(r) { if (sel == i) handle("a") else sel = i }
             if (st.isFavorite(g.key)) G.text(c, "*", r.left + 12, r.top + 4, 30f, th.c("warn"), isBold = true)
             val label = (if (system != null) app.title(g) else "${app.title(g)}  [${g.system.short}]") + if (g.key in st.hidden) "  (hidden)" else ""
-            val right = st.ratings[g.key]?.let { "★$it" } ?: ""
+            val right = (if (app.cfg.newBadges && st.isNew(g.key)) "NEW  " else "") + (st.ratings[g.key]?.let { "★$it" } ?: "")
             G.text(c, label, r.left + 28, r.top + 6, 23f, if (s) th.c("text") else th.c("text_dim"), maxW = r.width() - 80, theme = th)
             if (right.isNotEmpty()) G.text(c, right, r.right - 10, r.top + 7, 19f, th.c("warn"), align = 'r')
         }
@@ -485,6 +562,10 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
                 G.text(c, g.system.short, art.centerX(), art.centerY() - 16, 34f, th.c("highlight_text"), align = 'c', isBold = true)
             }
             if (app.state.isFavorite(g.key)) G.text(c, "*", r.right - 16, r.top + 4, 30f, th.c("warn"), isBold = true)
+            if (app.cfg.newBadges && app.state.isNew(g.key)) {
+                val b = RectF(r.left + 4, r.top + 4, r.left + 46, r.top + 22)
+                G.rect(c, b, th.c("accent"), 6f); G.text(c, "NEW", b.centerX(), b.top + 1, 16f, th.c("highlight_text"), align = 'c', isBold = true)
+            }
             G.text(c, app.title(g), r.centerX(), r.bottom - 26, 18f, if (s) th.c("text") else th.c("text_dim"), align = 'c', maxW = cw - 10)
         }
     }
