@@ -62,6 +62,8 @@ class Ryzer(val ctx: MainActivity) {
     val activeTheme: Theme get() = frameTheme ?: baseTheme
     /** Set by Home to the selected system's colour when "System colours" is on. */
     var accentOverride: Int? = null
+    /** Last time the top screen (second display or split half) was drawn. */
+    var topShownAt = 0L
     var emulators: Map<String, Emulator> = Library.loadEmulators(this)
     var systems: List<GameSystem> = Library.loadSystems(this)
     val stack = ArrayList<Screen>()
@@ -119,6 +121,12 @@ class Ryzer(val ctx: MainActivity) {
     fun pop() { if (stack.size > 1) { stack.removeAt(stack.size - 1); current?.onResume() } ; ctx.redraw() }
     fun replace(s: Screen) { if (stack.isNotEmpty()) stack.removeAt(stack.size - 1); stack.add(s) }
     fun goHome() { while (stack.size > 1) stack.removeAt(stack.size - 1); current?.onResume() }
+
+    /** Switches Home between the 3DS, ribbon and grid layouts right away. */
+    fun applyHomeLayout() {
+        if (stack.isEmpty()) return
+        stack[0] = if (cfg.homeLayout == "3ds") HomeShell(this) else HomeScreen(this)
+    }
 
     // ----- themes -----
     fun setTheme(id: String, save: Boolean = true) {
@@ -342,7 +350,8 @@ class Ryzer(val ctx: MainActivity) {
     }
 
     fun render(c: Canvas, role: Role, w: Float, h: Float, dt: Float, t: Float) {
-        if (current !is HomeScreen) accentOverride = null
+        if (current !is HomeScreen && current !is HomeShell) accentOverride = null
+        if (role == Role.TOP) topShownAt = SystemClock.uptimeMillis()
         frameTheme = decorate(baseTheme, t)
         val th = activeTheme
         hitRole = role
@@ -350,6 +359,7 @@ class Ryzer(val ctx: MainActivity) {
         G.background(c, th, w, h, t)
         val wp = wallpaper()
         if (wp != null) G.wallpaper(c, th, wp, w, h)
+        if (cfg.live != "off" && animationsOn) Live.draw(c, th, cfg.live, w, h, t, cfg.liveSpeed / 100f)
         G.panelAlpha = if (wp != null && cfg.glass) min(th.panelAlpha, 0.8f) else th.panelAlpha
         try { renderContent(c, role, th, w, h, dt) } finally {
             if (cfg.nightLight > 0) G.rect(c, RectF(0f, 0f, w, h), withAlpha(0xFFFF8A00.toInt(), cfg.nightLight / 100f * 0.5f))
@@ -371,6 +381,7 @@ class Ryzer(val ctx: MainActivity) {
             G.hints(c, th, scr.hints(), w, h) { r, action -> hit(r) { handle(action) } }
             val now = SystemClock.uptimeMillis()
             if (now < toastUntil) G.toast(c, th, toastMsg, ((toastUntil - now) / 330f).coerceAtMost(1f), w, h)
+            Notifs.drawBanner(c, this, th, w)
             if (scanning) G.text(c, "Scanning...", w - 16, 46f, 18f, th.c("accent"), align = 'r')
         } else {
             runCatching { scr.drawTop(c, w, h) }.onFailure { Crash.log(ctx, it) }
@@ -415,8 +426,13 @@ class Ryzer(val ctx: MainActivity) {
         // Battery: warnings and automatic power saving
         val (pct, charging) = battery()
         batteryLow = cfg.batterySaver && pct in 0..19 && !charging
-        if (pct in 0..5 && !charging && !warned5) { warned5 = true; sounds.play("error"); notify("Battery at $pct% - plug in soon!", 4f) }
-        else if (pct in 0..15 && !charging && !warned15) { warned15 = true; notify("Battery low ($pct%)", 3f) }
+        if (pct in 0..5 && !charging && !warned5) {
+            warned5 = true; sounds.play("error"); notify("Battery at $pct% - plug in soon!", 4f)
+            if (cfg.ryzerNotices) Notifs.ryzer("Battery at $pct%", "Plug in soon - Ryzer will keep your place.", banner = false)
+        } else if (pct in 0..15 && !charging && !warned15) {
+            warned15 = true; notify("Battery low ($pct%)", 3f)
+            if (cfg.ryzerNotices) Notifs.ryzer("Battery low", "$pct% left.", banner = false)
+        }
         if (charging) { warned5 = false; warned15 = false }
         // Day / night theme
         if (cfg.dayNight) {
@@ -442,7 +458,8 @@ class RyzerView(context: Context, private val app: () -> Ryzer?, var role: Role)
         val w = width.toFloat(); val h = height.toFloat()
         val a = app() ?: return emptyList()
         val split = role == Role.MAIN && !a.dual && a.cfg.dual != "off" && h >= w * 1.5f
-        return if (split) listOf(Role.TOP to RectF(0f, 0f, w, h / 2), Role.MAIN to RectF(0f, h / 2, w, h))
+        val upper = RectF(0f, 0f, w, h / 2); val lower = RectF(0f, h / 2, w, h)
+        return if (split) (if (a.cfg.swapScreens) listOf(Role.MAIN to upper, Role.TOP to lower) else listOf(Role.TOP to upper, Role.MAIN to lower))
         else listOf(role to RectF(0f, 0f, w, h))
     }
 
@@ -550,7 +567,7 @@ class MainActivity : Activity() {
             return
         }
         app = a
-        val homeScreen = HomeScreen(a)
+        val homeScreen: Screen = if (a.cfg.homeLayout == "3ds") HomeShell(a) else HomeScreen(a)
         a.stack.clear()
         a.stack.add(if (a.cfg.boot) BootScreen(a, homeScreen) else homeScreen)
         if (!hasStorageAccess(this)) a.push(PermissionScreen(a))
@@ -688,8 +705,29 @@ class MainActivity : Activity() {
 
     private fun swap(a: String) = if (app?.cfg?.swapAB == true) when (a) { "a" -> "b"; "b" -> "a"; else -> a } else a
 
+    /** Set while Settings waits for "press the button you want to use for swapping". */
+    var learningSwapKey: ((Int) -> Unit)? = null
+
+    /** Swaps what the two screens show (menu <-> info), instantly. */
+    fun toggleSwap() {
+        val a = app ?: return
+        a.cfg.swapScreens = !a.cfg.swapScreens
+        a.cfg.save()
+        updateDisplays()
+        a.sounds.play("select")
+        a.notify(if (a.cfg.swapScreens) "Screens swapped" else "Screens back to normal", 1.4f)
+    }
+
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         val a = app ?: return super.onKeyDown(keyCode, event)
+        learningSwapKey?.let { learn ->
+            if (keyCode != KeyEvent.KEYCODE_BACK) { learningSwapKey = null; learn(keyCode); return true }
+        }
+        if (event.repeatCount == 0 && (keyCode == KeyEvent.KEYCODE_BUTTON_THUMBL || keyCode == KeyEvent.KEYCODE_BUTTON_THUMBR ||
+                (a.cfg.swapKey > 0 && keyCode == a.cfg.swapKey))) {
+            toggleSwap()
+            return true
+        }
         val act = action(keyCode)?.let { swap(it) } ?: return super.onKeyDown(keyCode, event)
         if (event.repeatCount > 0 && act !in setOf("up", "down", "left", "right")) return true
         held.add(act)

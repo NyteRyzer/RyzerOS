@@ -80,6 +80,7 @@ object Milestones {
             app.state.save()
             app.sounds.play("fav")
             app.notify("Milestone unlocked: ${m.name}!", 3.5f)
+            if (app.cfg.ryzerNotices) Notifs.ryzer("Milestone unlocked: ${m.name}", m.desc, banner = false)
         }
     }
 }

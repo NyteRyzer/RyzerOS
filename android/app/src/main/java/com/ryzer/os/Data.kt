@@ -79,12 +79,22 @@ class Config(private val file: File) {
     var rgb = false              // animated rainbow accent
     var nightLight = 0           // warm filter strength 0..50
     var glass = true             // see-through panels over wallpapers
-    var homeLayout = "ribbon"    // ribbon | grid
+    var homeLayout = "3ds"       // 3ds | ribbon | grid
     var bootStyle = "classic"    // classic | glitch | minimal
     var soundPack = "classic"    // classic | chiptune | soft
     var music = false            // play RyzerOS/music in the menus
     var musicVolume = 40
     var userName = ""
+    // 2.0
+    var notifBanners = true
+    var notifDnd = false
+    var notifOnPanel = true
+    var ryzerNotices = true
+    var swapKey = -1             // extra key code that swaps the screens (learned in settings); L3/R3 always work
+    var live = "off"             // live wallpaper: off | aurora | starfield | bubbles | rain | snow | waves
+    var liveSpeed = 100          // percent
+    var iconRows = 3             // 3DS home: rows of icons (2-4)
+    var avatar = ""              // profile picture file in the Ryzer folder
 
     init { load() }
 
@@ -118,6 +128,11 @@ class Config(private val file: File) {
         homeLayout = j.optString("homeLayout", homeLayout); bootStyle = j.optString("bootStyle", bootStyle)
         soundPack = j.optString("soundPack", soundPack); music = j.optBoolean("music", music)
         musicVolume = j.optInt("musicVolume", musicVolume); userName = j.optString("userName", userName)
+        notifBanners = j.optBoolean("notifBanners", notifBanners); notifDnd = j.optBoolean("notifDnd", notifDnd)
+        notifOnPanel = j.optBoolean("notifOnPanel", notifOnPanel); ryzerNotices = j.optBoolean("ryzerNotices", ryzerNotices)
+        swapKey = j.optInt("swapKey", swapKey); live = j.optString("live", live); liveSpeed = j.optInt("liveSpeed", liveSpeed)
+        iconRows = j.optInt("iconRows", iconRows); avatar = j.optString("avatar", avatar)
+        if (j.optInt("uiVersion", 1) < 2) homeLayout = "3ds"   // 2.0 introduces the new Home; old configs switch once
     }
 
     fun save() = writeJson(file, JSONObject().apply {
@@ -137,6 +152,8 @@ class Config(private val file: File) {
         put("artTint", artTint); put("systemAccent", systemAccent); put("rgb", rgb); put("nightLight", nightLight); put("glass", glass)
         put("homeLayout", homeLayout); put("bootStyle", bootStyle); put("soundPack", soundPack); put("music", music)
         put("musicVolume", musicVolume); put("userName", userName)
+        put("notifBanners", notifBanners); put("notifDnd", notifDnd); put("notifOnPanel", notifOnPanel); put("ryzerNotices", ryzerNotices)
+        put("swapKey", swapKey); put("live", live); put("liveSpeed", liveSpeed); put("iconRows", iconRows); put("avatar", avatar); put("uiVersion", 2)
     })
 }
 

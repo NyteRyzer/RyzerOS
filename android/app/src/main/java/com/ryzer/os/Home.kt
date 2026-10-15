@@ -55,6 +55,68 @@ fun greeting(app: Ryzer): String {
     return if (app.cfg.userName.isNotBlank()) "$part, ${app.cfg.userName}" else part
 }
 
+/** Everything Home shows, in order. Shared by the 3DS, ribbon and grid layouts. */
+fun homeTiles(app: Ryzer): List<Tile> {
+    val kid = app.cfg.kidMode
+    val st = app.state
+    val out = ArrayList<Tile>()
+    val recent = app.visible(st.recent.mapNotNull { Library.find(app.systems, it) })
+    recent.firstOrNull()?.let { g ->
+        out += Tile("continue", "Continue", app.title(g), game = g, system = g.system,
+            note = "Resume ${app.title(g)} (${g.system.short}). Played ${formatDuration(st.playtime(g.key))}.")
+    }
+    for (g in st.pins.mapNotNull { Library.find(app.systems, it) }) {
+        out += Tile("pinned", app.title(g), g.system.short, g.system.color, g.system, g,
+            note = "Pinned to Home. ${g.system.name}, played ${formatDuration(st.playtime(g.key))}. Unpin it in the game's options (START).")
+    }
+    gameOfTheDay(app)?.let { g ->
+        out += Tile("gotd", "Game of the Day", app.title(g), g.system.color, g.system, g,
+            note = "Today's pick: ${app.title(g)} (${g.system.name}). A new suggestion every day, favouring games you haven't tried.")
+    }
+    val favs = app.visible(st.favorites.mapNotNull { Library.find(app.systems, it) }).size
+    out += Tile("favorites", "Favorites", plural(favs, "game"), note = "Games you starred with X.")
+    out += Tile("recent", "Recent", plural(recent.size, "game"), note = "Your recently played games.")
+    val played = st.times.count { it.value > 0 }
+    if (played > 0) out += Tile("played", "Most Played", plural(played, "game"), note = "Your games ranked by play time.")
+    if (app.allGames().isNotEmpty()) out += Tile("added", "New", "Recently added", note = "The newest games on your storage.")
+    for ((name, keys) in st.collections) out += Tile("collection", name, plural(keys.size, "game"), note = "Your collection. Add games from any game's options (START).")
+    for (s in sortedSystems(app)) {
+        if (s.games.isEmpty() && app.cfg.hideEmpty) continue
+        out += Tile("system", s.short, plural(app.visible(s.games).size, "game"), s.color, s,
+            note = listOf(s.demand, s.note, "Emulator: " + Launcher.label(app, Launcher.chosen(app, s))).filter { it.isNotEmpty() }.joinToString(". "))
+    }
+    if (app.cfg.showApps && !kid) out += Tile("apps", "Apps", "Android apps", note = "Launch any app on your device, like a console home screen.")
+    out += Tile("random", "Surprise", "Random game", note = "Can't decide? Launch a random game from your library.")
+    out += Tile("search", "Search", "All systems", note = "Find any game by name.")
+    out += Tile("stats", "Stats", "${st.streak()} day streak", note = "Play time, a 7-day activity chart, session history, top games and milestones.")
+    if (!kid) {
+        out += Tile("themes", "Themes", "${app.themes.size} themes", note = "Pick a theme, design your own, or turn any photo into a theme.")
+        out += Tile("settings", "Settings", "Ryzer", note = "Emulators, ROM folders, dual screen, display, sound and controls.")
+        out += Tile("device", "Device", "Android settings", note = "Open the Android settings app (Wi-Fi, Bluetooth, performance mode).")
+    }
+    return out
+}
+
+/** What happens when a Home tile is chosen (any layout). */
+fun openTile(app: Ryzer, t: Tile) {
+    when (t.kind) {
+        "continue", "pinned", "gotd" -> t.game?.let { app.launch(it) }
+        "system" -> t.system?.let { app.push(GameList(app, it.name, it.games, it)) }
+        "favorites" -> app.push(GameList(app, "Favorites", null, source = "favorites"))
+        "recent" -> app.push(GameList(app, "Recently Played", null, source = "recent"))
+        "played" -> app.push(GameList(app, "Most Played", null, source = "played"))
+        "added" -> app.push(GameList(app, "Recently Added", null, source = "added"))
+        "collection" -> app.push(GameList(app, t.label, null, source = "collection:${t.label}"))
+        "stats" -> app.push(StatsScreen(app))
+        "apps" -> app.push(AppsScreen(app))
+        "random" -> app.openRandom()
+        "search" -> app.openSearch()
+        "themes" -> app.push(ThemePicker(app))
+        "settings" -> app.push(settingsMenu(app))
+        "device" -> runCatching { app.ctx.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    }
+}
+
 class HomeScreen(app: Ryzer) : Screen(app) {
     override val title = "Home"
     private var sel = 0
@@ -71,42 +133,7 @@ class HomeScreen(app: Ryzer) : Screen(app) {
 
     fun rebuild() {
         val old = tiles.getOrNull(sel)?.let { it.kind + it.label }
-        val st = app.state
-        val out = ArrayList<Tile>()
-        val recent = app.visible(st.recent.mapNotNull { Library.find(app.systems, it) })
-        recent.firstOrNull()?.let { g ->
-            out += Tile("continue", "Continue", app.title(g), game = g, system = g.system,
-                note = "Resume ${app.title(g)} (${g.system.short}). Played ${formatDuration(st.playtime(g.key))}.")
-        }
-        for (g in st.pins.mapNotNull { Library.find(app.systems, it) }) {
-            out += Tile("pinned", app.title(g), g.system.short, g.system.color, g.system, g,
-                note = "Pinned to Home. ${g.system.name}, played ${formatDuration(st.playtime(g.key))}. Unpin it in the game's options (START).")
-        }
-        gameOfTheDay(app)?.let { g ->
-            out += Tile("gotd", "Game of the Day", app.title(g), g.system.color, g.system, g,
-                note = "Today's pick: ${app.title(g)} (${g.system.name}). A new suggestion every day, favouring games you haven't tried.")
-        }
-        val favs = app.visible(st.favorites.mapNotNull { Library.find(app.systems, it) }).size
-        out += Tile("favorites", "Favorites", plural(favs, "game"), note = "Games you starred with X.")
-        out += Tile("recent", "Recent", plural(recent.size, "game"), note = "Your recently played games.")
-        val played = st.times.count { it.value > 0 }
-        if (played > 0) out += Tile("played", "Most Played", plural(played, "game"), note = "Your games ranked by play time.")
-        if (app.allGames().isNotEmpty()) out += Tile("added", "New", "Recently added", note = "The newest games on your storage.")
-        for ((name, keys) in st.collections) out += Tile("collection", name, plural(keys.size, "game"), note = "Your collection. Add games from any game's options (START).")
-        for (s in sortedSystems(app)) {
-            if (s.games.isEmpty() && app.cfg.hideEmpty) continue
-            out += Tile("system", s.short, plural(app.visible(s.games).size, "game"), s.color, s,
-                note = listOf(s.demand, s.note, "Emulator: " + Launcher.label(app, Launcher.chosen(app, s))).filter { it.isNotEmpty() }.joinToString(". "))
-        }
-        if (app.cfg.showApps && !kid) out += Tile("apps", "Apps", "Android apps", note = "Launch any app on your device, like a console home screen.")
-        out += Tile("random", "Surprise", "Random game", note = "Can't decide? Launch a random game from your library.")
-        out += Tile("search", "Search", "All systems", note = "Find any game by name.")
-        out += Tile("stats", "Stats", "${st.streak()} day streak", note = "Play time, a 7-day activity chart, session history, top games and milestones.")
-        if (!kid) {
-            out += Tile("themes", "Themes", "${app.themes.size} themes", note = "Pick a theme, design your own, or turn any photo into a theme.")
-            out += Tile("settings", "Settings", "Ryzer", note = "Emulators, ROM folders, dual screen, display, sound and controls.")
-            out += Tile("device", "Device", "Android settings", note = "Open the Android settings app (Wi-Fi, Bluetooth, performance mode).")
-        }
+        val out = homeTiles(app)
         tiles = out
         val i = tiles.indexOfFirst { it.kind + it.label == old }
         sel = if (i >= 0) i else min(sel, tiles.size - 1)
@@ -130,24 +157,7 @@ class HomeScreen(app: Ryzer) : Screen(app) {
         }
     }
 
-    private fun open(t: Tile) {
-        when (t.kind) {
-            "continue", "pinned", "gotd" -> t.game?.let { app.launch(it) }
-            "system" -> t.system?.let { app.push(GameList(app, it.name, it.games, it)) }
-            "favorites" -> app.push(GameList(app, "Favorites", null, source = "favorites"))
-            "recent" -> app.push(GameList(app, "Recently Played", null, source = "recent"))
-            "played" -> app.push(GameList(app, "Most Played", null, source = "played"))
-            "added" -> app.push(GameList(app, "Recently Added", null, source = "added"))
-            "collection" -> app.push(GameList(app, t.label, null, source = "collection:${t.label}"))
-            "stats" -> app.push(StatsScreen(app))
-            "apps" -> app.push(AppsScreen(app))
-            "random" -> app.openRandom()
-            "search" -> app.openSearch()
-            "themes" -> app.push(ThemePicker(app))
-            "settings" -> app.push(settingsMenu(app))
-            "device" -> runCatching { app.ctx.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-        }
-    }
+    private fun open(t: Tile) = openTile(app, t)
 
     override fun update(dt: Float) {
         t += dt

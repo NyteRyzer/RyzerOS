@@ -465,3 +465,100 @@ object Palette {
         .sortedByDescending { it.count * (0.25f + it.sat) * (0.4f + it.lum) }
         .map { it.color }
 }
+
+/**
+ * Live wallpapers: animated backgrounds drawn in code (no video files), tinted by the theme.
+ * Everything is computed from time and an index, so there is no state to keep.
+ */
+object Live {
+    val KINDS = listOf("off", "aurora", "starfield", "bubbles", "rain", "snow", "waves")
+    private val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+
+    private fun rnd(i: Int, salt: Int): Float {
+        var x = i * 374761393 + salt * 668265263
+        x = (x xor (x ushr 13)) * 1274126177
+        return ((x xor (x ushr 16)) and 0xFFFF) / 65535f
+    }
+
+    fun draw(c: Canvas, th: Theme, kind: String, w: Float, h: Float, time: Float, speed: Float) {
+        val t = time * speed
+        when (kind) {
+            "aurora" -> {
+                p.style = android.graphics.Paint.Style.STROKE
+                for (band in 0 until 4) {
+                    val col = mix(th.c("accent"), th.c("accent2"), band / 3f)
+                    val path = Path()
+                    var x = -20f
+                    while (x <= w + 20) {
+                        val y = h * (0.25f + band * 0.08f) + sin(x / 90f + t * 0.4f + band) * 26 + sin(x / 37f - t * 0.7f) * 8
+                        if (x == -20f) path.moveTo(x, y) else path.lineTo(x, y)
+                        x += 12
+                    }
+                    for (k in 0 until 3) {
+                        p.strokeWidth = 40f - k * 12
+                        p.color = withAlpha(col, 0.05f + k * 0.05f)
+                        c.drawPath(path, p)
+                    }
+                }
+            }
+            "starfield" -> {
+                p.style = android.graphics.Paint.Style.FILL
+                val cx = w / 2; val cy = h / 2
+                for (i in 0 until 90) {
+                    val ang = rnd(i, 1) * 6.2832f
+                    val z = ((rnd(i, 2) + t * 0.12f) % 1f)
+                    val dist = z * z * (w * 0.8f)
+                    p.color = withAlpha(mix(th.c("text"), th.c("accent"), rnd(i, 3)), 0.25f + z * 0.75f)
+                    c.drawCircle(cx + cos(ang) * dist, cy + sin(ang) * dist, 0.6f + z * 2.4f, p)
+                }
+            }
+            "bubbles" -> {
+                p.style = android.graphics.Paint.Style.STROKE
+                p.strokeWidth = 2f
+                for (i in 0 until 26) {
+                    val r = 6 + rnd(i, 1) * 26
+                    val y = h + r - ((rnd(i, 2) * h + t * (18 + rnd(i, 3) * 30)) % (h + 2 * r))
+                    val x = rnd(i, 4) * w + sin(t * 0.8f + i) * 14
+                    p.color = withAlpha(mix(th.c("accent2"), th.c("text"), 0.3f), 0.35f)
+                    c.drawCircle(x, y, r, p)
+                }
+            }
+            "rain" -> {
+                p.style = android.graphics.Paint.Style.STROKE
+                p.strokeWidth = 2f
+                val cols = (w / 14).toInt()
+                for (i in 0 until cols) {
+                    val speedI = 60 + rnd(i, 1) * 140
+                    val y = (rnd(i, 2) * h + t * speedI) % (h + 80) - 40
+                    val len = 20 + rnd(i, 3) * 50
+                    p.color = withAlpha(th.c("accent"), 0.15f + rnd(i, 4) * 0.35f)
+                    c.drawLine(i * 14f + 7, y, i * 14f + 7, y + len, p)
+                }
+            }
+            "snow" -> {
+                p.style = android.graphics.Paint.Style.FILL
+                for (i in 0 until 70) {
+                    val y = (rnd(i, 1) * h + t * (12 + rnd(i, 2) * 26)) % (h + 10) - 5
+                    val x = (rnd(i, 3) * w + sin(t * 0.6f + i) * 18 + w) % w
+                    p.color = withAlpha(0xFFFFFFFF.toInt(), 0.4f + rnd(i, 4) * 0.5f)
+                    c.drawCircle(x, y, 1f + rnd(i, 5) * 2.5f, p)
+                }
+            }
+            "waves" -> {
+                p.style = android.graphics.Paint.Style.FILL
+                for (k in 0 until 3) {
+                    val path = Path()
+                    path.moveTo(0f, h)
+                    var x = 0f
+                    while (x <= w + 16) {
+                        path.lineTo(x, h * (0.62f + k * 0.1f) + sin(x / (110f - k * 20) + t * (0.5f + k * 0.25f)) * (16 - k * 3))
+                        x += 16
+                    }
+                    path.lineTo(w, h); path.close()
+                    p.color = withAlpha(mix(th.c("accent"), th.c("bg_bottom"), 0.3f + k * 0.2f), 0.18f + k * 0.06f)
+                    c.drawPath(path, p)
+                }
+            }
+        }
+    }
+}
