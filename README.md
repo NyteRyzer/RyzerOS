@@ -19,6 +19,21 @@ Every version is listed on the [Releases page](https://github.com/NyteRyzer/Ryze
 
 If Ryzer ever closes by itself, it saves the error to `RyzerOS/crash.txt` and shows it the next time it starts. Send that text along with your bug report.
 
+### New in 2.0
+
+- **New 3DS-style Home** (default): the top screen shows a big floating banner for the selected item, with your profile, the clock, the date and notifications. The bottom screen has a toolbar (Settings, Theme Studio, Notifications, Stats, Search, Swap, Quick menu, Profile) above a sideways-scrolling grid of icons. Ryzer's glow, colour bands and themes are all still there. The Ribbon and Grid layouts are one setting away (Personalize → Look & feel → Home layout).
+- **Theme Studio**, a full designer:
+  - all 12 colours, picked from a palette or fine-tuned by hue, saturation and brightness
+  - 10 background patterns, plus the theme's own live wallpaper, picture, picture dimming and font
+  - panel opacity (glass), tile style, corner roundness, text size and particles
+  - a readability check with one-press auto-fix, random palettes, and copying another theme as a starting point
+  - share codes that friends can import
+- **Notification centre**: your Android notifications in Ryzer, with slide-down banners, an unread badge, open, dismiss, clear all and do not disturb. They also appear on the Now Playing screen while you play. Switch it on once under Settings → Notifications → START → Allow notification access.
+- **Screen swap button**: L3 or R3 swaps the two screens instantly. You can also set any other button (Settings → Display & dual screen → Swap button) or use the toolbar or quick menu.
+- **Live wallpapers**: aurora, starfield, bubbles, rain, snow and waves, tinted by your theme, with adjustable speed.
+- **Profile**: your name and picture on the top screen and toolbar.
+- **More menus**: Personalize, Notifications, Profile and Notification settings, plus swap and do not disturb in the quick menu.
+
 ### New in 1.2: dual-screen play
 
 On dual-screen handhelds (RG DS, AYN Thor, AYANEO Pocket DS, Retroid Dual), **single-screen systems** such as GBA, SNES, PSP, PS1, N64 and GameCube open the game on one screen. The other screen becomes a **Now Playing** touch panel showing:
