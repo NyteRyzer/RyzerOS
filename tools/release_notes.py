@@ -47,6 +47,13 @@ Installing over an older version keeps your settings, themes and play history.
 """)
     if body:
         out.append("### What's new\n\n" + body + "\n")
+    # A patch release (2.1.1) also shows what came in its feature release (2.1.0)
+    major, minor, patch = (version.split(".") + ["0", "0"])[:3]
+    if latest and patch != "0":
+        base = f"{major}.{minor}.0"
+        base_title, base_body = section(base)
+        if base_body:
+            out.append(f"### Also new in {major}.{minor}: {base_title}\n\n" + base_body + "\n")
     out.append(f"""---
 
 [Full changelog]({REPO}/blob/HEAD/CHANGELOG.md) · [Website](https://nyteryzer.github.io/RyzerOS/) · \

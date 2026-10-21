@@ -45,6 +45,8 @@ fun drawAvatar(c: Canvas, app: Ryzer, th: Theme, cx: Float, cy: Float, r: Float)
  * Ryzer's own touches (glow, tile bands, themes) stay.
  */
 class HomeShell(app: Ryzer) : Screen(app) {
+    /** Set once you move the selection; until then Home stays on its first tile. */
+    private var moved = false
     override val title = "Home"
     private var tiles = listOf<Tile>()
     private var sel = 0
@@ -73,6 +75,10 @@ class HomeShell(app: Ryzer) : Screen(app) {
     fun rebuild() {
         val old = tiles.getOrNull(sel)?.let { it.kind + it.label }
         tiles = homeTiles(app)
+        // Until you press something, stay on the first tile: Home is first built before the
+        // library scan finishes, and Continue only appears once it has.
+        if (!moved && sel != 0) moved = true   // a tap picked a tile
+        if (!moved) { sel = 0; return }
         val i = tiles.indexOfFirst { it.kind + it.label == old }
         sel = if (i >= 0) i else sel.coerceIn(0, max(0, tiles.size - 1))
     }
@@ -82,6 +88,7 @@ class HomeShell(app: Ryzer) : Screen(app) {
     private val rows get() = app.cfg.iconRows.coerceIn(2, 4)
 
     override fun handle(a: String) {
+        moved = true
         val n = tiles.size
         val r = rows
         if (onToolbar) {

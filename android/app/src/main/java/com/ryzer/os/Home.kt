@@ -186,6 +186,8 @@ fun openTile(app: Ryzer, t: Tile) {
 }
 
 class HomeScreen(app: Ryzer) : Screen(app) {
+    /** Set once you move the selection; until then Home stays on its first tile. */
+    private var moved = false
     override val title = "Home"
     private var sel = 0
     private var scroll = 0f
@@ -203,6 +205,10 @@ class HomeScreen(app: Ryzer) : Screen(app) {
         val old = tiles.getOrNull(sel)?.let { it.kind + it.label }
         val out = homeTiles(app)
         tiles = out
+        // Until you press something, stay on the first tile: Home is first built before the
+        // library scan finishes, and Continue only appears once it has.
+        if (!moved && sel != 0) moved = true   // a tap picked a tile
+        if (!moved) { sel = 0; return }
         val i = tiles.indexOfFirst { it.kind + it.label == old }
         sel = if (i >= 0) i else min(sel, tiles.size - 1)
     }
@@ -210,6 +216,7 @@ class HomeScreen(app: Ryzer) : Screen(app) {
     override fun onResume() = rebuild()
 
     override fun handle(a: String) {
+        moved = true
         val n = tiles.size
         val rowStep = if (grid) cols else 4
         when (a) {

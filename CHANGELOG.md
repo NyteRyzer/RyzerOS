@@ -2,6 +2,12 @@
 
 Every version of Ryzer OS, newest first. Downloads for each one are on the [Releases page](https://github.com/NyteRyzer/RyzerOS/releases).
 
+## 2.1.1: no more duplicate games
+
+- Fixed games showing up two or three times. Android's shared storage ignores letter case, so `ROMs`, `Roms` and `roms` were all scanned as separate folders.
+- Home now starts on its first tile (Continue) instead of jumping to Favorites when the library finishes loading.
+- New screenshots everywhere, a [website](https://nyteryzer.github.io/RyzerOS/) and a nicer releases page.
+
 ## 2.1.0: 30 new features
 
 **Play**

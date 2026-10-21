@@ -89,7 +89,9 @@ def main(out: Path, tags_file: str | None):
     if tags_file and Path(tags_file).is_file():
         tags = {r["tagName"]: r for r in json.loads(Path(tags_file).read_text())}
     version = re.search(r'VERSION = "([^"]+)"', (ROOT / "ryzer/__init__.py").read_text()).group(1)
-    subtitle = next((s for v, s, _ in changelog() if v == version), "")
+    # A patch release (2.1.1) is announced with its feature release's headline (2.1.0)
+    feature = ".".join(version.split(".")[:2]) + ".0"
+    subtitle = next((s for v, s, _ in changelog() if v == feature), "") or next((s for v, s, _ in changelog() if v == version), "")
     if out.exists():
         shutil.rmtree(out)
     shutil.copytree(ROOT / "site", out)

@@ -12,14 +12,15 @@ import time
 from pathlib import Path
 
 PKG = "com.ryzer.os"
+TZ = "America/Chicago"
 KEY = {"up": 19, "down": 20, "left": 21, "right": 22, "a": 96, "b": 97, "x": 99, "y": 100, "l": 102, "r": 103}
 
 # name, config, showcase steps, keys pressed afterwards, extra wait
 SHOTS = [
     ("home", "home", "notices", "", 0),
-    ("home-system", "home", "", "right right right right down", 0),
-    ("home-neon", "home-neon", "", "right right right", 0),
-    ("home-gold", "home-gold", "", "right right right right right right down", 0),
+    ("home-system", "home", "", "right right right right right", 0),
+    ("home-neon", "home-neon", "", "right right right right right right right down down", 0),
+    ("home-gold", "home-gold", "", "right right right right right down down", 0),
     ("home-ribbon", "home-ribbon", "", "right right", 0),
     ("games", "games", "games:gba", "down down", 0),
     ("grid", "grid", "games:snes", "right", 0),
@@ -50,6 +51,8 @@ def shell(cmd):
 
 
 def snap(path: Path):
+    shell("am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS")
+    time.sleep(0.4)
     with open(path, "wb") as f:
         adb("exec-out", "screencap", "-p", out=f)
 
@@ -77,7 +80,19 @@ def run(shots, demo: Path, out: Path):
 def main(apk: str, demo: Path, out: Path):
     out.mkdir(parents=True, exist_ok=True)
     adb("wait-for-device")
+    # Evening in the US, so the greeting reads "Good evening" (the sample play history uses this zone too)
+    adb("root")
+    time.sleep(3)
+    adb("wait-for-device")
+    shell("settings put global auto_time_zone 0")
+    shell(f"setprop persist.sys.timezone {TZ}")
+    shell(f"service call alarm 3 s16 {TZ}")
     adb("install", "-r", "-g", apk, check=True)
+    # Ryzer becomes the home app, so the stock launcher can't pop up "isn't responding" dialogs
+    shell(f"cmd package set-home-activity {PKG}/.MainActivity")
+    for launcher in ("com.google.android.apps.nexuslauncher", "com.android.launcher3"):
+        shell(f"pm disable-user --user 0 {launcher}")
+    shell("service call notification 1")   # clear the emulator's own notifications
     shell(f"appops set --uid {PKG} MANAGE_EXTERNAL_STORAGE allow")
     shell("settings put secure immersive_mode_confirmations confirmed")
     shell(f"cmd notification allow_listener {PKG}/{PKG}.RyzerNotificationService")
@@ -92,7 +107,7 @@ def main(apk: str, demo: Path, out: Path):
 
     # Boot animation, caught part-way through
     start("boot", demo, "")
-    for i, delay in enumerate([1.2, 0.8, 0.8]):
+    for i, delay in enumerate([1.8, 0.6, 0.6, 0.6]):
         time.sleep(delay)
         snap(out / f"boot-{i}.png")
     time.sleep(3)

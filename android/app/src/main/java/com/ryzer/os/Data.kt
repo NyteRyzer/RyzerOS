@@ -410,9 +410,17 @@ object Library {
         val roots = mutableListOf(Environment.getExternalStorageDirectory())
         File("/storage").listFiles()?.filter { it.isDirectory && it.name != "emulated" && it.name != "self" }?.let { roots += it }
         val out = mutableListOf<String>()
-        for (r in roots) for (n in listOf("ROMs", "Roms", "roms", "Emulation/roms", "Games", "games")) {
-            val d = File(r, n)
-            if (d.isDirectory && out.none { File(it).canonicalPath == d.canonicalPath }) out += d.path
+        // Shared storage on Android ignores letter case, so "ROMs", "Roms" and "roms" can all be the
+        // same folder. Use the folder names as they really are on disk, once each.
+        fun add(d: File) {
+            if (d.isDirectory && out.none { it.equals(d.path, ignoreCase = true) || File(it).canonicalPath == d.canonicalPath }) out += d.path
+        }
+        for (r in roots) {
+            val children = r.listFiles()?.filter { it.isDirectory } ?: continue
+            for (want in listOf("roms", "games")) children.filter { it.name.equals(want, ignoreCase = true) }.forEach { add(it) }
+            children.filter { it.name.equals("emulation", ignoreCase = true) }.forEach { e ->
+                e.listFiles()?.filter { it.isDirectory && it.name.equals("roms", ignoreCase = true) }?.forEach { add(it) }
+            }
         }
         return out
     }

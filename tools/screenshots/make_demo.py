@@ -11,7 +11,9 @@ import json
 import random
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -165,10 +167,11 @@ def main(out: Path):
               key("gba", "Golden Sun"): "beaten", key("ps2", "Shadow"): "backlog", key("gc", "Ikaruga"): "backlog",
               key("nds", "The World"): "backlog"}
     daily = {}
+    zone = ZoneInfo("America/Chicago")   # same zone as the emulator (capture.py)
     for i in range(0, 50):
         if i < 12 or rnd.random() < 0.6:
-            t = time.gmtime(now / 1000 - i * 86400)
-            daily[time.strftime("%Y-%m-%d", t)] = rnd.randint(900, 3 * 3600 + 600)
+            d = datetime.fromtimestamp(now / 1000 - i * 86400, zone)
+            daily[d.strftime("%Y-%m-%d")] = rnd.randint(900, 3 * 3600 + 600)
     sessions = []
     for i in range(30):
         k = rnd.choice(list(played))
