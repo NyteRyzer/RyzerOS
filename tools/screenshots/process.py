@@ -94,7 +94,7 @@ def hero(shots: dict, out: Path, version: str):
     d.text((x, 168), "Your handheld,", font=font(46), fill=(243, 243, 247))
     d.text((x, 222), "your console.", font=font(46), fill=(255, 92, 92))
     lines = ["A console-style frontend for", "Anbernic, AYN, Retroid & AYANEO.", "",
-             "3DS-style dual-screen Home", "Theme Studio · 25 themes", "Notifications · stats · mini-games"]
+             "3DS-style dual-screen Home", "Automatic box art", "Theme Studio · 25 themes · stats"]
     y = 300
     for ln in lines:
         d.text((x, y), ln, font=font(24, "Medium"), fill=(190, 190, 205))

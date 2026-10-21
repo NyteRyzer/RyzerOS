@@ -2,6 +2,18 @@
 
 Every version of Ryzer OS, newest first. Downloads for each one are on the [Releases page](https://github.com/NyteRyzer/RyzerOS/releases).
 
+## 2.2.0: automatic artwork
+
+Ryzer now finds pictures for your games by itself.
+
+- **Reads your ROMs to identify each game.** The CRC32 checksum (instant for `.zip` files) is looked up in the libretro database of No-Intro, Redump and FBNeo game lists. Even a file called `the_legend_of_zelda_minish_cap.gba` gets the right cover. Discs and large files are matched by name, with fuzzy matching and your region preferred.
+- **Downloads the artwork** from the free libretro thumbnail library: no account and no API key. Pick **box art**, **screenshots** or **title screens**.
+- **Automatic**: after each library scan, new games get their pictures in the background (Wi-Fi only by default). A notification says how many were found.
+- **Or on demand**: *Settings → Library → Artwork → Download missing artwork*, *Get artwork for this list* in any game list's options, or *Find artwork online* for one game.
+- A live progress screen shows each cover as it's found, with the newest one on the top screen.
+- Pictures are saved small (about 30 KB each) in `RyzerOS/covers`. **Your ROM folders are never changed**, and art you already have (next to your ROMs, or from ES-DE) always wins.
+- Works for 26 systems, from NES and Game Boy to PS2, GameCube, Wii, 3DS, Dreamcast and arcade (FBNeo).
+
 ## 2.1.1: no more duplicate games
 
 - Fixed games showing up two or three times. Android's shared storage ignores letter case, so `ROMs`, `Roms` and `roms` were all scanned as separate folders.

@@ -69,10 +69,19 @@ More screenshots (2048, Game Roulette, quick menu, the classic ribbon layout) ar
 - **Real dual-screen play** on the RG DS, AYN Thor, AYANEO Pocket DS and Retroid Dual. GBA, SNES, PSP and other single-screen games open on one screen, with a **Now Playing** touch panel on the other: timer, volume, notes, ratings and emulator controls. DS and 3DS games get both screens. **L3 / R3** swaps the screens at any time.
 - **Theme Studio**: design every colour, pattern, live wallpaper, font, corner and panel. You can also make a theme from any photo, and share themes as codes.
 - **25 themes**: 20 built in, plus 5 bonus themes you unlock with milestones. There are also 10 live wallpapers, seasonal effects, neon mode and 4 icon shapes.
+- **Automatic artwork**: Ryzer reads each ROM, identifies the game in the libretro database (No-Intro, Redump, FBNeo) and downloads its box art, screenshot or title screen. No account is needed, and your ROM folders are never touched.
 - **Notification centre**: your Android notifications in Ryzer, with banners and do not disturb.
 - **A smarter library**: For You picks, smart collections, NEW badges, ratings, a backlog tracker, collections, and search across games, apps and settings.
 - **Stats**: play time, streaks, a play calendar, session history, 14 milestones and a shareable stats card.
 - **Extras**: Snake, 2048, Game Roulette, a controller tester, battery info, a stopwatch and timer, a bedtime reminder, a quick menu (L + R) and kid mode.
+
+## New in 2.2: automatic artwork
+
+Ryzer now finds pictures for your games by itself. It reads each ROM's checksum (instant for `.zip` files) and looks it up in the libretro game database, so even a file called `the_legend_of_zelda_minish_cap.gba` gets the right cover. Then it downloads the art from the free libretro thumbnail library. Discs and big files are matched by name instead.
+
+- Runs automatically after each library scan (Wi-Fi only by default), or on demand: **Settings → Library → Artwork**, or **Find artwork online** in any game's options
+- Box art, screenshots or title screens, for 26 systems from NES to PS2, GameCube, 3DS and arcade
+- Saved small in `RyzerOS/covers`; art you already have always wins
 
 ## What's new in 2.1
 

@@ -238,6 +238,9 @@ fun settingsMenu(app: Ryzer): Menu {
     val library = { Menu(app, "Library", listOf(
         Item("ROM folders", "Where Ryzer looks for <system> folders like 3ds, gc, ps2.", value = { "${app.romRoots().size}" }, select = { app.push(romFoldersMenu(app)) }),
         Item("Rescan ROMs", select = { app.rescan { app.notify("Found ${app.systems.sumOf { it.games.size }} games") } }),
+        Item("Artwork", "Downloads box art, screenshots or title screens for your games automatically.",
+            value = { if (Scraper.running) "${Scraper.checked}/${Scraper.total}" else if (cfg.autoArt) "Automatic" else "Manual" },
+            select = { app.push(artworkMenu(app)) }),
         toggle("Clean game names", "Hides tags like \"(USA) [!]\".", { cfg.cleanNames }) { cfg.cleanNames = it; app.rescan() },
         toggle("Hide empty systems", get = { cfg.hideEmpty }) { cfg.hideEmpty = it },
         toggle("Show Apps tile", get = { cfg.showApps }) { cfg.showApps = it },

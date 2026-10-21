@@ -429,6 +429,8 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
         Item("Sort by", value = { ListView.label(app.cfg.sort) }, change = { d -> app.cfg.sort = cycleCfg(ListView.SORTS, app.cfg.sort, d); app.cfg.save() }),
         Item("Filter", value = { ListView.label(app.cfg.filter) }, change = { d -> app.cfg.filter = cycleCfg(ListView.FILTERS, app.cfg.filter, d); app.cfg.save() }),
         Item("View", value = { if (app.cfg.grid) "Grid" else "List" }, change = { app.cfg.grid = !app.cfg.grid; app.cfg.save() }),
+        Item("Get artwork for this list", "Downloads pictures for the games here that don't have one.",
+            select = { app.pop(); Scraper.start(app, games, auto = false, onlyMissing = true, retryMisses = true) }),
         Item("Show hidden games", value = { if (app.cfg.showHidden) "On" else "Off" }, change = { app.cfg.showHidden = !app.cfg.showHidden; app.cfg.save() }),
         Item("Random game from this list", select = { app.pop(); app.randomFrom(games) }),
     )
@@ -480,6 +482,8 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
         }
         items += viewItems()
         items += Item("Game info", select = { app.push(Message(app, app.title(g), info(g))) })
+        if (Scraper.supports(g.system)) items += Item("Find artwork online", "Reads the ROM, finds the game in the libretro database and downloads its picture.",
+            select = { app.pop(); Scraper.start(app, listOf(g), auto = false, force = true) })
         items += Item("Check ROM (CRC32)", "Reads the whole file and shows its checksum, to spot a damaged download.", select = { app.pop(); Sharing.checksum(app, g) })
         if (!kid) items += Item("Delete ROM file", "Permanently deletes the file from your storage.", select = {
             app.push(Confirm(app, "Delete ${g.file.name} permanently? This can't be undone.", yes = "Delete") {

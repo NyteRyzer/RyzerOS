@@ -89,6 +89,7 @@ class Ryzer(val ctx: MainActivity) {
 
     init {
         instance = this
+        Library.coversDir = Scraper.coversDir(this)
         G.setFont(cfg.font)
         when (cfg.themeMode) {   // theme of the day / random theme on every start
             "daily" -> themes.keys.sorted().let { ids -> setTheme(ids[(today().hashCode() and 0x7fffffff) % ids.size], save = false) }
@@ -167,6 +168,7 @@ class Ryzer(val ctx: MainActivity) {
                 if (error != null) notify("Scan problem: ${error.javaClass.simpleName}", 4f)
                 else if (state.noteSeen(systems.flatMap { s -> s.games.map { it.key } })) state.save()
                 safely { current?.onResume(); done?.invoke() }
+                if (error == null && cfg.autoArt && !cfg.kidMode) safely { Scraper.start(this, allGames(), auto = true, onlyMissing = true) }
                 ctx.redraw()
             }
         }
@@ -443,6 +445,7 @@ class Ryzer(val ctx: MainActivity) {
             if (now < toastUntil) G.toast(c, th, toastMsg, ((toastUntil - now) / 330f).coerceAtMost(1f), w, h)
             Notifs.drawBanner(c, this, th, w)
             if (scanning) G.text(c, "Scanning...", w - 16, 46f, 18f, th.c("accent"), align = 'r')
+            else if (Scraper.running && scr !is ScrapeScreen) G.text(c, "Artwork ${Scraper.checked}/${Scraper.total}", w - 16, 46f, 18f, th.c("accent"), align = 'r')
         } else {
             runCatching { scr.drawTop(c, w, h) }.onFailure { Crash.log(ctx, it) }
         }

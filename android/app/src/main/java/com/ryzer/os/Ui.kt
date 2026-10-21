@@ -421,6 +421,10 @@ object G {
         }
     }
 
+    /** Drops a cached picture so a new file at the same path is read again. */
+    fun forget(file: File) = synchronized(imageCache) { imageCache.remove(file.path) }
+    fun clearImages() = synchronized(imageCache) { imageCache.clear() }
+
     fun drawImageFit(c: Canvas, bmp: Bitmap, box: RectF): RectF {
         val sc = min(box.width() / bmp.width, box.height() / bmp.height)
         val dw = bmp.width * sc; val dh = bmp.height * sc

@@ -107,6 +107,10 @@ class Config(private val file: File) {
     var photoFrame = false       // screensaver shows pictures from RyzerOS/photos
     var resumePrompt = true      // "continue playing X?" at startup
     val hiddenTiles = mutableSetOf<String>()   // Home tiles switched off in the tile editor
+    // 2.2
+    var autoArt = true           // download missing artwork after each library scan
+    var artWifiOnly = true
+    var artType = "boxart"       // boxart | snap | title
 
     init { load() }
 
@@ -150,6 +154,8 @@ class Config(private val file: File) {
         bootMessage = j.optString("bootMessage", bootMessage); seasonal = j.optBoolean("seasonal", seasonal)
         photoFrame = j.optBoolean("photoFrame", photoFrame); resumePrompt = j.optBoolean("resumePrompt", resumePrompt)
         hiddenTiles.clear(); hiddenTiles += j.optJSONArray("hiddenTiles").strings()
+        autoArt = j.optBoolean("autoArt", autoArt); artWifiOnly = j.optBoolean("artWifiOnly", artWifiOnly)
+        artType = j.optString("artType", artType)
         if (j.optInt("uiVersion", 1) < 2) homeLayout = "3ds"   // 2.0 introduces the new Home; old configs switch once
     }
 
@@ -175,6 +181,7 @@ class Config(private val file: File) {
         put("launchAnim", launchAnim); put("newBadges", newBadges); put("neon", neon); put("transitions", transitions)
         put("iconShape", iconShape); put("bedtime", bedtime); put("bootMessage", bootMessage); put("seasonal", seasonal)
         put("photoFrame", photoFrame); put("resumePrompt", resumePrompt); put("hiddenTiles", JSONArray(hiddenTiles.toList()))
+        put("autoArt", autoArt); put("artWifiOnly", artWifiOnly); put("artType", artType)
     })
 }
 
@@ -368,6 +375,9 @@ class Game(val file: File, val system: GameSystem, private val clean: Boolean) {
         return imageFile
     }
 
+    /** Looks for the picture again (after artwork was downloaded or deleted). */
+    fun refreshImage() { imageLooked = false; imageFile = null }
+
     private fun findImage(): File? {
         val stem = file.nameWithoutExtension
         val dirs = IMAGE_DIRS.map { File(file.parentFile, it) } +
@@ -378,11 +388,16 @@ class Game(val file: File, val system: GameSystem, private val clean: Boolean) {
             val f = File(d, stem + ext)
             if (f.isFile) return f
         }
+        // Artwork Ryzer downloaded (Scraper): your own art above always wins
+        Library.coversDir?.let { File(File(it, system.id), "$stem.webp") }?.takeIf { it.isFile }?.let { return it }
         return null
     }
 }
 
 object Library {
+    /** RyzerOS/covers, where downloaded artwork goes; set when Ryzer starts. */
+    @Volatile var coversDir: File? = null
+
     fun loadEmulators(app: Ryzer): Map<String, Emulator> {
         val j = readJson(File(app.home, "emulators.json"))
             ?: JSONObject(app.ctx.assets.open("emulators.json").bufferedReader().use { it.readText() })

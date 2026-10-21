@@ -530,7 +530,9 @@ fun setSystemBrightness(app: Ryzer, d: Int) {
     }
 }
 
-const val WHATS_NEW = "2.1 adds 30 features:\n" +
+const val WHATS_NEW = "2.2: automatic artwork. Ryzer reads your ROMs, identifies each game in the libretro database " +
+    "and downloads its box art, screenshot or title screen (Settings > Library > Artwork, or 'Find artwork online' in any game's options).\n\n" +
+    "2.1 added 30 features:\n" +
     "- Mini-games: Snake and 2048\n- Game Roulette\n- Launch animation\n- Play calendar\n- Share-able stats card\n- Screenshots\n" +
     "- Smart collections (Playing, Backlog, Top rated, Unplayed)\n- For You recommendations\n- NEW badges on recently added games\n" +
     "- Home tile editor\n- Icon shapes for the 3DS layout\n- Neon mode\n- Screen transitions\n- Binary and word clocks\n" +
@@ -544,6 +546,7 @@ const val HELP_TEXT = "Buttons: A open, B back, X random / favorite, Y search, S
     "Games go in ROMs/<system> folders (ROMs/gba, ROMs/3ds...). Pick emulators in Settings > Emulators.\n\n" +
     "Personalize everything in Theme Studio (Themes > X), or make a theme from a photo (Themes > START).\n\n" +
     "Notifications: Settings > Notifications > START > allow access.\n\n" +
+    "Box art downloads automatically after each library scan (Settings > Library > Artwork).\n\n" +
     "Pictures you can add: RyzerOS/wallpapers (backgrounds), RyzerOS/tiles/<system>.png (tile art), " +
     "RyzerOS/backgrounds/<system>.jpg (shown in that system's list), RyzerOS/photos (photo-frame screensaver), RyzerOS/music (menu music).\n\n" +
     "Something broke? The error is in RyzerOS/crash.txt."
