@@ -12,6 +12,11 @@ on:
 permissions:
   contents: write
 
+# One run at a time: a newer push replaces a run that hasn't finished yet
+concurrency:
+  group: screenshots
+  cancel-in-progress: true
+
 jobs:
   shots:
     runs-on: ubuntu-latest
