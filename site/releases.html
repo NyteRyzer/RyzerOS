@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Releases · Ryzer OS</title>
+<meta name="description" content="Every Ryzer OS release with downloads and what's new.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Ryzer OS releases — {{VERSION}} is out">
+<meta property="og:description" content="Download Ryzer OS {{VERSION}} for Android handhelds and custom firmware, and see what's new in every version.">
+<meta property="og:image" content="{{SITE}}/screenshots/hero.png">
+<meta property="og:url" content="{{SITE}}/releases.html">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="{{SITE}}/screenshots/hero.png">
+<meta name="theme-color" content="#0b0b10">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav><div class="wrap">
+  <a class="logo" href="./"><i></i>RYZER OS</a>
+  <div class="links">
+    <a class="hide-sm" href="./#screens">Screenshots</a>
+    <a class="hide-sm" href="./#install">Install</a>
+    <a class="on" href="releases.html">Releases</a>
+    <a href="{{REPO}}">GitHub</a>
+  </div>
+</div></nav>
+
+<header class="hero" style="padding-bottom:10px"><div class="wrap" style="display:block">
+  <h1 style="font-size:clamp(40px,6vw,64px)">Releases</h1>
+  <p class="lead">Every version of Ryzer OS, newest first. Installing a new version over an old one keeps your settings, themes and play history.</p>
+  <div class="buttons">
+    <a class="btn primary" href="{{REPO}}/releases/latest/download/RyzerOS.apk">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 20h16"/></svg>
+      <span>Latest for Android<small>RyzerOS.apk · {{VERSION}}</small></span></a>
+    <a class="btn" href="{{REPO}}/releases/latest/download/RyzerOS-Linux.zip"><span>Latest Linux edition<small>RyzerOS-Linux.zip</small></span></a>
+  </div>
+</div></header>
+
+<section style="padding-top:30px"><div class="wrap">
+{{RELEASES}}
+</div></section>
+
+<footer><div class="wrap">
+  <span>Ryzer OS {{VERSION}}</span>
+  <span><a href="./">Home</a> · <a href="{{REPO}}/releases">Releases on GitHub</a> · <a href="{{REPO}}/issues">Report a bug</a></span>
+</div></footer>
+<script>
+document.querySelectorAll('.release.collapsed').forEach(function (r) {
+  var b = document.createElement('button');
+  b.className = 'more'; b.textContent = 'Show everything in this version';
+  b.onclick = function () { r.classList.remove('collapsed'); b.remove(); };
+  r.appendChild(b);
+});
+</script>
+</body>
+</html>

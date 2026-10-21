@@ -1,0 +1,57 @@
+name: website
+
+# Publishes site/ (plus the screenshots and the changelog) to GitHub Pages:
+# https://nyteryzer.github.io/RyzerOS/
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "site/**"
+      - "docs/screenshots/**"
+      - "CHANGELOG.md"
+      - "ryzer/__init__.py"
+      - "tools/build_site.py"
+      - ".github/workflows/pages.yml"
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install markdown
+      - name: Build the site
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release list --limit 100 --json tagName,publishedAt > releases.json || echo "[]" > releases.json
+          python tools/build_site.py _site releases.json
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

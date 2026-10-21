@@ -2,6 +2,17 @@ name: build
 
 on:
   push:
+    # Docs, website and screenshot changes don't need a new build
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "site/**"
+      - "tools/screenshots/**"
+      - "tools/release_notes.py"
+      - "tools/build_site.py"
+      - ".github/workflows/screenshots.yml"
+      - ".github/workflows/pages.yml"
+      - ".github/workflows/release-notes.yml"
   pull_request:
   workflow_dispatch:
 
@@ -77,10 +88,6 @@ jobs:
           done
           # Rebuilds of the same version replace that version's release
           gh release delete "$TAG" --yes --cleanup-tag || true
+          python3 tools/release_notes.py "$VERSION" --latest > notes.md
           gh release create "$TAG" out/RyzerOS.apk out/RyzerOS-Linux.zip --latest --target "$GITHUB_SHA" \
-            --title "Ryzer OS $VERSION" \
-            --notes "**Android (stock OS on Anbernic, AYN, Retroid, AYANEO...):** download **RyzerOS.apk** on the handheld and open it to install. Android 6 or newer.
-
-          **Linux firmwares (ROCKNIX, Knulli, muOS, ArkOS):** download **RyzerOS-Linux.zip**, unzip it on the device and run install.sh.
-
-          Built from ${GITHUB_SHA::7}."
+            --title "$(python3 tools/release_notes.py "$VERSION" --title)" --notes-file notes.md

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ryzer OS — a console-style frontend for retro handhelds</title>
+<meta name="description" content="Free console-style home screen for Android handhelds (Anbernic, AYN, Retroid, AYANEO) and custom firmware. 3DS-style dual-screen Home, Theme Studio, 25 themes, notifications, stats and more.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Ryzer OS {{VERSION}} — a console-style frontend for retro handhelds">
+<meta property="og:description" content="3DS-style dual-screen Home, Theme Studio, live wallpapers, notifications, play stats and mini-games. Free APK for Anbernic, AYN, Retroid and AYANEO.">
+<meta property="og:image" content="{{SITE}}/screenshots/hero.png">
+<meta property="og:url" content="{{SITE}}/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="{{SITE}}/screenshots/hero.png">
+<meta name="theme-color" content="#0b0b10">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav><div class="wrap">
+  <a class="logo" href="./"><i></i>RYZER OS</a>
+  <div class="links">
+    <a class="hide-sm" href="#screens">Screenshots</a>
+    <a class="hide-sm" href="#features">Features</a>
+    <a class="hide-sm" href="#install">Install</a>
+    <a href="releases.html">Releases</a>
+    <a href="{{REPO}}">GitHub</a>
+  </div>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <div>
+    <a class="badge" href="releases.html"><b>●</b> Version {{VERSION}} is out: {{SUBTITLE}}</a>
+    <h1>Your handheld,<br><span>your console.</span></h1>
+    <p class="lead">Ryzer OS is a free, console-style home screen for retro handhelds. It has a 3DS-style dual-screen Home,
+      a full theme designer, notifications, play stats and more. It works with the emulators you already have.</p>
+    <div class="buttons">
+      <a class="btn primary" href="{{REPO}}/releases/latest/download/RyzerOS.apk">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 20h16"/></svg>
+        <span>Download for Android<small>RyzerOS.apk · Android 6+</small></span></a>
+      <a class="btn" href="{{REPO}}/releases/latest/download/RyzerOS-Linux.zip">
+        <span>Linux edition<small>ROCKNIX · Knulli · muOS · ArkOS</small></span></a>
+    </div>
+    <p class="fine">Free · no account · no ads · <a href="releases.html">all versions</a></p>
+  </div>
+  <div class="hero-shot">
+    <div class="ds"><img src="screenshots/home.png" alt="Ryzer OS 3DS-style Home on both screens"></div>
+    <div class="ds"><img src="screenshots/home-neon.png" alt="Vaporwave theme with aurora live wallpaper and neon mode"></div>
+  </div>
+</div></header>
+
+<section class="alt"><div class="wrap">
+  <h2>Made for the handheld in your hand</h2>
+  <p class="sub">Install the APK on the stock OS, like Cocoon or iiSU. On dual-screen devices Ryzer uses both screens. On single-screen devices it fits everything on one.</p>
+  <div class="devices">
+    <span class="chip hot">Anbernic RG DS</span><span class="chip hot">AYN Thor</span><span class="chip hot">AYANEO Pocket DS</span>
+    <span class="chip">Retroid Pocket 5 / 6 / Mini / Flip / Classic</span><span class="chip">AYN Odin 2 / 3 / Portal</span>
+    <span class="chip">Anbernic RG 406H / 556 / 557 / Cube / 477M</span><span class="chip">Any Android 6+ handheld</span>
+    <span class="chip">ROCKNIX · Knulli · muOS · ArkOS</span>
+  </div>
+</div></section>
+
+<section id="screens"><div class="wrap">
+  <h2>Screenshots</h2>
+  <p class="sub">Real captures of Ryzer OS {{VERSION}}, running with a sample library. Each picture shows the top and bottom screen, the way they look on a dual-screen handheld.</p>
+  <div class="gallery">
+{{GALLERY}}
+  </div>
+  <div class="landscape">
+{{LANDSCAPE}}
+  </div>
+</div></section>
+
+<section id="features" class="alt"><div class="wrap">
+  <h2>Everything a frontend should have, and then some</h2>
+  <p class="sub">Version 2.1 adds 30 features on top of the 2.0 redesign. Here are the highlights; the <a href="releases.html">releases page</a> has the full list.</p>
+  <div class="features">
+    <div class="card"><div class="ic">🎮</div><h3>3DS-style Home</h3><p>A floating banner on the top screen and a sideways-scrolling icon grid on the bottom. Ribbon and Grid layouts are one setting away.</p></div>
+    <div class="card"><div class="ic">🎨</div><h3>Theme Studio</h3><p>Design every colour, pattern, live wallpaper, font and corner. Turn any photo into a theme, and share themes as codes.</p></div>
+    <div class="card"><div class="ic">🖥️</div><h3>Real dual-screen play</h3><p>GBA, SNES, PSP and more open on one screen, with a Now Playing touch panel on the other. DS and 3DS games get both screens.</p></div>
+    <div class="card"><div class="ic">🔔</div><h3>Notifications</h3><p>Your Android notifications in Ryzer, with banners, do not disturb, and the newest one shown while you play.</p></div>
+    <div class="card"><div class="ic">✨</div><h3>25 themes + live wallpapers</h3><p>20 built-in themes, 5 bonus themes you unlock with milestones, 10 live wallpapers and seasonal effects.</p></div>
+    <div class="card"><div class="ic">📊</div><h3>Stats & milestones</h3><p>Play time, streaks, a play calendar, session history, 14 milestones and a stats card you can share.</p></div>
+    <div class="card"><div class="ic">🧠</div><h3>Smart library</h3><p>For You picks, smart collections, NEW badges, ratings, a backlog tracker and search across games, apps and settings.</p></div>
+    <div class="card"><div class="ic">🕹️</div><h3>Works with 27+ emulators</h3><p>RetroArch, DuckStation, Azahar, Dolphin, NetherSX2, PPSSPP, DraStic, melonDS and more, or any app you choose.</p></div>
+    <div class="card"><div class="ic">🧩</div><h3>Little extras</h3><p>Snake, 2048, Game Roulette, a controller tester, battery info, a stopwatch, a bedtime reminder and kid mode.</p></div>
+  </div>
+</div></section>
+
+<section id="install"><div class="wrap">
+  <h2>Install in a minute</h2>
+  <p class="sub">No root, no flashing. Ryzer is an app on top of your handheld's normal Android.</p>
+  <ol class="steps">
+    <li>On the handheld, download <a href="{{REPO}}/releases/latest/download/RyzerOS.apk"><b>RyzerOS.apk</b></a> and open it. Allow "install unknown apps" if Android asks.</li>
+    <li>Start Ryzer OS and allow <b>All files access</b> so it can find your games.</li>
+    <li>Put games in <code>ROMs/&lt;system&gt;</code> folders (<code>ROMs/gba</code>, <code>ROMs/3ds</code>, <code>ROMs/ps2</code>…) on internal storage or the SD card. ES-DE folder names work too.</li>
+    <li>Pick your emulators in <b>Settings → Emulators</b>. Ryzer knows how to start 27 of them directly.</li>
+    <li>Optional: <b>Settings → Set as home screen</b> makes Ryzer start when the handheld turns on.</li>
+  </ol>
+</div></section>
+
+<section class="alt"><div class="wrap">
+  <h2>What to expect</h2>
+  <p class="sub">Ryzer is a frontend: it makes launching and organising games fast and good-looking, but the emulators do the emulating. How well heavy systems run depends on your chip.</p>
+  <div class="tablewrap"><table>
+    <tr><th>Chip class (examples)</th><th>3DS</th><th>GameCube / Wii</th><th>PS2</th><th>Switch</th></tr>
+    <tr><td>RK3568 (RG DS, RG 353)</td><td>Light games</td><td>A few light games</td><td>Very light games</td><td>No</td></tr>
+    <tr><td>Unisoc T618 / T820 (RG 405/406, RP4)</td><td>Many games</td><td>Many 2D / light 3D</td><td>Light games</td><td>No</td></tr>
+    <tr><td>Dimensity 1100 / SD 865 (RP4 Pro, Odin 1)</td><td>Most games</td><td>Most games</td><td>Many games</td><td>Light games</td></tr>
+    <tr><td>Snapdragon 8 Gen 2+ (AYN Thor, Odin 2/3, RP5/6)</td><td>Full library</td><td>Most games</td><td>Most games</td><td>Many games</td></tr>
+  </table></div>
+</div></section>
+
+<section><div class="wrap">
+  <h2>FAQ</h2>
+  <details><summary>Is it a real operating system?</summary><p>No, and it doesn't need to be. The Android edition is a launcher app on your stock OS, and the Linux edition runs on top of ROCKNIX, Knulli, muOS or ArkOS. Ryzer replaces how the handheld looks and feels; the firmware still provides the drivers.</p></details>
+  <details><summary>Does it include games or emulators?</summary><p>No. Ryzer launches the emulators you install, and you bring your own legally obtained games. The game names and covers in the screenshots are placeholders from a sample library.</p></details>
+  <details><summary>Will updating erase my setup?</summary><p>No. Installing a new APK over the old one keeps your settings, themes and play history, which live in the <code>RyzerOS</code> folder on your storage.</p></details>
+  <details><summary>Something broke. How do I report it?</summary><p>If Ryzer ever closes by itself, it saves the error to <code>RyzerOS/crash.txt</code> and shows it on the next start. Open an <a href="{{REPO}}/issues">issue on GitHub</a> and paste it in.</p></details>
+</div></section>
+
+<footer><div class="wrap">
+  <span>Ryzer OS {{VERSION}} · made for handheld fans</span>
+  <span><a href="releases.html">Releases</a> · <a href="{{REPO}}">Source code</a> · <a href="{{REPO}}/issues">Report a bug</a></span>
+</div></footer>
+</body>
+</html>
