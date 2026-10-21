@@ -35,6 +35,8 @@ object Notifs {
     var bannerAt = 0L
     private val main = Handler(Looper.getMainLooper())
     private val icons = HashMap<String, Bitmap?>()
+    /** Keeps Ryzer's own notices apart when several are posted in the same millisecond. */
+    private var counter = 0
 
     fun unread() = list.count { !it.read }
 
@@ -49,7 +51,7 @@ object Notifs {
 
     /** Ryzer's own notices go in the same centre. */
     fun ryzer(title: String, text: String, banner: Boolean = true) = main.post {
-        val n = Note("ryzer:${SystemClock.uptimeMillis()}", "com.ryzer.os", "Ryzer OS", title, text,
+        val n = Note("ryzer:${SystemClock.uptimeMillis()}:${++counter}", "com.ryzer.os", "Ryzer OS", title, text,
             System.currentTimeMillis(), null, true, true)
         add(n, banner)
     }

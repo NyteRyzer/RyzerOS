@@ -131,7 +131,6 @@ CONFIGS = {
     "calendar": {"theme": "forest"},
     "quick": {"theme": "carbon", "clockStyle": "words"},
     "roulette": {"theme": "lava"},
-    "boot": {"theme": "neon-night", "boot": True, "bootStyle": "glitch", "bootMessage": "Ready, Player One"},
     "land-home": {"theme": "purple-haze", "live": "starfield"},
     "land-games": {"theme": "gold-rush"},
 }

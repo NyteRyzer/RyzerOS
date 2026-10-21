@@ -34,6 +34,9 @@ object Showcase {
                     Notifs.ryzer("Timer done", "Your 30 minute timer finished.", banner = false)
                     Notifs.ryzer("Milestone unlocked: On a Roll", "Play 7 days in a row", banner = false)
                 }
+                "clearsystem" -> {   // the emulator's own notifications ("Configure keyboard"...)
+                    Notifs.list.filter { !it.fromRyzer }.forEach { Notifs.dismiss(it) }
+                }
                 "banner" -> Notifs.ryzer("Milestone unlocked: Marathon", "Play 3 hours in one day")
             }
         }

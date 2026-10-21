@@ -60,9 +60,8 @@ def snap(path: Path):
 def start(config: str, demo: Path, steps: str):
     shell(f"am force-stop {PKG}")
     adb("push", str(demo / "configs" / f"{config}.json"), "/sdcard/RyzerOS/config.json")
-    cmd = f"am start -n {PKG}/.MainActivity"
-    if steps:
-        cmd += f" --es showcase '{steps}'"
+    steps = ",".join(x for x in ("clearsystem", steps) if x)
+    cmd = f"am start -n {PKG}/.MainActivity --es showcase '{steps}'"
     shell(cmd)
 
 
@@ -104,13 +103,6 @@ def main(apk: str, demo: Path, out: Path):
     # Warm-up start: first launch scans the library and writes its files
     start("home", demo, "")
     time.sleep(12)
-
-    # Boot animation, caught part-way through
-    start("boot", demo, "")
-    for i, delay in enumerate([1.8, 0.6, 0.6, 0.6]):
-        time.sleep(delay)
-        snap(out / f"boot-{i}.png")
-    time.sleep(3)
 
     run(SHOTS, demo, out)
 
