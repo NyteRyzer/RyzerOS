@@ -69,6 +69,7 @@ def releases_html(tags):
         info = tags.get(tag)
         body = re.sub(r"^\*\*(Play|Library|Look|Look & feel|Tools|Stats|Device)\*\*(.*)$", r"#### \1\2", body, flags=re.M)
         body = body.replace("](docs/", f"]({REPO}/blob/HEAD/docs/")
+        body = re.sub(r"^  (?=[-*] |\d+\. )", "    ", body, flags=re.M)   # nested lists need 4 spaces
         notes = markdown.markdown(body, extensions=["sane_lists"])
         date = f'<span class="date">{info["publishedAt"][:10]}</span>' if info else ""
         dl = ""
