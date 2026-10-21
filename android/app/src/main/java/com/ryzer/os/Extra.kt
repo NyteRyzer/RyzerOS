@@ -107,66 +107,6 @@ class ThemePicker(app: Ryzer) : Screen(app) {
     override fun hints() = listOf("START" to "Photo", "Y" to "Delete", "X" to "Theme Studio", "A" to "Apply")
 }
 
-private val COLOR_LABELS = mapOf("bg_top" to "Background top", "bg_bottom" to "Background bottom", "panel" to "Panel",
-    "panel_border" to "Panel border", "accent" to "Accent", "accent2" to "Accent 2", "text" to "Text", "text_dim" to "Dim text",
-    "highlight_text" to "Text on accent", "good" to "Good / OK", "warn" to "Warning", "bad" to "Error")
-
-/** Edits a copy of a theme; built-in themes are never modified. */
-class ThemeEditor(app: Ryzer, base: Theme) : Menu(app, "Theme Editor", emptyList(), "Left/Right adjust  |  Y switches R/G/B channel") {
-    private val t: Theme = if (base.builtin) {
-        val (id, _) = Themes.nextCustomId(app.themes)
-        base.copy(id, "${base.name} Custom")
-    } else base.copy(base.id, base.name)
-    private val channel = HashMap<String, Int>()
-
-    init {
-        val list = mutableListOf(Item("Name", value = { t.name }, select = {
-            app.push(Keyboard(app, "Theme name", t.name, 24) { if (it.isNotEmpty()) t.name = it })
-        }))
-        for (key in Theme.COLOR_KEYS) list += Item(COLOR_LABELS[key] ?: key, value = {
-            val col = t.c(key); val ch = channel[key] ?: 0
-            "${"RGB"[ch]}:${"%3d".format((col shr (16 - 8 * ch)) and 255)}  ${Theme.hex(col)}"
-        }, change = { d ->
-            val ch = channel[key] ?: 0; val shift = 16 - 8 * ch
-            val v = (((t.c(key) shr shift) and 255) + d * 8).coerceIn(0, 255)
-            t.colors[key] = (t.c(key) and (255 shl shift).inv()) or (v shl shift) or (0xFF shl 24)
-            app.previewTheme(t)
-        }, swatch = { t.c(key) }).also { it.colorKey = key }
-        list += styleItem("Background", "background", Theme.BACKGROUNDS)
-        list += styleItem("Tile style", "tile_style", Theme.TILE_STYLES)
-        list += Item("Corner radius", value = { "${t.radius.toInt()}" }, change = { d ->
-            t.style["corner_radius"] = (t.radius.toInt() + d * 2).coerceIn(0, 32); app.previewTheme(t) })
-        list += Item("Text size", value = { "%.1fx".format(t.fontScale) }, change = { d ->
-            t.style["font_scale"] = (t.fontScale + d * 0.1f).coerceIn(0.8f, 1.4f); app.previewTheme(t) })
-        list += Item("Particles", value = { if (t.particles) "On" else "Off" }, change = { t.style["particles"] = !t.particles; app.previewTheme(t) })
-        list += Item("Save theme", help = "Saved to RyzerOS/themes - you can also edit the JSON with any text editor.", select = { save() })
-        items = list
-        app.previewTheme(t)
-    }
-
-    private fun styleItem(label: String, key: String, options: List<String>) = Item(label,
-        value = { (t.style[key] as String).replaceFirstChar { it.uppercase() } },
-        change = { d -> t.style[key] = cycle(options, t.style[key] as String, d); app.previewTheme(t) })
-
-    private fun save() {
-        Themes.save(app, t)
-        app.themes = Themes.loadAll(app)
-        app.setTheme(t.id, save = true)
-        app.focusTheme = t.id
-        app.notify("Saved '${t.name}'")
-        app.pop()
-    }
-
-    override fun handle(a: String) {
-        val key = current()?.colorKey
-        if (a == "y" && key != null) { channel[key] = ((channel[key] ?: 0) + 1) % 3; app.sounds.play("move"); return }
-        if (a == "b") app.endPreview()
-        super.handle(a)
-    }
-
-    override fun hints() = listOf("Y" to "R/G/B", "B" to "Discard", "A" to "Select")
-}
-
 // ----- Settings -----------------------------------------------------------------
 
 fun settingsMenu(app: Ryzer): Menu {

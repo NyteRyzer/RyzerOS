@@ -628,6 +628,19 @@ class MainActivity : Activity() {
         setContentView(mainView)
         mainView.requestFocus()
         start()
+        openShowcase(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        openShowcase(intent)
+    }
+
+    /** `am start ... --es showcase stats` opens a screen directly; used to take the README screenshots. */
+    private fun openShowcase(i: Intent?) {
+        val spec = i?.getStringExtra("showcase") ?: return
+        handler.postDelayed({ app?.let { a -> a.safely { Showcase.open(a, spec) }; redraw() } }, 2500)
     }
 
     private fun start() {
