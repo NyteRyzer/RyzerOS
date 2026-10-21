@@ -76,6 +76,22 @@ def run(shots, demo: Path, out: Path):
         snap(out / f"{name}.png")
 
 
+def art_check(demo: Path):
+    """End-to-end check of the artwork downloader: games with no picture should get one.
+    Results go to the log only (the downloaded pictures are real box art, not committed)."""
+    tests = {"snes": ["Super Mario World (USA).sfc", "earthbound.sfc"], "gba": ["the_legend_of_zelda_minish_cap.gba"],
+             "psx": ["Spyro the Dragon (USA).chd"], "genesis": ["sonic 2.md"]}
+    for sys_id, names in tests.items():
+        for n in names:
+            shell(f"echo ryzer > '/sdcard/ROMs/{sys_id}/{n}'")
+    start("artcheck", demo, "")
+    time.sleep(75)
+    print("=== ARTWORK CHECK ===", flush=True)
+    shell("ls -l /sdcard/RyzerOS/covers/*/")
+    shell("cat /sdcard/RyzerOS/crash.txt")
+    print("=== END ARTWORK CHECK ===", flush=True)
+
+
 def main(apk: str, demo: Path, out: Path):
     out.mkdir(parents=True, exist_ok=True)
     adb("wait-for-device")
@@ -111,6 +127,7 @@ def main(apk: str, demo: Path, out: Path):
     time.sleep(3)
     run(LANDSCAPE, demo, out)
     shell("settings put system user_rotation 0")
+    art_check(demo)
     shell("cat /sdcard/RyzerOS/crash.txt")   # printed to the log, if Ryzer hit an error
 
 
