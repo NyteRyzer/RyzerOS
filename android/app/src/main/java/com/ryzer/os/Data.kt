@@ -19,10 +19,12 @@ private fun JSONObject.optStr(k: String): String? = if (isNull(k)) null else opt
 
 private fun readJson(f: File): JSONObject? = runCatching { JSONObject(f.readText()) }.getOrNull()
 
-private fun writeJson(f: File, j: JSONObject) {
+private fun writeJson(f: File, j: JSONObject) = writeText(f, j.toString(2))
+
+private fun writeText(f: File, text: String) {
     f.parentFile?.mkdirs()
     val tmp = File(f.path + ".tmp")
-    tmp.writeText(j.toString(2))
+    tmp.writeText(text)
     tmp.renameTo(f)  // atomic replace so a crash can't leave half a file
 }
 
@@ -228,8 +230,9 @@ class PlayState(private val file: File) {
     val sessions = mutableListOf<Triple<String, Long, Long>>()   // (game, start ms, seconds), newest first
     val bestScores = HashMap<String, Int>()       // mini-game high scores
     val firstSeen = HashMap<String, Long>()       // when a ROM first showed up, for NEW badges
-    var pendingKey: String? = null
+    @Volatile var pendingKey: String? = null      // read by background work that waits while a game runs
     var pendingStart = 0L
+    private val writer = java.util.concurrent.Executors.newSingleThreadExecutor()
 
     init {
         readJson(file)?.let { j ->
@@ -256,7 +259,16 @@ class PlayState(private val file: File) {
         }
     }
 
-    fun save() = writeJson(file, JSONObject().apply {
+    /**
+     * Snapshots the data now and writes the file in the background, in order: saving happens right
+     * as games launch, and a big library makes this file large.
+     */
+    fun save() {
+        val text = snapshot().toString()
+        writer.execute { writeText(file, text) }
+    }
+
+    private fun snapshot() = JSONObject().apply {
         put("favorites", JSONArray(favorites)); put("recent", JSONArray(recent))
         put("playtime", JSONObject(times as Map<*, *>)); put("launches", JSONObject(launches as Map<*, *>))
         put("ratings", JSONObject(ratings as Map<*, *>)); put("status", JSONObject(status as Map<*, *>))
@@ -268,7 +280,7 @@ class PlayState(private val file: File) {
         put("sessions", JSONArray().apply { sessions.forEach { (k, t, secs) -> put(JSONArray().put(k).put(t).put(secs)) } })
         put("bestScores", JSONObject(bestScores as Map<*, *>)); put("firstSeen", JSONObject(firstSeen as Map<*, *>))
         put("pendingKey", pendingKey ?: ""); put("pendingStart", pendingStart)
-    })
+    }
 
     fun isFavorite(k: String) = k in favorites
     fun toggleFavorite(k: String): Boolean {
@@ -474,9 +486,15 @@ object Library {
             }
             sys.games = found.values.sortedBy { it.name.lowercase() }
         }
+        index = HashMap<String, Game>().apply { for (s in systems) for (g in s.games) put(g.key, g) }
     }
 
+    /** Every game by key, rebuilt after each scan: Home looks games up hundreds of times per refresh. */
+    @Volatile private var index: Map<String, Game> = emptyMap()
+
     fun find(systems: List<GameSystem>, key: String): Game? {
+        val idx = index
+        if (idx.isNotEmpty()) return idx[key]
         for (s in systems) for (g in s.games) if (g.key == key) return g
         return null
     }

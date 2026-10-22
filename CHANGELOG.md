@@ -2,6 +2,16 @@
 
 Every version of Ryzer OS, newest first. Downloads for each one are on the [Releases page](https://github.com/NyteRyzer/RyzerOS/releases).
 
+## 2.3.1: smoother game launches on dual screens
+
+Opening a single-screen game (GBA, SNES, PSP, PS1, N64, GameCube...) on a dual-screen handheld no longer stutters or flashes:
+
+- **No more blank flash on the second screen.** Ryzer's top screen now stays up until the Now Playing panel has drawn behind it, then the two swap in the same moment the game starts.
+- **No more hitch as the game starts.** Home used to rebuild all of its tiles at the exact moment the emulator was loading. It now waits until you come back. Looking games up is also much faster, which helps big libraries everywhere.
+- **Faster GameCube, PS2, Wii and Vita launches.** Freeing memory used to happen *before* the game started, which could take a few seconds. It now happens while the emulator loads.
+- **Artwork downloads pause while you play**, so they never compete with the emulator.
+- Play data is saved in the background, and the launch animation is shorter and also shows on the top screen.
+
 ## 2.3.0: swap screens mid-game and automatic updates
 
 ### Swap screens while you play

@@ -29,14 +29,25 @@ class LaunchSplash(app: Ryzer, private val game: Game) : Screen(app) {
     private fun finish() {
         if (done) return
         done = true
-        app.pop()
+        // Leave without app.pop(): popping makes Home rebuild all its tiles, which is real work on slow
+        // chips, right while the emulator is starting. Home refreshes when you come back instead.
+        app.stack.remove(this)
         app.launchNow(game)
     }
 
-    override fun update(dt: Float) { t += dt; if (t > 0.9f) finish() }
+    override fun update(dt: Float) { t += dt; if (t > 0.6f) finish() }
+
+    /** The top screen shows the game as well, instead of jumping to the clock. */
+    override fun drawTop(c: Canvas, w: Float, h: Float) {
+        G.rect(c, RectF(0f, 0f, w, h), withAlpha(game.system.color, 0.5f))
+        val art = G.image(game.image())
+        val box = RectF(w / 2 - 140, 40f, w / 2 + 140, h - 90)
+        if (art != null) G.drawImageFit(c, art, box)
+        G.text(c, game.system.name, w / 2, h - 70, 24f, th.c("text"), align = 'c', isBold = true, maxW = w - 40)
+    }
 
     override fun draw(c: Canvas, w: Float, h: Float) {
-        val p = min(1f, t / 0.7f)
+        val p = min(1f, t / 0.45f)
         G.rect(c, RectF(0f, 0f, w, h), withAlpha(game.system.color, 0.35f + 0.4f * p))
         val size = 120 + 160 * p
         val box = RectF(w / 2 - size / 2, h / 2 - size / 2 - 20, w / 2 + size / 2, h / 2 + size / 2 - 20)
@@ -530,7 +541,9 @@ fun setSystemBrightness(app: Ryzer, d: Int) {
     }
 }
 
-const val WHATS_NEW = "2.3: swap screens while you play. On the Now Playing screen, tap 'Swap screens' (or swipe up/down) to move " +
+const val WHATS_NEW = "2.3.1: smoother launches on dual screens. No blank flash on the second screen, no hitch as the game " +
+    "starts, faster GameCube/PS2 launches, and artwork downloads pause while you play.\n\n" +
+    "2.3: swap screens while you play. On the Now Playing screen, tap 'Swap screens' (or swipe up/down) to move " +
     "the game to the other screen without stopping it; Ryzer remembers the choice for that system. Ryzer also keeps itself up to " +
     "date now (Settings > Updates).\n\n" +
     "2.2: automatic artwork. Ryzer reads your ROMs, identifies each game in the libretro database " +

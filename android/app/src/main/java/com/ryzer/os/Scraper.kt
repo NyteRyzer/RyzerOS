@@ -110,6 +110,8 @@ object Scraper {
             total = todo.size
             try {
                 for (g in todo) {
+                    // Don't compete with the emulator: wait while a game is running
+                    while (app.state.pendingKey != null && !cancel) { status = "Paused while you play"; Thread.sleep(2000) }
                     if (cancel) break
                     current = app.title(g)
                     val ok = runCatching {

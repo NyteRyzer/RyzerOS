@@ -222,10 +222,9 @@ class Ryzer(val ctx: MainActivity) {
             music.pause()
             var gameOptions: android.os.Bundle? = null
             if (screens != null) {
+                // The panel is already drawn behind Ryzer's top screen (see below): uncover it as the game starts
                 ctx.releaseSecondScreen()
-                val (gameDisplay, panelDisplay) = screens
-                DualPlay.begin(game, target, gameDisplay, panelDisplay)
-                DualPlay.open(this, game, panelDisplay)
+                val gameDisplay = screens.first
                 if (gameDisplay != ctx.mainDisplayId()) gameOptions = DualPlay.optionsFor(gameDisplay)
             }
             for (intent in intents) {
@@ -264,7 +263,18 @@ class Ryzer(val ctx: MainActivity) {
                 "The full error was saved to ${Crash.file(ctx).path}."))
         }
         notify("Launching ${title(game)}")
-        if (cfg.boost && Launcher.isHeavy(sys)) io.execute { Launcher.boost(ctx, target); main.post(start) } else start.run()
+        // Freeing memory used to happen before the game started (a few seconds on slow chips); it now runs
+        // alongside, while the emulator is loading. The emulator's own package is never touched.
+        if (cfg.boost && Launcher.isHeavy(sys)) io.execute { Launcher.boost(ctx, target) }
+        if (screens == null) { start.run(); return }
+        // Dual screen: open the Now Playing panel first, behind Ryzer's top screen, and start the game once
+        // it has drawn. The second screen goes straight from Ryzer to the panel, never blank. The game
+        // still starts last, so it gets the controller.
+        DualPlay.begin(game, target, screens.first, screens.second)
+        val once = java.util.concurrent.atomic.AtomicBoolean(false)
+        val go = Runnable { if (once.compareAndSet(false, true)) safely { start.run() } }
+        if (DualPlay.open(this, game, screens.second, onReady = { main.post(go) })) main.postDelayed(go, 900)   // in case it never reports
+        else go.run()
     }
 
     fun openSearch() {

@@ -107,8 +107,14 @@ object DualPlay {
     fun optionsFor(displayId: Int): Bundle? =
         if (Build.VERSION.SDK_INT >= 26) ActivityOptions.makeBasic().setLaunchDisplayId(displayId).toBundle() else null
 
+    /** Called once, after the panel has drawn its first frame (so the launch can uncover it seamlessly). */
+    @Volatile private var onReady: (() -> Unit)? = null
+
+    fun panelReady() { onReady?.let { onReady = null; it() } }
+
     /** Opens the panel on its display. Returns false if this device won't allow it. */
-    fun open(app: Ryzer, game: Game, displayId: Int): Boolean = runCatching {
+    fun open(app: Ryzer, game: Game, displayId: Int, onReady: (() -> Unit)? = null): Boolean = runCatching {
+        this.onReady = onReady
         val i = Intent(app.ctx, NowPlayingActivity::class.java)
             .putExtra("game", game.key)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
@@ -168,6 +174,15 @@ class NowPlayingActivity : Activity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         view = NowPlayingView(this, app, game)
         setContentView(view)
+        // Tell the launch the panel is on screen (after its first frame), so it can start the game
+        view.viewTreeObserver.addOnDrawListener(object : android.view.ViewTreeObserver.OnDrawListener {
+            var reported = false
+            override fun onDraw() {
+                if (reported) return
+                reported = true
+                handler.postDelayed({ DualPlay.panelReady() }, 32)   // two frames: let it reach the screen
+            }
+        })
     }
 
     override fun onResume() { super.onResume(); handler.post(tick) }
