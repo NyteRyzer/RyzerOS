@@ -92,6 +92,18 @@ def art_check(demo: Path):
     print("=== END ARTWORK CHECK ===", flush=True)
 
 
+def physical_ids() -> list:
+    """screencap -d wants SurfaceFlinger's display ids (the built-in screen first)."""
+    import re
+    r = subprocess.run(["adb", "shell", "dumpsys SurfaceFlinger --display-id"], capture_output=True, text=True).stdout
+    return re.findall(r"Display (\d+)", r)
+
+
+def snap_display(path: Path, phys: str):
+    with open(path, "wb") as f:
+        adb("exec-out", "screencap", "-p", "-d", phys, out=f)
+
+
 def displays_of_interest():
     """Prints which display each relevant activity is on."""
     r = subprocess.run(["adb", "shell", "dumpsys activity activities"], capture_output=True, text=True).stdout
@@ -118,17 +130,17 @@ def swap_check(demo: Path, out: Path):
     time.sleep(8)
     print("before swap:", flush=True)
     displays_of_interest()
-    for d in (0, second):
-        with open(out / f"before-{d}.png", "wb") as f:
-            adb("exec-out", "screencap", "-p", "-d", str(d), out=f)
+    phys = physical_ids()
+    print("physical display ids:", phys, flush=True)
+    for i, ph in enumerate(phys[:2]):
+        snap_display(out / f"before-{i}.png", ph)
     # swipe down the Now Playing panel on the second display
     shell(f"input -d {second} swipe 640 150 640 820 300")
     time.sleep(6)
     print("after swap:", flush=True)
     displays_of_interest()
-    for d in (0, second):
-        with open(out / f"after-{d}.png", "wb") as f:
-            adb("exec-out", "screencap", "-p", "-d", str(d), out=f)
+    for i, ph in enumerate(phys[:2]):
+        snap_display(out / f"after-{i}.png", ph)
     shell("cat /sdcard/RyzerOS/crash.txt")
     print("=== END SWAP CHECK ===", flush=True)
     shell("settings delete global overlay_display_devices")
