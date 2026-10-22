@@ -113,6 +113,12 @@ class Config(private val file: File) {
     var artType = "boxart"       // boxart | snap | title
     val screenFor = LinkedHashMap<String, String>()   // system id -> "main" | "second", set by swapping while playing
     var rememberSwap = true      // a swap during a game sets that system's screen for next time
+    // Updates
+    var autoUpdate = true        // check GitHub once a day on Wi-Fi
+    var autoDownloadUpdate = true
+    var lastUpdateCheck = 0L
+    var skipVersion = ""
+    var lastVersion = ""         // version that last ran, to show What's New after an update
 
     init { load() }
 
@@ -160,6 +166,8 @@ class Config(private val file: File) {
         artType = j.optString("artType", artType)
         screenFor.clear(); screenFor.putAll(j.optJSONObject("screenFor").stringMap())
         rememberSwap = j.optBoolean("rememberSwap", rememberSwap)
+        autoUpdate = j.optBoolean("autoUpdate", autoUpdate); autoDownloadUpdate = j.optBoolean("autoDownloadUpdate", autoDownloadUpdate)
+        lastUpdateCheck = j.optLong("lastUpdateCheck", 0); skipVersion = j.optString("skipVersion", ""); lastVersion = j.optString("lastVersion", "")
         if (j.optInt("uiVersion", 1) < 2) homeLayout = "3ds"   // 2.0 introduces the new Home; old configs switch once
     }
 
@@ -187,6 +195,8 @@ class Config(private val file: File) {
         put("photoFrame", photoFrame); put("resumePrompt", resumePrompt); put("hiddenTiles", JSONArray(hiddenTiles.toList()))
         put("autoArt", autoArt); put("artWifiOnly", artWifiOnly); put("artType", artType)
         put("screenFor", JSONObject(screenFor as Map<*, *>)); put("rememberSwap", rememberSwap)
+        put("autoUpdate", autoUpdate); put("autoDownloadUpdate", autoDownloadUpdate); put("lastUpdateCheck", lastUpdateCheck)
+        put("skipVersion", skipVersion); put("lastVersion", lastVersion)
     })
 }
 

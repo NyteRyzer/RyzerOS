@@ -310,6 +310,9 @@ fun settingsMenu(app: Ryzer): Menu {
             else app.push(Confirm(app, "Restore ${b.name}? Current settings will be replaced.", yes = "Restore") { Backup.restore(app, b) }) }),
         Item("System info", select = { app.push(SystemInfo(app)) }),
         Item("Emulator setup help", select = { app.push(Message(app, "Emulator setup", SETUP_HELP)) }),
+        Item("Updates", "Ryzer checks GitHub for new versions and installs them for you.",
+            value = { Updater.release?.let { "${it.version} available" } ?: if (cfg.autoUpdate) "Automatic" else "Manual" },
+            select = { app.push(updatesMenu(app)) }),
         Item("About Ryzer OS", select = { app.push(Message(app, "About", "Ryzer OS ${BuildInfo.version} for Android\n${BuildInfo.device}\n\n" +
             "Games: ${app.systems.sumOf { it.games.size }}   Themes: ${app.themes.size}\nPlay time: ${formatDuration(app.state.total())}\n" +
             "Data folder: ${app.home}\n\nThemes, systems.json and emulators.json in the data folder are plain JSON you can edit.")) }),

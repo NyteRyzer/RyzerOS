@@ -47,6 +47,7 @@ object Showcase {
                         app.ctx.startActivity(it.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK), DualPlay.optionsFor(gameD))
                     }
                 }
+                "updatetest" -> Updater.check(app, manual = true, force = true)
                 "banner" -> Notifs.ryzer("Milestone unlocked: Marathon", "Play 3 hours in one day")
             }
         }

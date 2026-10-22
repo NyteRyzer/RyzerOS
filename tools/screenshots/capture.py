@@ -134,6 +134,49 @@ def swap_check(demo: Path, out: Path):
     shell("settings delete global overlay_display_devices")
 
 
+def tap_text(*labels: str) -> bool:
+    """Taps the first on-screen button whose text matches (for Android's own install dialog)."""
+    import re
+    shell("uiautomator dump /sdcard/ui.xml")
+    xml = subprocess.run(["adb", "shell", "cat /sdcard/ui.xml"], capture_output=True, text=True).stdout
+    for label in labels:
+        m = re.search(r'text="' + re.escape(label) + r'"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', xml, re.I)
+        if m:
+            x1, y1, x2, y2 = map(int, m.groups())
+            shell(f"input tap {(x1 + x2) // 2} {(y1 + y2) // 2}")
+            print(f"tapped '{label}'", flush=True)
+            return True
+    print("no button among", labels, "| screen text:", re.findall(r'text="([^"]+)"', xml)[:20], flush=True)
+    return False
+
+
+def version_name() -> str:
+    r = subprocess.run(["adb", "shell", f"dumpsys package {PKG}"], capture_output=True, text=True).stdout
+    import re
+    m = re.search(r"versionName=(\S+)", r)
+    c = re.search(r"versionCode=(\d+)", r)
+    return f"{m.group(1) if m else '?'} (code {c.group(1) if c else '?'})"
+
+
+def update_check(demo: Path):
+    """End-to-end test of the updater: download the real latest release from GitHub and install
+    it over this test build through Android's installer."""
+    print("=== UPDATE CHECK === installed before:", version_name(), flush=True)
+    shell(f"appops set {PKG} REQUEST_INSTALL_PACKAGES allow")
+    start("swapcheck", demo, "updatetest")
+    time.sleep(40)                      # check + download (~5 MB)
+    shell(f"input keyevent {KEY['a']}")  # Install
+    time.sleep(6)
+    for _ in range(3):                   # Android's confirmation (first self-update only)
+        if tap_text("Update", "Install", "UPDATE", "INSTALL"):
+            break
+        time.sleep(4)
+    time.sleep(20)
+    print("installed after:", version_name(), flush=True)
+    shell("cat /sdcard/RyzerOS/crash.txt")
+    print("=== END UPDATE CHECK ===", flush=True)
+
+
 def main(apk: str, demo: Path, out: Path):
     out.mkdir(parents=True, exist_ok=True)
     adb("wait-for-device")
@@ -171,6 +214,7 @@ def main(apk: str, demo: Path, out: Path):
     shell("settings put system user_rotation 0")
     art_check(demo)
     swap_check(demo, out / "swapcheck")
+    update_check(demo)
     shell("cat /sdcard/RyzerOS/crash.txt")   # printed to the log, if Ryzer hit an error
 
 

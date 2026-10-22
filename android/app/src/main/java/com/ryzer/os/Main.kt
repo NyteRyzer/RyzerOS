@@ -169,6 +169,7 @@ class Ryzer(val ctx: MainActivity) {
                 else if (state.noteSeen(systems.flatMap { s -> s.games.map { it.key } })) state.save()
                 safely { current?.onResume(); done?.invoke() }
                 if (error == null && cfg.autoArt && !cfg.kidMode) safely { Scraper.start(this, allGames(), auto = true, onlyMissing = true) }
+                safely { Updater.maybeCheck(this) }
                 ctx.redraw()
             }
         }
@@ -645,6 +646,7 @@ class MainActivity : Activity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (intent.action == Updater.ACTION_STATUS) { app?.let { Updater.onStatus(it, intent) }; return }
         openShowcase(intent)
     }
 
@@ -676,6 +678,13 @@ class MainActivity : Activity() {
             a.cfg.boot = false   // skip the boot animation after a crash, to get to Home faster
             a.push(Message(a, "Ryzer closed unexpectedly", "Sorry about that. The error is below and saved in crash.txt; " +
                 "send it to the developer and it can be fixed.\n\n$report"))
+        }
+        // First start after an update: show what's new, and drop the downloaded installer
+        val now = BuildInfo.version
+        if (a.cfg.lastVersion != now) {
+            if (a.cfg.lastVersion.isNotEmpty()) a.push(Message(a, "Updated to Ryzer OS $now", WHATS_NEW))
+            a.cfg.lastVersion = now; a.cfg.save()
+            java.io.File(cacheDir, "update").deleteRecursively()
         }
         val offer = a.cfg.resumePrompt && a.stack.size == 1
         a.rescan { if (offer) a.offerResume() }
