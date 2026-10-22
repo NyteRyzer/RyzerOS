@@ -66,7 +66,7 @@ More screenshots (2048, Game Roulette, quick menu, the classic ribbon layout) ar
 ## Highlights
 
 - **3DS-style Home**: a floating 3D banner for the selected game or system on the top screen, and a sideways-scrolling icon grid with a toolbar on the bottom. Prefer something else? The classic **Ribbon** and **Grid** layouts are one setting away.
-- **Real dual-screen play** on the RG DS, AYN Thor, AYANEO Pocket DS and Retroid Dual. GBA, SNES, PSP and other single-screen games open on one screen, with a **Now Playing** touch panel on the other: timer, volume, notes, ratings and emulator controls. DS and 3DS games get both screens. **L3 / R3** swaps the screens at any time.
+- **Real dual-screen play** on the RG DS, AYN Thor, AYANEO Pocket DS and Retroid Dual. GBA, SNES, PSP and other single-screen games open on one screen, with a **Now Playing** touch panel on the other: timer, volume, notes, ratings and emulator controls. **Swap the screens mid-game** from the panel. DS and 3DS games get both screens. In the menus, **L3 / R3** swaps the screens.
 - **Theme Studio**: design every colour, pattern, live wallpaper, font, corner and panel. You can also make a theme from any photo, and share themes as codes.
 - **25 themes**: 20 built in, plus 5 bonus themes you unlock with milestones. There are also 10 live wallpapers, seasonal effects, neon mode and 4 icon shapes.
 - **Automatic artwork**: Ryzer reads each ROM, identifies the game in the libretro database (No-Intro, Redump, FBNeo) and downloads its box art, screenshot or title screen. No account is needed, and your ROM folders are never touched.
@@ -74,6 +74,11 @@ More screenshots (2048, Game Roulette, quick menu, the classic ribbon layout) ar
 - **A smarter library**: For You picks, smart collections, NEW badges, ratings, a backlog tracker, collections, and search across games, apps and settings.
 - **Stats**: play time, streaks, a play calendar, session history, 14 milestones and a shareable stats card.
 - **Extras**: Snake, 2048, Game Roulette, a controller tester, battery info, a stopwatch and timer, a bedtime reminder, a quick menu (L + R) and kid mode.
+
+## New in 2.3: swap screens mid-game, automatic updates
+
+- **Swap screens while you play**: on dual-screen handhelds, tap **⇅ Swap screens** on the Now Playing panel (or swipe it) to move a GBA, SNES, PSP or other single-screen game to the other screen. The game keeps running and keeps your controller, and Ryzer remembers the choice for that system. Needs Android 10 or newer.
+- **Automatic updates**: Ryzer checks for new versions once a day on Wi-Fi, downloads them and asks before installing. Your settings and play history are kept. See *Settings → Updates*.
 
 ## New in 2.2: automatic artwork
 

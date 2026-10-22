@@ -530,7 +530,10 @@ fun setSystemBrightness(app: Ryzer, d: Int) {
     }
 }
 
-const val WHATS_NEW = "2.2: automatic artwork. Ryzer reads your ROMs, identifies each game in the libretro database " +
+const val WHATS_NEW = "2.3: swap screens while you play. On the Now Playing screen, tap 'Swap screens' (or swipe up/down) to move " +
+    "the game to the other screen without stopping it; Ryzer remembers the choice for that system. Ryzer also keeps itself up to " +
+    "date now (Settings > Updates).\n\n" +
+    "2.2: automatic artwork. Ryzer reads your ROMs, identifies each game in the libretro database " +
     "and downloads its box art, screenshot or title screen (Settings > Library > Artwork, or 'Find artwork online' in any game's options).\n\n" +
     "2.1 added 30 features:\n" +
     "- Mini-games: Snake and 2048\n- Game Roulette\n- Launch animation\n- Play calendar\n- Share-able stats card\n- Screenshots\n" +

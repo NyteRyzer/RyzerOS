@@ -2,6 +2,24 @@
 
 Every version of Ryzer OS, newest first. Downloads for each one are on the [Releases page](https://github.com/NyteRyzer/RyzerOS/releases).
 
+## 2.3.0: swap screens mid-game and automatic updates
+
+### Swap screens while you play
+
+On dual-screen handhelds, GBA, SNES, PSP, PS1, N64, GameCube and other single-screen games open on one screen with the Now Playing panel on the other. Now you can **swap them at any time without stopping the game**:
+
+- Tap **⇅ Swap screens** at the top of the Now Playing panel, or **swipe up or down** on it.
+- The game keeps running and keeps your controller. Only the screens trade places.
+- Ryzer **remembers your choice for each system**, so if you move a GBA game to the top screen, GBA games open there from then on. Turn this off, or reset it, in *Settings → Display & dual screen*.
+- Needs Android 10 or newer (the RG DS, AYN Thor, AYANEO Pocket DS and Retroid Dual all qualify).
+
+### Automatic updates
+
+- Ryzer checks for new versions once a day on Wi-Fi, downloads them in the background and asks before installing. Android checks that every update is signed with the same key as the Ryzer you have, so only genuine builds can install.
+- The first update asks once for permission to install. On Android 12 and newer, later updates install without the extra system prompt.
+- After updating, a *What's new* screen shows once. Your settings, themes and play history are kept.
+- *Settings → Updates*: check now, turn automatic checks or downloads off, or skip a version.
+
 ## 2.2.0: automatic artwork
 
 Ryzer now finds pictures for your games by itself.
