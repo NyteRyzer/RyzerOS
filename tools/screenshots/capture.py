@@ -92,6 +92,48 @@ def art_check(demo: Path):
     print("=== END ARTWORK CHECK ===", flush=True)
 
 
+def displays_of_interest():
+    """Prints which display each relevant activity is on."""
+    r = subprocess.run(["adb", "shell", "dumpsys activity activities"], capture_output=True, text=True).stdout
+    for line in r.splitlines():
+        s = line.strip()
+        if s.startswith("Display #") or ("com.android.settings" in s or "com.ryzer.os" in s) and ("ActivityRecord" in s or "Task{" in s):
+            print("   ", s[:200], flush=True)
+
+
+def swap_check(demo: Path, out: Path):
+    """Simulates a second screen, starts a stand-in game (the Settings app) on the main screen with
+    Now Playing on the other, swipes the panel, and checks the two traded places."""
+    out.mkdir(parents=True, exist_ok=True)
+    shell("settings put global overlay_display_devices 1280x960/240")
+    time.sleep(5)
+    disp = subprocess.run(["adb", "shell", "dumpsys display"], capture_output=True, text=True).stdout
+    ids = sorted({int(x) for x in __import__("re").findall(r"mDisplayId=(\d+)", disp)})
+    print("=== SWAP CHECK === displays:", ids, flush=True)
+    second = next((i for i in ids if i != 0), None)
+    if second is None:
+        print("no second display; skipping", flush=True)
+        return
+    start("swapcheck", demo, "playtest:com.android.settings")
+    time.sleep(8)
+    print("before swap:", flush=True)
+    displays_of_interest()
+    for d in (0, second):
+        with open(out / f"before-{d}.png", "wb") as f:
+            adb("exec-out", "screencap", "-p", "-d", str(d), out=f)
+    # swipe down the Now Playing panel on the second display
+    shell(f"input -d {second} swipe 640 150 640 820 300")
+    time.sleep(6)
+    print("after swap:", flush=True)
+    displays_of_interest()
+    for d in (0, second):
+        with open(out / f"after-{d}.png", "wb") as f:
+            adb("exec-out", "screencap", "-p", "-d", str(d), out=f)
+    shell("cat /sdcard/RyzerOS/crash.txt")
+    print("=== END SWAP CHECK ===", flush=True)
+    shell("settings delete global overlay_display_devices")
+
+
 def main(apk: str, demo: Path, out: Path):
     out.mkdir(parents=True, exist_ok=True)
     adb("wait-for-device")
@@ -128,6 +170,7 @@ def main(apk: str, demo: Path, out: Path):
     run(LANDSCAPE, demo, out)
     shell("settings put system user_rotation 0")
     art_check(demo)
+    swap_check(demo, out / "swapcheck")
     shell("cat /sdcard/RyzerOS/crash.txt")   # printed to the log, if Ryzer hit an error
 
 

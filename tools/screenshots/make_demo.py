@@ -134,6 +134,7 @@ CONFIGS = {
     "land-home": {"theme": "purple-haze", "live": "starfield"},
     "land-games": {"theme": "gold-rush"},
     "artcheck": {"autoArt": True, "artWifiOnly": False},
+    "swapcheck": {"companion": True, "gameScreen": "main"},
 }
 
 

@@ -35,11 +35,73 @@ object DualPlay {
 
     fun wanted(app: Ryzer, game: Game) = app.cfg.companion && game.system.id !in DUAL_SYSTEMS && supported(app.ctx)
 
-    /** (display for the game, display for the panel) */
-    fun displays(app: Ryzer): Pair<Int, Int>? {
+    /** (display for the game, display for the panel). A system's own choice (from swapping) wins. */
+    fun displays(app: Ryzer, game: Game? = null): Pair<Int, Int>? {
         val main = app.ctx.mainDisplayId()
         val second = app.ctx.secondaryDisplays().firstOrNull()?.displayId ?: return null
-        return if (app.cfg.gameScreen == "second") second to main else main to second
+        val where = game?.let { app.cfg.screenFor[it.system.id] } ?: app.cfg.gameScreen
+        return if (where == "second") second to main else main to second
+    }
+
+    // ----- the running session, for swapping screens mid-game -----
+    var gameDisplay = -1
+        private set
+    var panelDisplay = -1
+        private set
+    private var gamePkg: String? = null
+    private var gameKey: String? = null
+    /** While a swap is moving windows around, Ryzer's own screen may briefly come to the front.
+     *  That must not end the session (see MainActivity.onResume). */
+    @Volatile var swappingUntil = 0L
+
+    fun swapping() = SystemClock.uptimeMillis() < swappingUntil
+
+    /** Remembers where things are, so they can be swapped later. */
+    fun begin(game: Game, pkg: String, gameDisplay: Int, panelDisplay: Int) {
+        gameKey = game.key; gamePkg = pkg.ifEmpty { null }
+        this.gameDisplay = gameDisplay; this.panelDisplay = panelDisplay
+    }
+
+    /** Moving a running app to another screen needs Android 10 or newer. */
+    fun canSwap() = Build.VERSION.SDK_INT >= 29 && gamePkg != null && gameDisplay >= 0 && panelDisplay >= 0 && gameDisplay != panelDisplay
+
+    /**
+     * Swaps the game and the Now Playing panel between the two screens while the game keeps
+     * running: the emulator's task is brought to the front on the other display (Android moves an
+     * existing task when it is started on a different display), then the panel reopens where the
+     * game was.
+     */
+    fun swap(app: Ryzer, from: Activity): Boolean {
+        val pkg = gamePkg ?: return false
+        val game = gameKey?.let { Library.find(app.systems, it) } ?: return false
+        if (!canSwap()) { app.notify("Swapping during a game needs Android 10 or newer", 3f); return false }
+        val newGame = panelDisplay; val newPanel = gameDisplay
+        swappingUntil = SystemClock.uptimeMillis() + 3000
+        // 1. The new panel opens on the game's screen. 2. The game moves to the other screen. The game
+        //    goes last because Android sends the controller to whatever was started last.
+        runCatching {
+            from.startActivity(Intent(from, NowPlayingActivity::class.java).putExtra("game", game.key)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION),
+                optionsFor(newPanel))
+        }.onFailure { Crash.log(from, it); swappingUntil = 0; return false }
+        val bring = (from.packageManager.getLaunchIntentForPackage(pkg) ?: Intent(Intent.ACTION_MAIN).setPackage(pkg))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+        val moved = runCatching { from.startActivity(bring, optionsFor(newGame)); true }
+            .getOrElse { Crash.log(from, RuntimeException("Couldn't move $pkg to display $newGame", it)); false }
+        if (!moved) {
+            // Put things back as they were: close the panel we just opened over the game
+            NowPlayingActivity.current?.takeIf { it !== from }?.finish()
+            swappingUntil = 0
+            app.notify("This device won't move the game to the other screen", 3f)
+            return false
+        }
+        gameDisplay = newGame; panelDisplay = newPanel
+        from.finish()   // the old panel is behind the game now
+        if (app.cfg.rememberSwap) {
+            app.cfg.screenFor[game.system.id] = if (newGame == app.ctx.mainDisplayId()) "main" else "second"
+            app.cfg.save()
+        }
+        return true
     }
 
     fun optionsFor(displayId: Int): Bundle? =
@@ -54,7 +116,10 @@ object DualPlay {
         true
     }.getOrElse { Crash.log(app.ctx, RuntimeException("Couldn't open the Now Playing screen", it)); false }
 
-    fun close() { NowPlayingActivity.current?.finish() }
+    fun close() {
+        NowPlayingActivity.current?.finish()
+        gamePkg = null; gameKey = null; gameDisplay = -1; panelDisplay = -1
+    }
 
     // ----- emulator hotkey cheat sheets --------------------------------------------------
 
@@ -115,7 +180,7 @@ class NowPlayingActivity : Activity() {
      */
     override fun onTopResumedActivityChanged(isTop: Boolean) {
         super.onTopResumedActivityChanged(isTop)
-        if (isTop && SystemClock.uptimeMillis() - openedAt > 4000) backToRyzer()
+        if (isTop && SystemClock.uptimeMillis() - openedAt > 4000 && !DualPlay.swapping()) backToRyzer()
     }
 
     fun backToRyzer() {
@@ -139,6 +204,7 @@ class NowPlayingView(private val act: NowPlayingActivity, private val app: Ryzer
     private var lastBreak = 0L
     private var breakShownAt = 0L
     private var downX = 0f
+    private var downY = 0f
     private val emuId = app.state.gameEmu[game.key] ?: Launcher.chosen(app, game.system)
 
     private fun hit(r: RectF, action: () -> Unit) = hits.add(RectF(r) to action)
@@ -249,6 +315,13 @@ class NowPlayingView(private val act: NowPlayingActivity, private val app: Ryzer
         val bw = (w - 32 - (cols - 1) * gap) / cols
         val row1 = h - 110; val row2 = h - 58
         fun cell(col: Int, top: Float) = RectF(16 + col * (bw + gap), top, 16 + col * (bw + gap) + bw, top + 46)
+        // Swap screens: the big button in the header, so it's easy to hit with a thumb
+        if (DualPlay.canSwap()) {
+            val r = RectF(w / 2 - 110, 4f, w / 2 + 110, 36f)
+            G.rect(c, r, th.c("accent"), 16f)
+            G.text(c, "⇅  Swap screens", r.centerX(), r.top + 5, 21f, th.c("highlight_text"), align = 'c', isBold = true)
+            hit(r) { swap() }
+        }
         button(c, th, cell(0, row1), "Vol -") { audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI) }
         button(c, th, cell(1, row1), "Vol +") { audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI) }
         button(c, th, cell(2, row1), "Mute") { audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_TOGGLE_MUTE, AudioManager.FLAG_SHOW_UI) }
@@ -275,6 +348,10 @@ class NowPlayingView(private val act: NowPlayingActivity, private val app: Ryzer
         button(c, th, cell(5, row2), "Ryzer") { act.backToRyzer() }
     }
 
+    private fun swap() {
+        if (DualPlay.swap(app, act)) app.sounds.play("select")
+    }
+
     private fun textPanel(c: Canvas, th: Theme, r: RectF, title: String, body: String) {
         G.panel(c, r, th)
         G.text(c, title, r.left + 14, r.top + 8, 22f, th.c("accent"), isBold = true)
@@ -290,8 +367,12 @@ class NowPlayingView(private val act: NowPlayingActivity, private val app: Ryzer
     override fun onTouchEvent(e: MotionEvent): Boolean {
         val scale = height / app.logicalH
         when (e.actionMasked) {
-            MotionEvent.ACTION_DOWN -> downX = e.x
+            MotionEvent.ACTION_DOWN -> { downX = e.x; downY = e.y }
             MotionEvent.ACTION_UP -> {
+                // A long swipe up or down swaps the screens
+                if (DualPlay.canSwap() && kotlin.math.abs(e.y - downY) > height * 0.35f && kotlin.math.abs(e.y - downY) > kotlin.math.abs(e.x - downX) * 2) {
+                    swap(); return true
+                }
                 val x = e.x / scale; val y = e.y / scale
                 for ((r, action) in hits.reversed()) if (r.contains(x, y)) {
                     runCatching { action() }.onFailure { Crash.log(context, it) }

@@ -37,6 +37,16 @@ object Showcase {
                 "clearsystem" -> {   // the emulator's own notifications ("Configure keyboard"...)
                     Notifs.list.filter { !it.fromRyzer }.forEach { Notifs.dismiss(it) }
                 }
+                "playtest" -> {   // a stand-in "emulator" (any app) on one screen, Now Playing on the other
+                    val game = app.allGames().firstOrNull { it.system.id !in DualPlay.DUAL_SYSTEMS } ?: return
+                    val (gameD, panelD) = DualPlay.displays(app, game) ?: return
+                    app.ctx.releaseSecondScreen()
+                    DualPlay.begin(game, arg, gameD, panelD)
+                    DualPlay.open(app, game, panelD)
+                    app.ctx.packageManager.getLaunchIntentForPackage(arg)?.let {
+                        app.ctx.startActivity(it.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK), DualPlay.optionsFor(gameD))
+                    }
+                }
                 "banner" -> Notifs.ryzer("Milestone unlocked: Marathon", "Play 3 hours in one day")
             }
         }

@@ -214,7 +214,7 @@ class Ryzer(val ctx: MainActivity) {
         val name = Launcher.label(this, choice)
         // Dual-screen devices: single-screen systems get the game on one display and the
         // Now Playing panel on the other. DS / 3DS keep both screens for the emulator.
-        val screens = if (DualPlay.wanted(this, game)) DualPlay.displays(this) else null
+        val screens = if (DualPlay.wanted(this, game)) DualPlay.displays(this, game) else null
         val start = Runnable {
             var lastError: Throwable? = null
             state.startPlay(game.key)
@@ -223,16 +223,24 @@ class Ryzer(val ctx: MainActivity) {
             if (screens != null) {
                 ctx.releaseSecondScreen()
                 val (gameDisplay, panelDisplay) = screens
+                DualPlay.begin(game, target, gameDisplay, panelDisplay)
                 DualPlay.open(this, game, panelDisplay)
                 if (gameDisplay != ctx.mainDisplayId()) gameOptions = DualPlay.optionsFor(gameDisplay)
             }
             for (intent in intents) {
                 try {
+                    var shownOn = screens?.first
                     try {
                         ctx.startActivity(intent, gameOptions)
                     } catch (e: SecurityException) {
                         if (gameOptions == null) throw e
                         ctx.startActivity(intent)   // this device won't open apps on that screen: use the default one
+                        shownOn = ctx.mainDisplayId()
+                    }
+                    // Remember which emulator and screen actually took the game, for "Swap screens"
+                    if (screens != null && shownOn != null) {
+                        val pkg = intent.component?.packageName ?: intent.`package` ?: target
+                        DualPlay.begin(game, pkg, shownOn, screens.second)
                     }
                     return@Runnable
                 } catch (e: Exception) {   // ActivityNotFound, SecurityException, FileUriExposed...
@@ -678,6 +686,9 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        // Mid-swap the game leaves this screen for a moment before the panel covers it: the game
+        // is still running, so don't end the session or grab the second screen.
+        if (DualPlay.swapping()) return
         DualPlay.close()   // a game just ended (or never started): the panel's job is done
         resumed = true
         hideSystemBars()

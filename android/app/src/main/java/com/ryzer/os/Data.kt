@@ -111,6 +111,8 @@ class Config(private val file: File) {
     var autoArt = true           // download missing artwork after each library scan
     var artWifiOnly = true
     var artType = "boxart"       // boxart | snap | title
+    val screenFor = LinkedHashMap<String, String>()   // system id -> "main" | "second", set by swapping while playing
+    var rememberSwap = true      // a swap during a game sets that system's screen for next time
 
     init { load() }
 
@@ -156,6 +158,8 @@ class Config(private val file: File) {
         hiddenTiles.clear(); hiddenTiles += j.optJSONArray("hiddenTiles").strings()
         autoArt = j.optBoolean("autoArt", autoArt); artWifiOnly = j.optBoolean("artWifiOnly", artWifiOnly)
         artType = j.optString("artType", artType)
+        screenFor.clear(); screenFor.putAll(j.optJSONObject("screenFor").stringMap())
+        rememberSwap = j.optBoolean("rememberSwap", rememberSwap)
         if (j.optInt("uiVersion", 1) < 2) homeLayout = "3ds"   // 2.0 introduces the new Home; old configs switch once
     }
 
@@ -182,6 +186,7 @@ class Config(private val file: File) {
         put("iconShape", iconShape); put("bedtime", bedtime); put("bootMessage", bootMessage); put("seasonal", seasonal)
         put("photoFrame", photoFrame); put("resumePrompt", resumePrompt); put("hiddenTiles", JSONArray(hiddenTiles.toList()))
         put("autoArt", autoArt); put("artWifiOnly", artWifiOnly); put("artType", artType)
+        put("screenFor", JSONObject(screenFor as Map<*, *>)); put("rememberSwap", rememberSwap)
     })
 }
 
