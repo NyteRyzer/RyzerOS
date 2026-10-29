@@ -111,14 +111,14 @@ def cover(path: Path, title: str, system_label: str, color: str):
 BASE_CONFIG = {
     "theme": "ryzer-red", "sound": False, "boot": False, "animations": True, "fps": 30, "dual": "auto",
     "userName": "Nyte", "resumePrompt": False, "screensaver": 0, "batterySaver": False, "music": False,
-    "seasonal": True, "live": "off", "homeLayout": "3ds", "uiVersion": 3, "uiStyle": "blades", "launchAnim": False, "neon": False,
+    "seasonal": True, "live": "off", "homeLayout": "blades", "uiVersion": 3, "uiStyle": "blades", "launchAnim": False, "neon": False,
     "transitions": False, "autoArt": False, "dailyGoal": 90, "clockStyle": "digital", "iconRows": 3, "iconShape": "rounded", "grid": False,
 }
 
 CONFIGS = {
-    "home": {},
+    "home": {"theme": "ryzer-strike"},
     "home-neon": {"theme": "vaporwave", "live": "aurora", "neon": True, "iconShape": "circle"},
-    "home-gold": {"theme": "bonus-gold", "live": "fireflies", "iconShape": "hexagon"},
+    "home-gold": {"theme": "bonus-gold", "live": "fireflies", "iconShape": "hexagon", "homeLayout": "3ds"},
     "home-ribbon": {"theme": "crimson-steel", "homeLayout": "ribbon", "clockStyle": "analog"},
     "games": {"theme": "midnight-blue"},
     "grid": {"theme": "cyberpunk", "grid": True},

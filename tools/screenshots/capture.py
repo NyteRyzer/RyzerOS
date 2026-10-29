@@ -17,9 +17,9 @@ KEY = {"up": 19, "down": 20, "left": 21, "right": 22, "a": 96, "b": 97, "x": 99,
 
 # name, config, showcase steps, keys pressed afterwards, extra wait
 SHOTS = [
-    ("home", "home", "notices", "", 0),
-    ("home-system", "home", "", "right right right right right", 0),
-    ("home-neon", "home-neon", "", "right right right right right right right down down", 0),
+    ("home", "home", "notices,tab:0", "", 0),
+    ("home-system", "home", "tab:1", "right right", 0),
+    ("home-neon", "home-neon", "tab:2", "right", 0),
     ("home-gold", "home-gold", "", "right right right right right down down", 0),
     ("home-ribbon", "home-ribbon", "", "right right", 0),
     ("games", "games", "games:gba", "down down", 0),

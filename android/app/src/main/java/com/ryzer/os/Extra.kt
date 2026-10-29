@@ -177,9 +177,9 @@ fun settingsMenu(app: Ryzer): Menu {
             select = { PhotoTheme.pickAndApply(app) }),
         Item("Your name", "Used for the greeting on the top screen.", value = { cfg.userName.ifEmpty { "Not set" } }, select = {
             app.push(Keyboard(app, "Your name", cfg.userName, 16) { cfg.userName = it; cfg.save() }) }),
-        Item("Home layout", "3DS: banner on top, icon grid below. Ribbon: console-style row. Grid: everything at once.",
-            value = { mapOf("3ds" to "3DS style", "ribbon" to "Ribbon", "grid" to "Grid")[cfg.homeLayout] ?: cfg.homeLayout },
-            change = { d -> cfg.homeLayout = cycle(listOf("3ds", "ribbon", "grid"), cfg.homeLayout, d); cfg.save(); app.applyHomeLayout() }),
+        Item("Home layout", "Blades: tabs of tall slanted cards, big hero on top. 3DS: banner on top, icon grid below. Ribbon: console-style row. Grid: everything at once.",
+            value = { mapOf("blades" to "Blades", "3ds" to "3DS style", "ribbon" to "Ribbon", "grid" to "Grid")[cfg.homeLayout] ?: cfg.homeLayout },
+            change = { d -> cfg.homeLayout = cycle(listOf("blades", "3ds", "ribbon", "grid"), cfg.homeLayout, d); cfg.save(); app.applyHomeLayout() }),
         Item("Icon rows (3DS layout)", value = { "${cfg.iconRows}" }, change = { d -> cfg.iconRows = (cfg.iconRows + d).coerceIn(2, 4); cfg.save() }),
         Item("Live wallpaper", "Animated backgrounds tinted by your theme. A theme can also set its own in Theme Studio.",
             value = { cfg.live.replaceFirstChar { it.uppercase() } }, change = { d -> cfg.live = cycle(Live.KINDS, cfg.live, d); cfg.save() }),

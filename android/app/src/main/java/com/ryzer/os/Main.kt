@@ -128,7 +128,7 @@ class Ryzer(val ctx: MainActivity) {
     /** Switches Home between the 3DS, ribbon and grid layouts right away. */
     fun applyHomeLayout() {
         if (stack.isEmpty()) return
-        stack[0] = if (cfg.homeLayout == "3ds") HomeShell(this) else HomeScreen(this)
+        stack[0] = homeFor(this)
     }
 
     // ----- themes -----
@@ -500,7 +500,7 @@ class Ryzer(val ctx: MainActivity) {
     }
 
     fun render(c: Canvas, role: Role, w: Float, h: Float, dt: Float, t: Float) {
-        if (current !is HomeScreen && current !is HomeShell) accentOverride = null
+        if (current !is HomeScreen && current !is HomeShell && current !is BladesHome) accentOverride = null
         if (role == Role.TOP) topShownAt = SystemClock.uptimeMillis()
         frameTheme = decorate(baseTheme, t)
         val th = activeTheme
@@ -790,7 +790,7 @@ class MainActivity : Activity() {
             return
         }
         app = a
-        val homeScreen: Screen = if (a.cfg.homeLayout == "3ds") HomeShell(a) else HomeScreen(a)
+        val homeScreen: Screen = homeFor(a)
         a.stack.clear()
         a.stack.add(if (a.cfg.boot) BootScreen(a, homeScreen) else homeScreen)
         if (!hasStorageAccess(this)) a.push(PermissionScreen(a))
@@ -1102,4 +1102,11 @@ class Sounds(var enabled: Boolean, volume: Int, pack: String = "classic") {
         val t = tracks[name] ?: return
         runCatching { t.stop(); t.reloadStaticData(); t.setVolume(vol); t.play() }
     }
+}
+
+/** The Home screen for the chosen layout. */
+fun homeFor(app: Ryzer): Screen = when (app.cfg.homeLayout) {
+    "blades" -> BladesHome(app)
+    "3ds" -> HomeShell(app)
+    else -> HomeScreen(app)
 }

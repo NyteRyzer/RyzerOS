@@ -52,6 +52,7 @@ object Showcase {
                 "checkup" -> app.push(Message(app, "Library check-up", libraryCheckup(app)))
                 "cover" -> sys?.games?.firstOrNull()?.let { app.push(CoverViewer(app, it)) }
                 "banner" -> Notifs.ryzer("Milestone unlocked: Marathon", "Play 3 hours in one day")
+                "tab" -> (app.stack.firstOrNull() as? BladesHome)?.let { it.rebuild(); it.showTab(arg.toIntOrNull() ?: 0) }
             }
         }
     }

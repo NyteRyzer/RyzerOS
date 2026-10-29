@@ -18,3 +18,34 @@ object SkinMath {
         else -> (value / max * count).toInt().coerceIn(0, count)
     }
 }
+
+/** How Blades Home sorts the Home tiles into its four tabs. */
+object BladeTabs {
+    val NAMES = listOf("CONTINUE", "SYSTEMS", "COLLECTIONS", "TOOLS")
+
+    fun tabOf(kind: String): Int = when (kind) {
+        "continue", "pinned", "gotd" -> 0
+        "system" -> 1
+        "favorites", "foryou", "smart", "collection", "recent", "played", "added" -> 2
+        else -> 3
+    }
+
+    /** Tile indices per tab, in their original order. */
+    fun group(kinds: List<String>): List<List<Int>> {
+        val out = List(NAMES.size) { ArrayList<Int>() }
+        kinds.forEachIndexed { i, k -> out[tabOf(k)].add(i) }
+        return out
+    }
+
+    /** The next tab with something in it, wrapping round; stays put when every tab is empty. */
+    fun next(groups: List<List<Int>>, from: Int, dir: Int): Int {
+        val n = groups.size
+        for (step in 1 until n) {
+            val t = ((from + dir * step) % n + n) % n
+            if (groups[t].isNotEmpty()) return t
+        }
+        return from
+    }
+
+    fun firstNonEmpty(groups: List<List<Int>>): Int = groups.indexOfFirst { it.isNotEmpty() }.takeIf { it >= 0 } ?: 3
+}
