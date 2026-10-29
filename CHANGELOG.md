@@ -6,7 +6,7 @@ Every version of Ryzer OS, newest first. Downloads for each one are on the [Rele
 
 A new look for the whole app: bold, slanted and built for handhelds.
 
-- **New Home: Blades.** Four tabs (Continue, Systems, Collections, Tools), switched with L / R. Each item is a tall slanted card with its box art, and the row glides to keep your pick in the middle. A system's card shows the cover of your most-played game on it.
+- **New Home: Blades.** Four tabs (Continue, Systems, Collections, Tools), switched with L / R. Each item is a tall slanted card with its box art, and the row glides to keep your pick in the middle. A system's card shows the cover of your most-played game on it. Continue holds your last 5 games and your pinned games; Tools has Search, Stats, Wrapped, Notifications, Profile, Themes and Settings.
 - **Hero card on the top screen.** The selected item's art blurred behind, a big slanted cover, the title in bold italic and two "power bars": play time and rating for a game, library size and how much you've played for a system. A band at the bottom offers to resume your last game.
 - **New style everywhere.** Menus, lists, dialogs, button hints and toasts are slanted, with a glow on the selected row, a new header with a battery meter, and coloured stripes on the Settings sections. Titles use a new bold italic typeface (Titillium Web).
 - **Game list and Now Playing** get the same look, with a play-time meter for each game and a session meter while you play.
