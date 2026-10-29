@@ -54,20 +54,29 @@ object Skin {
         override fun removeEldestEntry(e: MutableMap.MutableEntry<String, Bitmap>) = size > 24
     }
 
-    /** A soft halo around the parallelogram at [r], blurred once per size and colour then reused. */
+    /**
+     * A soft halo around the parallelogram at [r]. The blur is rendered once per (size rounded up to 8 px, skew,
+     * opaque colour) and reused: the colour's alpha and the exact size are applied when drawing, so pulsing or
+     * growing shapes never re-blur.
+     */
     fun glow(c: Canvas, r: RectF, color: Int, skew: Float = SkinMath.skewFor(r.height())) {
-        val w = r.width().toInt().coerceAtLeast(1); val h = r.height().toInt().coerceAtLeast(1)
-        val key = "$w|$h|${skew.toInt()}|$color"
+        val w = SkinMath.quantize(r.width()).toInt(); val h = SkinMath.quantize(r.height()).toInt()
+        val solid = color or (0xFF shl 24)
+        val key = "$w|$h|${skew.toInt()}|$solid"
         val bmp = glowCache.getOrPut(key) {
             Bitmap.createBitmap(w + GLOW * 2, h + GLOW * 2, Bitmap.Config.ARGB_8888).also { b ->
                 val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                    this.color = color; maskFilter = BlurMaskFilter(GLOW * 0.6f, BlurMaskFilter.Blur.NORMAL)
+                    this.color = solid; maskFilter = BlurMaskFilter(GLOW * 0.6f, BlurMaskFilter.Blur.NORMAL)
                 }
                 Canvas(b).drawPath(Path(shape(RectF(GLOW.toFloat(), GLOW.toFloat(), GLOW + w.toFloat(), GLOW + h.toFloat()), skew)), p)
             }
         }
-        c.drawBitmap(bmp, r.left - GLOW, r.top - GLOW, bmpP)
+        glowDst.set(r.left - GLOW, r.top - GLOW, r.right + GLOW, r.bottom + GLOW)
+        glowP.alpha = (color ushr 24)
+        c.drawBitmap(bmp, null, glowDst, glowP)
     }
+    private val glowDst = RectF()
+    private val glowP = Paint(Paint.FILTER_BITMAP_FLAG)
 
     /** A row of [count] slanted segments, the first [on] lit. */
     fun segments(c: Canvas, x: Float, y: Float, w: Float, h: Float, on: Int, count: Int, onColor: Int, offColor: Int) {

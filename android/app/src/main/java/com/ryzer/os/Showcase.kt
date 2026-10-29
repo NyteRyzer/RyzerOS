@@ -70,7 +70,8 @@ object Showcase {
         fun time(style: String, layout: String): Double {
             cfg.uiStyle = style; cfg.homeLayout = layout; app.applyHomeLayout()
             var t = 0f
-            fun frame() { t += 1 / 30f; app.render(c, Role.TOP, 640f, 480f, 1 / 30f, t); app.render(c, Role.MAIN, 640f, 480f, 1 / 30f, t) }
+            // update() too, so pulses, glints and easing run as they do on a device
+            fun frame() { t += 1 / 30f; app.stack.firstOrNull()?.update(1 / 30f); app.render(c, Role.TOP, 640f, 480f, 1 / 30f, t); app.render(c, Role.MAIN, 640f, 480f, 1 / 30f, t) }
             repeat(10) { frame() }   // warm the caches
             val start = System.nanoTime()
             repeat(120) { frame() }

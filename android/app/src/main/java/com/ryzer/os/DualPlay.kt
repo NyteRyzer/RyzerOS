@@ -270,7 +270,7 @@ class NowPlayingView(private val act: NowPlayingActivity, private val app: Ryzer
         val (bat, chg) = app.battery()
         val left = app.batteryLeft()?.let { "  ~${formatDuration(it)} left" } ?: ""
         if (blades) {
-            G.rect(c, RectF(0f, 0f, w, 40f), withAlpha(0xFF000000.toInt(), 0.28f))
+            G.rect(c, RectF(0f, 0f, w, 40f), withAlpha(th.c("bg_bottom"), 0.55f))
             Skin.parallelogram(c, RectF(-14f, 6f, 170f, 36f), th.c("accent"), 12f)
             Skin.text(c, "NOW PLAYING", 12f, 9f, 22f, th.c("highlight_text"))
             val cr = Skin.text(c, clock(), w - 16, 8f, 24f, th.c("text"), align = 'r')

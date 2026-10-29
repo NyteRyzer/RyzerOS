@@ -31,4 +31,20 @@ class BladeTabsTest {
     @Test fun allEmptyStays() {
         assertEquals(2, BladeTabs.next(listOf(emptyList(), emptyList(), emptyList(), emptyList()), 2, 1))
     }
+
+    @Test fun emptyLibraryStartsOnTools() {
+        val g = BladeTabs.group(listOf("favorites", "recent", "search", "settings"))
+        assertEquals(3, BladeTabs.startTab(g, hasGames = false))
+        assertEquals(2, BladeTabs.startTab(g, hasGames = true))
+    }
+
+    @Test fun emptyLibraryCyclesEveryTab() {
+        val g = listOf(emptyList(), emptyList(), listOf(0), listOf(1))
+        assertEquals(0, BladeTabs.next(g, 3, 1, allowEmpty = true))
+    }
+
+    @Test fun selectionClampsToTab() {
+        assertEquals(1, BladeTabs.clampSel(2, 2))
+        assertEquals(0, BladeTabs.clampSel(3, 0))
+    }
 }

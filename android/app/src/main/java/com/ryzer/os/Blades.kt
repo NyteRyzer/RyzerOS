@@ -28,31 +28,66 @@ class BladesHome(app: Ryzer) : Screen(app) {
 
     init { rebuild() }
 
+    /** Library still empty: every tab can be visited, and the empty ones say where games go. */
+    private var noGames = false
+    /** Picture file per tile and the largest system's game count, worked out once per rebuild rather than per frame. */
+    private var artFiles = mapOf<Tile, java.io.File?>()
+    private var largestSystem = 0
+
     fun rebuild() {
         val old = current()?.let { it.kind + it.label }
-        tiles = homeTiles(app)
+        tiles = bladeTiles()
         groups = BladeTabs.group(tiles.map { it.kind })
+        noGames = app.allGames().isEmpty()
+        artFiles = tiles.associateWith { artFile(it) }
+        largestSystem = app.systems.maxOfOrNull { app.visible(it.games).size } ?: 0
+        for (i in sel.indices) sel[i] = BladeTabs.clampSel(sel[i], groups[i].size)
         if (!moved && sel.any { it != 0 }) moved = true   // a tap picked a blade
-        if (!moved) { tab = BladeTabs.firstNonEmpty(groups); sel.fill(0); scroll = 0f; return }
-        if (groups[tab].isEmpty()) tab = BladeTabs.firstNonEmpty(groups)
+        if (!moved) { tab = BladeTabs.startTab(groups, !noGames); sel.fill(0); scroll = 0f; return }
+        if (groups[tab].isEmpty() && !noGames) tab = BladeTabs.firstNonEmpty(groups)
         val i = groups[tab].indexOfFirst { tiles[it].kind + tiles[it].label == old }
-        sel[tab] = if (i >= 0) i else sel[tab].coerceIn(0, max(0, groups[tab].size - 1))
+        if (i >= 0) sel[tab] = i
+    }
+
+    /**
+     * The Home tiles plus what Blades shows on top: your next recent games on Continue (newest first),
+     * and Notifications, Wrapped and Profile on Tools (the 3DS Home has these in its toolbar).
+     */
+    private fun bladeTiles(): List<Tile> {
+        val base = homeTiles(app).toMutableList()
+        val st = app.state
+        val more = app.visible(st.recent.mapNotNull { Library.find(app.systems, it) }).drop(1).take(4).map { g ->
+            Tile("continue", app.title(g), app.title(g), g.system.color, g.system, g,
+                note = "Played ${formatDuration(st.playtime(g.key))}" + (st.lastPlayed[g.key]?.let { ", ${agoText(it)}" } ?: "") + ".")
+        }
+        base.addAll(base.indexOfFirst { it.kind == "continue" } + 1, more)
+        base += Tile("notifications", "Alerts", "${Notifs.unread()} new", note = "Your notification centre: banners, do not disturb and everything that came in.")
+        base += Tile("wrapped", "Wrapped", "Your year in games", note = "Ryzer Wrapped: total time, top games, best streak and your biggest day.")
+        base += Tile("profile", "Profile", app.cfg.userName.ifEmpty { "Set your name" }, note = "Your name, picture and play stats.")
+        return base
+    }
+
+    private fun open(tile: Tile) = when (tile.kind) {
+        "notifications" -> app.push(NotificationsScreen(app))
+        "wrapped" -> app.push(WrappedScreen(app))
+        "profile" -> if (kid) KidMode.unlock(app) else app.push(profileMenu(app))
+        else -> openTile(app, tile)
     }
 
     override fun onResume() = rebuild()
 
     /** Opens tab [n] (showcase and tab taps); counts as moving so a rescan doesn't jump back. */
     fun showTab(n: Int) {
-        if (n !in groups.indices || groups[n].isEmpty()) return
-        moved = true; tab = n; scroll = sel[n].toFloat()
+        if (n !in groups.indices || groups[n].isEmpty() && !noGames) return
+        moved = true; tab = n; sel[n] = BladeTabs.clampSel(sel[n], groups[n].size); scroll = sel[n].toFloat()
     }
 
     private fun items() = groups.getOrElse(tab) { emptyList() }
     fun current(): Tile? = items().getOrNull(sel[tab])?.let { tiles.getOrNull(it) }
 
     private fun switchTab(dir: Int) {
-        val n = BladeTabs.next(groups, tab, dir)
-        if (n != tab) { tab = n; scroll = sel[tab].toFloat(); app.sounds.play("move") }
+        val n = BladeTabs.next(groups, tab, dir, allowEmpty = noGames)
+        if (n != tab) { showTab(n); app.sounds.play("move") }
     }
 
     override fun handle(a: String) {
@@ -63,7 +98,7 @@ class BladesHome(app: Ryzer) : Screen(app) {
             "right" -> if (sel[tab] < n - 1) sel[tab]++ else return
             "l" -> { switchTab(-1); return }
             "r" -> { switchTab(1); return }
-            "a" -> { current()?.let { app.sounds.play("select"); openTile(app, it) }; return }
+            "a" -> { current()?.let { app.sounds.play("select"); open(it) }; return }
             "x" -> { app.openRandom(); return }
             "y" -> { app.openSearch(); return }
             "start" -> { if (kid) KidMode.unlock(app) else app.push(settingsMenu(app)); return }
@@ -79,10 +114,16 @@ class BladesHome(app: Ryzer) : Screen(app) {
 
     // ----- art -----
 
-    /** Tile picture, else (for systems) the cover of that system's most-played game. */
-    private fun art(tile: Tile): Bitmap? = tileArt(app, tile) ?: tile.system?.takeIf { tile.kind == "system" }?.let { s ->
-        app.visible(s.games).maxByOrNull { app.state.playtime(it.key) }?.takeIf { app.state.playtime(it.key) > 0 }?.let { G.image(it.image()) }
+    /** Box art for game tiles; for systems RyzerOS/tiles/<system>, else the cover of that system's most-played game. */
+    private fun artFile(tile: Tile): java.io.File? {
+        tile.game?.let { if (tile.kind == "pinned" || tile.kind == "gotd" || tile.kind == "continue") return it.image() }
+        val s = tile.system?.takeIf { tile.kind == "system" } ?: return null
+        val dir = java.io.File(app.home, "tiles")
+        listOf("png", "jpg", "webp").map { java.io.File(dir, "${s.id}.$it") }.firstOrNull { it.isFile }?.let { return it }
+        return app.visible(s.games).maxByOrNull { app.state.playtime(it.key) }?.takeIf { app.state.playtime(it.key) > 0 }?.image()
     }
+
+    private fun art(tile: Tile): Bitmap? = artFiles[tile]?.let { G.image(it) }
 
     private val blurCache = object : LinkedHashMap<Bitmap, Bitmap>(8, 0.75f, true) {
         override fun removeEldestEntry(e: MutableMap.MutableEntry<Bitmap, Bitmap>) = size > 8
@@ -121,15 +162,15 @@ class BladesHome(app: Ryzer) : Screen(app) {
         var scale = 1f
         if (!topVisible && tile != null) { compactHero(c, tile, RectF(16f, 52f, w - 16, 112f)); rowTop = 122f; scale = 0.74f }
         if (items().isEmpty()) {
-            Skin.text(c, "NO GAMES YET", w / 2, rowTop + 90, 34f, th.c("text_dim"), align = 'c')
-            G.text(c, "Put ROMs in ROMs/<system>, or add a folder in Settings > Library.", w / 2, rowTop + 136, 20f, th.c("text_dim"), align = 'c', maxW = w - 40)
+            Skin.text(c, "NO GAMES YET", w / 2, rowTop + 90, 34f, th.c("text"), align = 'c')
+            G.text(c, "Put ROMs in ROMs/<system>, or add a folder in Settings > Library.", w / 2, rowTop + 136, 20f, th.c("text"), align = 'c', maxW = w - 40, theme = th)
             return
         }
         drawRow(c, w, rowTop, scale)
         val y = rowTop + 290 * scale + 10
         tile?.let {
             Skin.text(c, bannerTitle(it).uppercase(), w / 2, y, if (scale < 1) 26f else 30f, th.c("text"), align = 'c', maxW = w - 40)
-            G.text(c, it.sub.ifEmpty { it.note }, w / 2, y + if (scale < 1) 26 else 32, 19f, th.c("text_dim"), align = 'c', maxW = w - 60, theme = th)
+            G.text(c, it.note.ifEmpty { it.sub }, w / 2, y + if (scale < 1) 26 else 32, 19f, th.c("text_dim"), align = 'c', maxW = w - 60, theme = th)
         }
     }
 
@@ -143,7 +184,7 @@ class BladesHome(app: Ryzer) : Screen(app) {
             Skin.parallelogram(c, r, if (on) th.c("accent") else withAlpha(th.c("panel"), 0.75f * G.panelAlpha), 12f)
             Skin.text(c, name, r.centerX(), r.top + 5, 20f,
                 when { on -> th.c("highlight_text"); empty -> withAlpha(th.c("text_dim"), 0.4f); else -> th.c("text_dim") }, align = 'c', maxW = r.width() - 16)
-            if (!empty) app.hit(r) { if (tab != i) app.sounds.play("move"); showTab(i) }
+            if (!empty || noGames) app.hit(r) { if (tab != i) app.sounds.play("move"); showTab(i) }
         }
     }
 
@@ -177,14 +218,11 @@ class BladesHome(app: Ryzer) : Screen(app) {
             Skin.glow(c, r, withAlpha(th.c("accent"), pulse), skew)
         }
         c.save(); Skin.clip(c, r, skew)
-        val base = tile.color ?: mix(th.c("panel"), th.c("accent"), 0.35f)
-        G.rect(c, r, mix(th.c("panel"), base, 0.7f))
+        val fill = mix(th.c("panel"), tile.color ?: mix(th.c("panel"), th.c("accent"), 0.35f), 0.7f)
+        G.rect(c, r, fill)
         val bmp = art(tile)
         if (bmp != null) fillCover(c, bmp, r)
-        else if (tile.kind == "system" || tile.system != null && tile.kind != "continue")
-            Skin.text(c, tile.system?.short ?: tile.label, r.centerX(), r.centerY() - r.width() * 0.22f, r.width() * 0.42f,
-                th.c("highlight_text"), align = 'c', maxW = r.width() - 8)
-        else drawIcon(c, tile.kind, r.centerX(), r.centerY() - 10, r.width() * 0.2f, th.c("highlight_text"))
+        else glyph(c, tile, r.centerX(), r.centerY(), r.width(), ink(fill))
         if (!selected) G.rect(c, r, withAlpha(0xFF000000.toInt(), 0.45f))
         // Name band along the bottom
         val bandH = if (selected) 34f else 26f
@@ -202,6 +240,18 @@ class BladesHome(app: Ryzer) : Screen(app) {
             labelSize, th.c("highlight_text"), align = 'c', maxW = r.width() - skew - 10)
         Skin.outlinePara(c, r, if (selected) th.c("accent") else withAlpha(th.c("panel_border"), 0.8f), if (selected) 3f else 1f, skew)
         if (tile.kind == "pinned") Skin.text(c, "PIN", r.right - 6, r.top + 6, 14f, th.c("highlight_text"), align = 'r')
+    }
+
+    /** Readable ink on [fill]: dark on light fills (light themes), the theme's highlight colour otherwise. */
+    private fun ink(fill: Int) = if (SkinMath.isLight(fill)) 0xFF15151C.toInt() else th.c("highlight_text")
+
+    /** What stands in for missing art: the system's short name, the tile's icon, or its initial. */
+    private fun glyph(c: Canvas, tile: Tile, cx: Float, cy: Float, size: Float, color: Int) = when {
+        tile.kind == "system" || tile.system != null && tile.kind != "continue" ->
+            Skin.text(c, tile.system?.short ?: tile.label, cx, cy - size * 0.22f, size * 0.42f, color, align = 'c', maxW = size - 8)
+        tile.kind in setOf("notifications", "wrapped", "profile") ->
+            Skin.text(c, tile.label.take(1), cx, cy - size * 0.3f, size * 0.6f, color, align = 'c')
+        else -> drawIcon(c, tile.kind, cx, cy - 10, size * 0.2f, color)
     }
 
     /** One-screen devices: the hero squeezed into a strip above the blades. */
@@ -224,7 +274,7 @@ class BladesHome(app: Ryzer) : Screen(app) {
             G.rect(c, RectF(0f, 0f, w, h), withAlpha(th.c("bg_bottom"), 0.62f))
         }
         // dark diagonal wedge behind the text side
-        Skin.parallelogram(c, RectF(w * 0.36f, 0f, w + 120, h), withAlpha(0xFF000000.toInt(), 0.32f), 120f)
+        Skin.parallelogram(c, RectF(w * 0.36f, 0f, w + 120, h), withAlpha(th.c("bg_bottom"), 0.5f), 120f)
         drawHud(c, w)
         if (tile == null) {
             Skin.text(c, "RYZER OS", w / 2, h / 2 - 40, 60f, th.c("text"), align = 'c')
@@ -236,10 +286,9 @@ class BladesHome(app: Ryzer) : Screen(app) {
         val skew = 26f
         Skin.glow(c, card, withAlpha(tile.color ?: th.c("accent"), 0.7f), skew)
         c.save(); Skin.clip(c, card, skew)
-        G.rect(c, card, mix(th.c("panel"), tile.color ?: th.c("accent"), 0.7f))
-        if (bmp != null) fillCover(c, bmp, card)
-        else if (tile.system != null) Skin.text(c, tile.system.short, card.centerX(), card.centerY() - 40, 70f, th.c("highlight_text"), align = 'c', maxW = card.width() - 20)
-        else drawIcon(c, tile.kind, card.centerX(), card.centerY(), 40f, th.c("highlight_text"))
+        val cardFill = mix(th.c("panel"), tile.color ?: th.c("accent"), 0.7f)
+        G.rect(c, card, cardFill)
+        if (bmp != null) fillCover(c, bmp, card) else glyph(c, tile, card.centerX(), card.centerY(), card.width(), ink(cardFill))
         c.restore()
         Skin.outlinePara(c, card, th.c("accent"), 3f, skew)
 
@@ -253,31 +302,32 @@ class BladesHome(app: Ryzer) : Screen(app) {
             Skin.text(c, chip, tx + cw / 2, y + 3, 18f, th.c("highlight_text"), align = 'c', maxW = cw - 16)
         }
         y += 38
-        val titleLines = G.wrap(bannerTitle(tile).uppercase(), 44f, tw).take(2)
+        // Two lines at most; a longer title keeps the rest on line two, cut with "..."
+        val titleLines = SkinMath.twoLines(bannerTitle(tile).uppercase(), tw) { Skin.measure(it, 46f) }
         titleLines.forEach { l -> Skin.text(c, l, tx, y, 46f, th.c("text"), maxW = tw); y += 42 }
         y += 8
         val bars = powerBars(tile)
         if (bars.isEmpty()) {
             G.wrap(tile.note, 20f, tw).take(4).forEach { l -> G.text(c, l, tx, y, 20f, th.c("text_dim"), theme = th); y += 24 }
         } else for ((label, value, on) in bars) {
-            Skin.text(c, label, tx, y, 17f, th.c("text_dim"))
+            Skin.text(c, label, tx, y, 17f, th.c("text"))
             G.text(c, value, tx + tw, y, 17f, th.c("text"), align = 'r', theme = th)
             Skin.segments(c, tx, y + 22, tw, 12f, on, 16, th.c("accent"), withAlpha(th.c("text_dim"), 0.22f))
             y += 46
         }
         // Bottom band: resume line, else the newest notification, else a tip
         val band = RectF(-20f, h - 62, w + 20, h - 26)
-        Skin.parallelogram(c, band, withAlpha(0xFF000000.toInt(), 0.4f), 14f)
+        Skin.parallelogram(c, band, withAlpha(th.c("bg_bottom"), 0.75f), 14f)
         val line = when {
             tile.kind == "continue" -> "A  RESUME  ·  ${tile.note}"
             Notifs.list.isNotEmpty() -> Notifs.list.first().let { "${it.app}: ${it.title}" }
             else -> tips[((t / 8).toInt()) % tips.size]
         }
-        G.text(c, line, w / 2, band.top + 8, 19f, if (tile.kind == "continue") th.c("text") else th.c("text_dim"), align = 'c', maxW = w - 50, theme = th)
+        G.text(c, line, w / 2, band.top + 8, 19f, th.c("text"), align = 'c', maxW = w - 50, theme = th)
     }
 
     private fun drawHud(c: Canvas, w: Float) {
-        G.rect(c, RectF(0f, 0f, w, 44f), withAlpha(0xFF000000.toInt(), 0.3f))
+        G.rect(c, RectF(0f, 0f, w, 44f), withAlpha(th.c("bg_bottom"), 0.55f))
         drawAvatar(c, app, th, 26f, 22f, 15f)
         val gr = Skin.text(c, greeting(app), 50f, 9f, 24f, th.c("text"), maxW = w * 0.45f)
         drawGoalRing(c, app, th, gr.right + 22, 22f, 13f)
@@ -307,7 +357,7 @@ class BladesHome(app: Ryzer) : Screen(app) {
         }
         val s = tile.system?.takeIf { tile.kind == "system" } ?: return emptyList()
         val games = app.visible(s.games)
-        val largest = app.systems.maxOfOrNull { app.visible(it.games).size } ?: 0
+        val largest = largestSystem
         val played = games.count { st.playtime(it.key) > 0 }
         return listOf(Bar("GAMES", "${games.size}", SkinMath.segmentsOn(games.size.toDouble(), largest.toDouble())),
             Bar("PLAYED", "$played / ${games.size}", SkinMath.segmentsOn(played.toDouble(), games.size.toDouble())))

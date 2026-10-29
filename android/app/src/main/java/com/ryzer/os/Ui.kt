@@ -328,7 +328,7 @@ object G {
     }
 
     private fun bladeTopBar(c: Canvas, app: Ryzer, th: Theme, title: String, w: Float) {
-        rect(c, RectF(0f, 0f, w, 44f), withAlpha(0xFF000000.toInt(), 0.28f))
+        rect(c, RectF(0f, 0f, w, 44f), withAlpha(th.c("bg_bottom"), 0.55f))
         val label = title.uppercase()
         val tw = min(Skin.measure(label, 26f), w * 0.55f)
         Skin.parallelogram(c, RectF(-14f, 6f, tw + 46f, 40f), th.c("accent"), 14f)
@@ -382,10 +382,10 @@ object G {
     /** Bottom bar of button prompts. Registers tap targets so touch screens can press them too. */
     fun hints(c: Canvas, th: Theme, items: List<Pair<String, String>>, w: Float, h: Float, hit: (RectF, String) -> Unit) {
         if (Skin.blades) {
-            rect(c, RectF(0f, h - 36, w, h), withAlpha(0xFF000000.toInt(), 0.25f))
+            rect(c, RectF(0f, h - 36, w, h), withAlpha(th.c("bg_bottom"), 0.6f))
             var x = w - 16
             for ((label, action) in items.reversed()) {
-                val r = Skin.text(c, action.uppercase(), x, h - 28, 20f, th.c("text_dim"), align = 'r')
+                val r = Skin.text(c, action.uppercase(), x, h - 28, 20f, th.c("text"), align = 'r')
                 val kw = max(22f, Skin.measure(label, 18f) + 14)
                 val kr = RectF(r.left - 8 - kw, h - 29, r.left - 6, h - 9)
                 Skin.parallelogram(c, kr, th.c("accent"), 6f)
