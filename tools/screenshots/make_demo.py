@@ -111,7 +111,7 @@ def cover(path: Path, title: str, system_label: str, color: str):
 BASE_CONFIG = {
     "theme": "ryzer-red", "sound": False, "boot": False, "animations": True, "fps": 30, "dual": "auto",
     "userName": "Nyte", "resumePrompt": False, "screensaver": 0, "batterySaver": False, "music": False,
-    "seasonal": True, "live": "off", "homeLayout": "3ds", "uiVersion": 3, "launchAnim": False, "neon": False,
+    "seasonal": True, "live": "off", "homeLayout": "3ds", "uiVersion": 3, "uiStyle": "blades", "launchAnim": False, "neon": False,
     "transitions": False, "autoArt": False, "dailyGoal": 90, "clockStyle": "digital", "iconRows": 3, "iconShape": "rounded", "grid": False,
 }
 
@@ -137,6 +137,7 @@ CONFIGS = {
     "wrapped": {"theme": "neon-night"},
     "checkup": {"theme": "ocean-deep"},
     "swapcheck": {"companion": True, "gameScreen": "main"},
+    "classic": {"uiStyle": "classic"},
 }
 
 

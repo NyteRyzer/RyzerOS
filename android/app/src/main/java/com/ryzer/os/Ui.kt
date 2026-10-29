@@ -195,7 +195,7 @@ object G {
 
     fun background(c: Canvas, th: Theme, w: Float, h: Float, t: Float) {
         // Keyed on the background colours only, so live accent effects (RGB mode) don't rebuild it every frame
-        val key = "${th.id}|${th.c("bg_top")}|${th.c("bg_bottom")}|${th.c("text")}|${th.background}|${w.toInt()}x${h.toInt()}"
+        val key = "${th.id}|${th.c("bg_top")}|${th.c("bg_bottom")}|${th.c("text")}|${th.background}|${w.toInt()}x${h.toInt()}|${Skin.blades}"
         val bmp = bgCache[key] ?: buildBg(th, w.toInt().coerceAtLeast(1), h.toInt().coerceAtLeast(1)).also {
             if (bgCache.size > 6) bgCache.clear()
             bgCache[key] = it
@@ -236,6 +236,11 @@ object G {
             "diagonal" -> { var x = -h; while (x < w) { line(c, x.toFloat(), h.toFloat(), (x + h).toFloat(), 0f, withAlpha(lineCol, 0.7f), 2f); x += 22 } }
             "stars" -> { val r = Random(7); repeat(w * h / 2200) { circle(c, r.nextInt(w).toFloat(), r.nextInt(h).toFloat(), 0.8f,
                 mix(th.c("bg_top"), th.c("text"), r.nextFloat() * 0.6f)) } }
+        }
+        if (Skin.blades) {   // faint diagonal bands, baked in so they cost nothing per frame
+            val band = withAlpha(th.c("accent"), 0.05f)
+            var x = -h.toFloat()
+            while (x < w) { Skin.parallelogram(c, RectF(x, 0f, x + 40f + h, h.toFloat()), band, h.toFloat()); x += 120f }
         }
         return bmp
     }
@@ -280,6 +285,7 @@ object G {
     }
 
     fun panel(c: Canvas, r: RectF, th: Theme, selected: Boolean = false, pulse: Float = 0f, fillColor: Int? = null) {
+        if (Skin.blades) return bladePanel(c, r, th, selected, fillColor)
         val rad = th.radius
         if (selected && th.tileStyle == "glow") {
             for (i in 3 downTo 1) {
@@ -302,7 +308,49 @@ object G {
         outline(c, r, border, if (selected) 3f else if (th.tileStyle == "outline") 2f else 1f, rad)
     }
 
+    /** Blades panel: a parallelogram leaning around [r] (half the lean each side) so content laid out for a rect still fits. */
+    private fun bladePanel(c: Canvas, r: RectF, th: Theme, selected: Boolean, fillColor: Int?) {
+        val skew = SkinMath.skewFor(r.height())
+        val pr = RectF(r.left - skew / 2, r.top, r.right + skew / 2, r.bottom)
+        if (selected) Skin.glow(c, pr, withAlpha(th.c("accent"), 0.55f), skew)
+        val body0 = fillColor ?: if (selected) mix(th.c("panel"), th.c("accent"), 0.16f) else th.c("panel")
+        Skin.parallelogram(c, pr, if (fillColor == null) withAlpha(body0, 0.92f * panelAlpha) else body0, skew)
+        if (neon) Skin.outlinePara(c, RectF(pr).apply { inset(-2f, -2f) }, withAlpha(if (selected) th.c("accent") else th.c("accent2"), 0.35f), 2f, skew)
+        Skin.outlinePara(c, pr, if (selected) th.c("accent") else th.c("panel_border"), if (selected) 2f else 1f, skew)
+    }
+
+    /** Battery as 4 slanted segments, coloured by level; returns the left edge used. */
+    fun batterySegments(c: Canvas, th: Theme, right: Float, y: Float, pct: Int, charging: Boolean): Float {
+        val col = when { charging -> th.c("accent2"); pct <= 15 -> th.c("bad"); pct <= 30 -> th.c("warn"); else -> th.c("good") }
+        val lit = if (pct <= 0) 0 else ((pct + 24) / 25).coerceIn(1, 4)
+        Skin.segments(c, right - 46, y, 46f, 12f, lit, 4, col, withAlpha(th.c("text_dim"), 0.3f))
+        return right - 46
+    }
+
+    private fun bladeTopBar(c: Canvas, app: Ryzer, th: Theme, title: String, w: Float) {
+        rect(c, RectF(0f, 0f, w, 44f), withAlpha(0xFF000000.toInt(), 0.28f))
+        val label = title.uppercase()
+        val tw = min(Skin.measure(label, 26f), w * 0.55f)
+        Skin.parallelogram(c, RectF(-14f, 6f, tw + 46f, 40f), th.c("accent"), 14f)
+        Skin.text(c, label, 14f, 9f, 26f, th.c("highlight_text"), maxW = w * 0.55f)
+        val now = java.util.Date()
+        val clock = java.text.SimpleDateFormat(if (app.cfg.clock24) "HH:mm" else "h:mm a", java.util.Locale.getDefault()).format(now)
+        var x = Skin.text(c, clock, w - 16, 10f, 26f, th.c("text"), align = 'r').left - 14
+        if (app.cfg.showBattery) {
+            val (pct, charging) = app.battery()
+            if (pct >= 0) x = batterySegments(c, th, x, 16f, pct, charging) - 12
+        }
+        if (app.wifiConnected()) {
+            for (i in 0 until 3) {
+                stroke.color = th.c("text_dim"); stroke.strokeWidth = 2f
+                c.drawArc(RectF(x - 10 - i * 5, 26f - i * 5, x + i * 5, 36f + i * 5), 225f, 90f, false, stroke)
+            }
+        }
+        rect(c, RectF(0f, 43f, w, 45f), withAlpha(th.c("accent"), 0.5f))
+    }
+
     fun topBar(c: Canvas, app: Ryzer, th: Theme, title: String, w: Float) {
+        if (Skin.blades) return bladeTopBar(c, app, th, title, w)
         text(c, title, 16f, 10f, 26f, th.c("text"), isBold = true, theme = th, maxW = w * 0.55f)
         val now = java.util.Date()
         val clock = java.text.SimpleDateFormat(if (app.cfg.clock24) "HH:mm" else "h:mm a", java.util.Locale.getDefault()).format(now)
@@ -333,6 +381,20 @@ object G {
 
     /** Bottom bar of button prompts. Registers tap targets so touch screens can press them too. */
     fun hints(c: Canvas, th: Theme, items: List<Pair<String, String>>, w: Float, h: Float, hit: (RectF, String) -> Unit) {
+        if (Skin.blades) {
+            rect(c, RectF(0f, h - 36, w, h), withAlpha(0xFF000000.toInt(), 0.25f))
+            var x = w - 16
+            for ((label, action) in items.reversed()) {
+                val r = Skin.text(c, action.uppercase(), x, h - 28, 20f, th.c("text_dim"), align = 'r')
+                val kw = max(22f, Skin.measure(label, 18f) + 14)
+                val kr = RectF(r.left - 8 - kw, h - 29, r.left - 6, h - 9)
+                Skin.parallelogram(c, kr, th.c("accent"), 6f)
+                Skin.text(c, label, kr.centerX(), h - 29, 18f, th.c("highlight_text"), align = 'c')
+                hit(RectF(kr.left - 4, h - 34, r.right + 4, h), label.lowercase().substringBefore("/"))
+                x = kr.left - 16
+            }
+            return
+        }
         line(c, 12f, h - 36, w - 12, h - 36, th.c("panel_border"))
         var x = w - 16
         for ((label, action) in items.reversed()) {
@@ -356,6 +418,14 @@ object G {
 
     fun toast(c: Canvas, th: Theme, msg: String, alpha: Float, w: Float, h: Float) {
         val tw = min(w - 40, measure(msg, 22f) + 32)
+        if (Skin.blades) {
+            val r = RectF(w / 2 - tw / 2, h - 86, w / 2 + tw / 2, h - 46)
+            Skin.parallelogram(c, RectF(r.left - 8, r.top, r.right + 8, r.bottom), withAlpha(th.c("panel"), 0.94f * alpha), 12f)
+            Skin.parallelogram(c, RectF(r.left - 8, r.top, r.left + 6, r.bottom), withAlpha(th.c("accent"), alpha), 12f)
+            Skin.outlinePara(c, RectF(r.left - 8, r.top, r.right + 8, r.bottom), withAlpha(th.c("accent"), alpha), 1.5f, 12f)
+            text(c, msg, w / 2 + 6, r.top + 11, 22f, withAlpha(th.c("text"), alpha), align = 'c', maxW = tw - 30)
+            return
+        }
         val r = RectF(w / 2 - tw / 2, h - 86, w / 2 + tw / 2, h - 46)
         rect(c, r, withAlpha(th.c("panel"), 0.92f * alpha), 12f)
         outline(c, r, withAlpha(th.c("accent"), alpha), 2f, 12f)
@@ -364,6 +434,13 @@ object G {
 
     fun scrollbar(c: Canvas, th: Theme, r: RectF, offset: Int, visible: Int, total: Int) {
         if (total <= visible) return
+        if (Skin.blades) {
+            rect(c, r, withAlpha(th.c("panel"), 0.8f))
+            val hh = max(16f, r.height() * visible / total)
+            val y = r.top + (r.height() - hh) * offset / max(1, total - visible)
+            Skin.parallelogram(c, RectF(r.left - 1, y, r.right + 2, y + hh), th.c("accent"), 3f)
+            return
+        }
         rect(c, r, th.c("panel"), 3f)
         val hh = max(16f, r.height() * visible / total)
         val y = r.top + (r.height() - hh) * offset / max(1, total - visible)

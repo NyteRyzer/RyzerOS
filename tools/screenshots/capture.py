@@ -36,6 +36,8 @@ SHOTS = [
     ("foryou", "games", "foryou", "", 0),
     ("wrapped", "wrapped", "wrapped", "", 0),
     ("checkup", "checkup", "checkup", "", 0),
+    ("blades-settings", "home", "settings", "down", 0),
+    ("classic-settings", "classic", "settings", "", 0),
 ]
 LANDSCAPE = [
     ("land-home", "land-home", "", "right", 0),

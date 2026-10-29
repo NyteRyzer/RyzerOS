@@ -170,6 +170,9 @@ fun settingsMenu(app: Ryzer): Menu {
     )) }
 
     val look = { Menu(app, "Look & feel", listOf(
+        Item("Interface style", "Blades: the bold, slanted 3.0 look. Classic: the rounded look from Ryzer OS 2.",
+            value = { if (cfg.uiStyle == "classic") "Classic" else "Blades" },
+            change = { _ -> cfg.uiStyle = if (cfg.uiStyle == "classic") "blades" else "classic"; cfg.save() }),
         Item("Make a theme from a photo", "Pick any picture from your gallery: Ryzer uses it as the background and builds the colours from it.",
             select = { PhotoTheme.pickAndApply(app) }),
         Item("Your name", "Used for the greeting on the top screen.", value = { cfg.userName.ifEmpty { "Not set" } }, select = {
@@ -300,14 +303,14 @@ fun settingsMenu(app: Ryzer): Menu {
     )) }
 
     return Menu(app, "Settings", listOf(
-        Item("Personalize", "Theme Studio, themes, profile, layout, live wallpaper, sounds.", select = { app.push(personalize()) }),
-        Item("Notifications", "Notification centre, banners and do not disturb.", value = { "${Notifs.unread()} new" }, select = { app.push(NotificationsScreen(app)) }),
-        Item("Emulators", "Choose which emulator each system uses. Any installed app works.", select = { app.push(emulators()) }),
-        Item("Library", "ROM folders, rescanning and naming.", select = { app.push(library()) }),
-        Item("Display & dual screen", select = { app.push(display()) }),
+        Item("Personalize", "Theme Studio, themes, profile, layout, live wallpaper, sounds.", select = { app.push(personalize()) }).striped(0xFFFF2A3D),
+        Item("Notifications", "Notification centre, banners and do not disturb.", value = { "${Notifs.unread()} new" }, select = { app.push(NotificationsScreen(app)) }).striped(0xFFFF8A3D),
+        Item("Emulators", "Choose which emulator each system uses. Any installed app works.", select = { app.push(emulators()) }).striped(0xFFA55CFF),
+        Item("Library", "ROM folders, rescanning and naming.", select = { app.push(library()) }).striped(0xFF3DDC84),
+        Item("Display & dual screen", select = { app.push(display()) }).striped(0xFF00E5FF),
         Item("Look & feel", "Interface size, font, wallpaper, theme schedule and Home layout.", select = { app.push(look()) }),
         Item("Play stats", "Play time, 7-day chart, top games and milestones.", select = { app.push(StatsScreen(app)) }),
-        Item("Goals & reminders", "Daily play goal, weekly report, streak and unplug reminders, Ryzer Wrapped.", select = { app.push(goalsMenu(app)) }),
+        Item("Goals & reminders", "Daily play goal, weekly report, streak and unplug reminders, Ryzer Wrapped.", select = { app.push(goalsMenu(app)) }).striped(0xFFFFC23D),
         Item("Tools & games", "Snake, 2048, Game Roulette, play calendar, stats card, screenshots, timer, controller test, battery.",
             select = { app.push(toolsMenu(app)) }),
         Item("Performance", select = { app.push(performance()) }),
@@ -328,7 +331,7 @@ fun settingsMenu(app: Ryzer): Menu {
         Item("Emulator setup help", select = { app.push(Message(app, "Emulator setup", SETUP_HELP)) }),
         Item("Updates", "Ryzer checks GitHub for new versions and installs them for you.",
             value = { Updater.release?.let { "${it.version} available" } ?: if (cfg.autoUpdate) "Automatic" else "Manual" },
-            select = { app.push(updatesMenu(app)) }),
+            select = { app.push(updatesMenu(app)) }).striped(0xFF9A9AA6),
         Item("About Ryzer OS", select = { app.push(Message(app, "About", "Ryzer OS ${BuildInfo.version} for Android\n${BuildInfo.device}\n\n" +
             "Games: ${app.systems.sumOf { it.games.size }}   Themes: ${app.themes.size}\nPlay time: ${formatDuration(app.state.total())}\n" +
             "Data folder: ${app.home}\n\nThemes, systems.json and emulators.json in the data folder are plain JSON you can edit.")) }),
@@ -535,3 +538,6 @@ class SystemInfo(app: Ryzer) : Screen(app) {
 
     override fun hints() = listOf("B" to "Back")
 }
+
+/** Gives a Settings row its Blades colour stripe. */
+private fun Item.striped(color: Long) = also { stripe = color.toInt() }

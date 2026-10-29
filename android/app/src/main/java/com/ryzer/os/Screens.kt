@@ -26,12 +26,14 @@ class Item(
     val select: (() -> Unit)? = null,
 ) {
     var colorKey: String? = null
+    /** Blades: a colour stripe at the row's left edge (Settings sections use one each). */
+    var stripe: Int? = null
 }
 
 open class Menu(app: Ryzer, override val title: String, var items: List<Item>, private val subtitle: String = "") : Screen(app) {
     var sel = 0
     private var offset = 0
-    private val rowH = 40f
+    private val rowH get() = if (Skin.blades) 52f else 40f   // Blades: 44 px rows with an 8 px gap
 
     fun current() = items.getOrNull(sel)
 
@@ -63,12 +65,21 @@ open class Menu(app: Ryzer, override val title: String, var items: List<Item>, p
         for (i in offset until min(items.size, offset + visible)) {
             val it = items[i]
             val y = top + (i - offset) * rowH
-            val r = RectF(16f, y, lw - 28, y + rowH - 6)
             val selected = i == sel
+            val blades = Skin.blades
+            val r = if (blades) RectF(if (selected) 12f else 20f, y, lw - (if (selected) 36f else 28f), y + 44f)
+                else RectF(16f, y, lw - 28, y + rowH - 6)
             G.panel(c, r, th, selected)
             app.hit(r) { if (sel == i) handle("a") else sel = i }
             val col = if (selected) th.c("text") else mix(th.c("text"), th.c("text_dim"), 0.4f)
-            G.text(c, it.label, r.left + 14, r.top + 8, 24f, col, maxW = r.width() / 2, theme = th)
+            if (blades) {
+                (it.stripe ?: it.colorKey?.let { k -> th.c(k) })?.let { sc ->
+                    val k = SkinMath.skewFor(r.height())   // same lean as the row, 8 px wide along its left edge
+                    Skin.parallelogram(c, RectF(r.left - k / 2, r.top, r.left + k / 2 + 8, r.bottom), sc, k)
+                }
+                if (selected) Skin.text(c, it.label, r.left + 18, r.top + 9, 26f, col, maxW = r.width() / 2)
+                else G.text(c, it.label, r.left + 18, r.top + 10, 24f, col, maxW = r.width() / 2, theme = th)
+            } else G.text(c, it.label, r.left + 14, r.top + 8, 24f, col, maxW = r.width() / 2, theme = th)
             var x = r.right - 14
             it.swatch?.let { sw ->
                 val sr = RectF(x - 26, r.centerY() - 10, x, r.centerY() + 10)
@@ -78,7 +89,7 @@ open class Menu(app: Ryzer, override val title: String, var items: List<Item>, p
             it.value?.let { v ->
                 var s = v()
                 if (it.change != null && selected) s = "<  $s  >"
-                G.text(c, s, x, r.top + 9, 22f, if (selected) th.c("accent") else th.c("text_dim"), align = 'r',
+                G.text(c, s, x, r.top + if (Skin.blades) 11 else 9, 22f, if (selected) th.c("accent") else th.c("text_dim"), align = 'r',
                     maxW = r.width() / 2 - 20, theme = th)
             }
         }
