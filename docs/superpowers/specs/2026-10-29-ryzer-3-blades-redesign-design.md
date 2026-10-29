@@ -77,8 +77,8 @@ A new `Skin` object sets the drawing style. `G.panel`, `G.topBar`, `G.hints`, `G
 
 ### 3. Type
 
-- One OFL display font is bundled in `assets/fonts/`: a bold italic sports face, ~100 KB. Candidates are *Saira
-  Condensed* or *Exo 2*, whichever is available from google/fonts.
+- One OFL display font is bundled: **Titillium Web Bold Italic** (`assets/fonts/TitilliumWeb-BoldItalic.ttf`, 70 KB,
+  from google/fonts, with `OFL.txt` alongside).
 - It is used for titles, selected rows, tabs and chips. Body text keeps the current font setting.
 - The user's *Font* setting still applies to body text.
 
