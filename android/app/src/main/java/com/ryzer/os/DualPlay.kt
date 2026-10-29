@@ -39,7 +39,8 @@ object DualPlay {
     fun displays(app: Ryzer, game: Game? = null): Pair<Int, Int>? {
         val main = app.ctx.mainDisplayId()
         val second = app.ctx.secondaryDisplays().firstOrNull()?.displayId ?: return null
-        val where = game?.let { app.cfg.screenFor[it.system.id] } ?: app.cfg.gameScreen
+        // The game's own choice, then its system's, then the default
+        val where = game?.let { app.state.gameScreen[it.key] ?: app.cfg.screenFor[it.system.id] } ?: app.cfg.gameScreen
         return if (where == "second") second to main else main to second
     }
 
@@ -247,7 +248,12 @@ class NowPlayingView(private val act: NowPlayingActivity, private val app: Ryzer
         hit(r, action)
     }
 
+    private var lastTouch = SystemClock.uptimeMillis()
+
     private fun draw(c: Canvas, th: Theme, w: Float, h: Float) {
+        // Auto-dim: after a while without a touch the panel goes dark to save battery
+        val dimAfter = app.cfg.panelAutoDim
+        if (!dimmed && dimAfter > 0 && SystemClock.uptimeMillis() - lastTouch > dimAfter * 1000L) { dimmed = true; act.setBrightness(0.01f) }
         if (dimmed) {   // "screen off": black with a faint clock, tap anywhere to wake
             G.rect(c, RectF(0f, 0f, w, h), 0xFF000000.toInt())
             G.text(c, clock(), w / 2, h / 2 - 30, 60f, withAlpha(th.c("text_dim"), 0.5f), align = 'c', isBold = true)
@@ -261,7 +267,8 @@ class NowPlayingView(private val act: NowPlayingActivity, private val app: Ryzer
         G.text(c, "NOW PLAYING", 16f, 12f, 20f, th.c("accent"), isBold = true)
         G.text(c, clock(), w - 16, 10f, 24f, th.c("text"), align = 'r')
         val (bat, chg) = app.battery()
-        if (bat >= 0) G.text(c, "$bat%" + if (chg) " +" else "", w - 110, 12f, 20f, th.c("text_dim"), align = 'r')
+        val left = app.batteryLeft()?.let { "  ~${formatDuration(it)} left" } ?: ""
+        if (bat >= 0) G.text(c, "$bat%" + (if (chg) " +" else "") + left, w - 110, 12f, 20f, th.c("text_dim"), align = 'r')
         G.line(c, 12f, 40f, w - 12, 40f, th.c("panel_border"))
 
         // Game card
@@ -282,6 +289,9 @@ class NowPlayingView(private val act: NowPlayingActivity, private val app: Ryzer
         val limitLine = if (app.cfg.dailyLimit > 0) {
             val left = app.cfg.dailyLimit * 60L - (st.playedToday() + secs)
             if (left > 0) "  |  ${formatDuration(left)} left today" else "  |  daily limit reached"
+        } else if (app.cfg.dailyGoal > 0) {
+            val today = (st.playedToday() + secs) / 60
+            if (today >= app.cfg.dailyGoal) "  |  daily goal done!" else "  |  goal ${today}/${app.cfg.dailyGoal} min"
         } else ""
         G.text(c, "Total ${formatDuration(total)}$limitLine", x, 178f, 19f, th.c("text_dim"), maxW = w - x - 16)
 
@@ -382,7 +392,7 @@ class NowPlayingView(private val act: NowPlayingActivity, private val app: Ryzer
     override fun onTouchEvent(e: MotionEvent): Boolean {
         val scale = height / app.logicalH
         when (e.actionMasked) {
-            MotionEvent.ACTION_DOWN -> { downX = e.x; downY = e.y }
+            MotionEvent.ACTION_DOWN -> { downX = e.x; downY = e.y; lastTouch = SystemClock.uptimeMillis() }
             MotionEvent.ACTION_UP -> {
                 // A long swipe up or down swaps the screens
                 if (DualPlay.canSwap() && kotlin.math.abs(e.y - downY) > height * 0.35f && kotlin.math.abs(e.y - downY) > kotlin.math.abs(e.x - downX) * 2) {

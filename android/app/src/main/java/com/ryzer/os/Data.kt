@@ -121,6 +121,20 @@ class Config(private val file: File) {
     var lastUpdateCheck = 0L
     var skipVersion = ""
     var lastVersion = ""         // version that last ran, to show What's New after an update
+    // 2.4
+    var dailyGoal = 0            // minutes of play per day, 0 = off
+    var goalDay = ""             // day the goal was last reached (one notice per day)
+    var weeklyReport = true
+    var lastWeeklyReport = ""
+    var streakReminder = true
+    var lastStreakReminder = ""
+    var groupDiscs = true        // hide .bin tracks behind .cue/.gdi and discs behind .m3u
+    var hideBios = true
+    var panelAutoDim = 0         // Now Playing: seconds without a touch before it dims, 0 = off
+    var chargeAlert = 0          // percent (80 / 90) to remind you to unplug, 0 = off
+    var slideshow = 0            // minutes between wallpapers, 0 = off
+    var highContrast = false
+    val recentSearches = mutableListOf<String>()
 
     init { load() }
 
@@ -170,6 +184,13 @@ class Config(private val file: File) {
         rememberSwap = j.optBoolean("rememberSwap", rememberSwap)
         autoUpdate = j.optBoolean("autoUpdate", autoUpdate); autoDownloadUpdate = j.optBoolean("autoDownloadUpdate", autoDownloadUpdate)
         lastUpdateCheck = j.optLong("lastUpdateCheck", 0); skipVersion = j.optString("skipVersion", ""); lastVersion = j.optString("lastVersion", "")
+        dailyGoal = j.optInt("dailyGoal", dailyGoal); goalDay = j.optString("goalDay", "")
+        weeklyReport = j.optBoolean("weeklyReport", weeklyReport); lastWeeklyReport = j.optString("lastWeeklyReport", "")
+        streakReminder = j.optBoolean("streakReminder", streakReminder); lastStreakReminder = j.optString("lastStreakReminder", "")
+        groupDiscs = j.optBoolean("groupDiscs", groupDiscs); hideBios = j.optBoolean("hideBios", hideBios)
+        panelAutoDim = j.optInt("panelAutoDim", panelAutoDim); chargeAlert = j.optInt("chargeAlert", chargeAlert)
+        slideshow = j.optInt("slideshow", slideshow); highContrast = j.optBoolean("highContrast", highContrast)
+        recentSearches.clear(); recentSearches += j.optJSONArray("recentSearches").strings()
         if (j.optInt("uiVersion", 1) < 2) homeLayout = "3ds"   // 2.0 introduces the new Home; old configs switch once
     }
 
@@ -199,6 +220,10 @@ class Config(private val file: File) {
         put("screenFor", JSONObject(screenFor as Map<*, *>)); put("rememberSwap", rememberSwap)
         put("autoUpdate", autoUpdate); put("autoDownloadUpdate", autoDownloadUpdate); put("lastUpdateCheck", lastUpdateCheck)
         put("skipVersion", skipVersion); put("lastVersion", lastVersion)
+        put("dailyGoal", dailyGoal); put("goalDay", goalDay); put("weeklyReport", weeklyReport); put("lastWeeklyReport", lastWeeklyReport)
+        put("streakReminder", streakReminder); put("lastStreakReminder", lastStreakReminder)
+        put("groupDiscs", groupDiscs); put("hideBios", hideBios); put("panelAutoDim", panelAutoDim); put("chargeAlert", chargeAlert)
+        put("slideshow", slideshow); put("highContrast", highContrast); put("recentSearches", JSONArray(recentSearches))
     })
 }
 
@@ -230,6 +255,8 @@ class PlayState(private val file: File) {
     val sessions = mutableListOf<Triple<String, Long, Long>>()   // (game, start ms, seconds), newest first
     val bestScores = HashMap<String, Int>()       // mini-game high scores
     val firstSeen = HashMap<String, Long>()       // when a ROM first showed up, for NEW badges
+    val lastPlayed = HashMap<String, Long>()      // when each game was last started
+    val gameScreen = HashMap<String, String>()    // per-game "main" | "second" for dual-screen play
     @Volatile var pendingKey: String? = null      // read by background work that waits while a game runs
     var pendingStart = 0L
     private val writer = java.util.concurrent.Executors.newSingleThreadExecutor()
@@ -254,6 +281,9 @@ class PlayState(private val file: File) {
                 sessions += Triple(e.optString(0), e.optLong(1), e.optLong(2)) } }
             j.optJSONObject("bestScores").intMap(bestScores)
             j.optJSONObject("firstSeen").longMap(firstSeen)
+            j.optJSONObject("lastPlayed").longMap(lastPlayed)
+            gameScreen.putAll(j.optJSONObject("gameScreen").stringMap())
+            if (lastPlayed.isEmpty()) for ((k, t, _) in sessions) if (k !in lastPlayed) lastPlayed[k] = t   // from older versions
             pendingKey = j.optString("pendingKey").ifEmpty { null }
             pendingStart = j.optLong("pendingStart", 0)
         }
@@ -279,6 +309,7 @@ class PlayState(private val file: File) {
         put("notes", JSONObject(notes as Map<*, *>)); put("pins", JSONArray(pins))
         put("sessions", JSONArray().apply { sessions.forEach { (k, t, secs) -> put(JSONArray().put(k).put(t).put(secs)) } })
         put("bestScores", JSONObject(bestScores as Map<*, *>)); put("firstSeen", JSONObject(firstSeen as Map<*, *>))
+        put("lastPlayed", JSONObject(lastPlayed as Map<*, *>)); put("gameScreen", JSONObject(gameScreen as Map<*, *>))
         put("pendingKey", pendingKey ?: ""); put("pendingStart", pendingStart)
     }
 
@@ -296,6 +327,7 @@ class PlayState(private val file: File) {
     }
 
     fun startPlay(k: String) {
+        lastPlayed[k] = System.currentTimeMillis()
         recent.remove(k); recent.add(0, k)
         while (recent.size > 30) recent.removeAt(recent.size - 1)
         launches[k] = (launches[k] ?: 0) + 1
@@ -316,13 +348,14 @@ class PlayState(private val file: File) {
             times[k] = (times[k] ?: 0) + secs
             daily[today()] = (daily[today()] ?: 0) + secs
             sessions.add(0, Triple(k, pendingStart, secs))
-            while (sessions.size > 100) sessions.removeAt(sessions.size - 1)
+            while (sessions.size > 500) sessions.removeAt(sessions.size - 1)   // enough for a year of Ryzer Wrapped
         }
         save()
         return if (ok) k to secs else null
     }
 
     fun forget(k: String) {
+        lastPlayed.remove(k); gameScreen.remove(k)
         favorites.remove(k); recent.remove(k); times.remove(k); launches.remove(k); ratings.remove(k)
         status.remove(k); titles.remove(k); gameEmu.remove(k); hidden.remove(k); notes.remove(k); pins.remove(k)
         collections.values.forEach { it.remove(k) }
@@ -351,6 +384,18 @@ class PlayState(private val file: File) {
         var n = 0
         while ((daily[today(start)] ?: 0) > 0) { n++; start-- }
         return n
+    }
+}
+
+/** "today", "yesterday", "3 days ago", "2 months ago". */
+fun agoText(ms: Long): String {
+    val days = ((System.currentTimeMillis() - ms) / 86_400_000L).toInt()
+    return when {
+        days <= 0 -> "today"
+        days == 1 -> "yesterday"
+        days < 30 -> "$days days ago"
+        days < 365 -> "${days / 30} month${if (days / 30 == 1) "" else "s"} ago"
+        else -> "${days / 365} year${if (days / 365 == 1) "" else "s"} ago"
     }
 }
 
@@ -467,26 +512,127 @@ object Library {
         return out
     }
 
-    fun scan(systems: List<GameSystem>, roots: List<File>, clean: Boolean) {
+    /** What the last scan tidied away or couldn't use, for Library check-up. */
+    class ScanStats {
+        var hiddenTracks = 0
+        var hiddenBios = 0
+        val unknown = ArrayList<File>()          // files in system folders with an extension the system doesn't use
+        val emptyFolders = ArrayList<File>()
+        val systemDirs = HashMap<String, MutableList<File>>()   // system id -> its folders
+    }
+    @Volatile var lastScan = ScanStats()
+
+    /** Files that are part of another file: tracks listed in a .cue/.gdi, discs listed in an .m3u. */
+    private fun referencedBy(sheet: File): List<File> = runCatching {
+        val dir = sheet.parentFile
+        sheet.readLines().take(400).mapNotNull { line ->
+            val l = line.trim()
+            val name = when (sheet.extension.lowercase()) {
+                "cue" -> Regex("^FILE\\s+\"?(.+?)\"?\\s+\\w+$", RegexOption.IGNORE_CASE).find(l)?.groupValues?.get(1)
+                "gdi" -> l.split(Regex("\\s+")).getOrNull(4)?.trim('"')
+                "m3u" -> l.takeIf { it.isNotEmpty() && !it.startsWith("#") }
+                else -> null
+            }
+            name?.let { File(dir, it) }
+        }
+    }.getOrDefault(emptyList())
+
+    private val BIOS = Regex("(?i)(\\bbios\\b|\\[bios\\]|^scph[-_]?\\d+|^gba_bios|^bios[79]\\.|^firmware\\.bin|^syscard\\d|^dc_(boot|flash)|^(neogeo|pgm|skns|decocass|isgsm)\\.zip$|^kick\\d|^ps[12]_?bios)")
+    private val NOT_GAMES = setOf("png", "jpg", "jpeg", "webp", "txt", "xml", "nfo", "sav", "srm", "state", "dat", "ini", "cfg", "db", "md", "pdf", "mp4")
+
+    fun scan(systems: List<GameSystem>, roots: List<File>, clean: Boolean, groupDiscs: Boolean = true, hideBios: Boolean = true) {
+        val stats = ScanStats()
         for (sys in systems) {
             val found = LinkedHashMap<String, Game>()
             for (root in roots) {
                 val children = root.listFiles() ?: continue
                 val wanted = sys.folders.map { it.lowercase() }.toSet()
                 for (dir in children.filter { it.isDirectory && it.name.lowercase() in wanted }) {
+                    stats.systemDirs.getOrPut(sys.id) { ArrayList() } += dir
                     val files = (dir.listFiles() ?: emptyArray()).toMutableList()
                     files.filter { it.isDirectory && !it.name.startsWith(".") && it.name.lowercase() !in SKIP_DIRS }
                         .forEach { sub -> sub.listFiles()?.let { files += it } }
+                    // Tracks and discs that belong to a .cue / .gdi / .m3u are one game, not several
+                    val parts = HashSet<String>()
+                    if (groupDiscs) files.filter { it.isFile && it.extension.lowercase() in setOf("cue", "gdi", "m3u") && ".${it.extension.lowercase()}" in sys.extensions }
+                        .forEach { sheet -> referencedBy(sheet).forEach { parts += it.path.lowercase() } }
+                    var any = false
                     for (f in files) {
-                        if (f.isFile && !f.name.startsWith(".") && ".${f.extension.lowercase()}" in sys.extensions) {
-                            found[f.path] = Game(f, sys, clean)
-                        }
+                        if (!f.isFile || f.name.startsWith(".")) continue
+                        val ext = f.extension.lowercase()
+                        if (".$ext" !in sys.extensions) { if (ext !in NOT_GAMES && stats.unknown.size < 200) stats.unknown += f; continue }
+                        if (f.path.lowercase() in parts) { stats.hiddenTracks++; continue }
+                        if (hideBios && BIOS.containsMatchIn(f.name)) { stats.hiddenBios++; continue }
+                        found[f.path] = Game(f, sys, clean)
+                        any = true
                     }
+                    if (!any) stats.emptyFolders += dir
                 }
             }
             sys.games = found.values.sortedBy { it.name.lowercase() }
         }
         index = HashMap<String, Game>().apply { for (s in systems) for (g in s.games) put(g.key, g) }
+        lastScan = stats
+    }
+
+    // ----- ES-DE / EmulationStation gamelist.xml -----
+
+    class Meta(val name: String, val desc: String, val developer: String, val publisher: String, val year: String,
+               val genre: String, val players: String)
+
+    /** Game details by game key, read from gamelist.xml files after each scan. */
+    @Volatile var meta: Map<String, Meta> = emptyMap()
+
+    /**
+     * Reads ES-DE's gamelists (ES-DE/gamelists/<system>/gamelist.xml) and classic
+     * EmulationStation / Batocera / RetroBat ones (gamelist.xml inside the ROM folder).
+     */
+    fun loadMeta(systems: List<GameSystem>) {
+        val out = HashMap<String, Meta>()
+        val esde = listOf(File(Environment.getExternalStorageDirectory(), "ES-DE/gamelists"))
+        for (sys in systems) {
+            if (sys.games.isEmpty()) continue
+            val byName = HashMap<String, String>()
+            for (g in sys.games) byName[g.file.name.lowercase()] = g.key
+            val lists = ArrayList<File>()
+            for (dir in lastScan.systemDirs[sys.id].orEmpty()) {
+                lists += File(dir, "gamelist.xml")
+                for (e in esde) lists += File(e, "${dir.name}/gamelist.xml")
+            }
+            for (f in lists.distinctBy { it.path }) if (f.isFile) runCatching { parseGamelist(f, byName, out) }
+        }
+        meta = out
+    }
+
+    private fun parseGamelist(f: File, byName: Map<String, String>, out: MutableMap<String, Meta>) {
+        val p = android.util.Xml.newPullParser()
+        f.inputStream().buffered().use { input ->
+            p.setInput(input, null)
+            var fields: HashMap<String, String>? = null
+            var tag = ""
+            while (true) {
+                when (p.next()) {
+                    org.xmlpull.v1.XmlPullParser.END_DOCUMENT -> return
+                    org.xmlpull.v1.XmlPullParser.START_TAG -> {
+                        tag = p.name
+                        if (tag == "game") fields = HashMap()
+                    }
+                    org.xmlpull.v1.XmlPullParser.TEXT -> fields?.let { m -> if (tag.isNotEmpty()) m[tag] = (m[tag] ?: "") + p.text }
+                    org.xmlpull.v1.XmlPullParser.END_TAG -> {
+                        if (p.name == "game") fields?.let { m ->
+                            val file = m["path"]?.trim()?.substringAfterLast('/')?.lowercase()
+                            val key = file?.let { byName[it] }
+                            if (key != null) out[key] = Meta(m["name"].orEmpty().trim(), m["desc"].orEmpty().trim(),
+                                m["developer"].orEmpty().trim(), m["publisher"].orEmpty().trim(),
+                                m["releasedate"].orEmpty().trim().take(4).takeIf { it.all(Char::isDigit) }.orEmpty(),
+                                m["genre"].orEmpty().trim(), m["players"].orEmpty().trim())
+                            fields = null
+                        }
+                        tag = ""
+                    }
+                }
+            }
+        }
     }
 
     /** Every game by key, rebuilt after each scan: Home looks games up hundreds of times per refresh. */

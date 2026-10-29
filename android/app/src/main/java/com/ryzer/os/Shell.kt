@@ -288,7 +288,8 @@ class HomeShell(app: Ryzer) : Screen(app) {
         val tile = tiles.getOrNull(sel) ?: return
         // Status bar
         drawAvatar(c, app, th, 26f, 22f, 15f)
-        G.text(c, greeting(app), 50f, 10f, 22f, th.c("text"), isBold = true, maxW = w * 0.5f)
+        val gr = G.text(c, greeting(app), 50f, 10f, 22f, th.c("text"), isBold = true, maxW = w * 0.45f)
+        drawGoalRing(c, app, th, gr.right + 22, 22f, 13f)
         val now = java.util.Date()
         val clock = java.text.SimpleDateFormat(if (app.cfg.clock24) "HH:mm" else "h:mm a", java.util.Locale.getDefault()).format(now)
         val date = java.text.SimpleDateFormat("EEE MMM d", java.util.Locale.getDefault()).format(now)

@@ -34,6 +34,8 @@ SHOTS = [
     ("quick", "quick", "quick", "", 0),
     ("roulette", "roulette", "roulette", "", 9),
     ("foryou", "games", "foryou", "", 0),
+    ("wrapped", "wrapped", "wrapped", "", 0),
+    ("checkup", "checkup", "checkup", "", 0),
 ]
 LANDSCAPE = [
     ("land-home", "land-home", "", "right", 0),

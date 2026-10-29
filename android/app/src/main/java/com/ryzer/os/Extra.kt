@@ -145,6 +145,10 @@ fun settingsMenu(app: Ryzer): Menu {
             value = { if (cfg.rememberSwap) "On" else "Off" }, change = { cfg.rememberSwap = !cfg.rememberSwap; cfg.save() }),
         Item("Reset screens for every system", value = { if (cfg.screenFor.isEmpty()) "None set" else cfg.screenFor.keys.joinToString(", ") { it.uppercase() } },
             select = { cfg.screenFor.clear(); cfg.save(); app.notify("Every system uses the default screen again") }),
+        Item("Dim Now Playing screen", "The second screen goes dark after this long without a touch, to save battery. Tap to wake it.",
+            value = { if (cfg.panelAutoDim == 0) "Never" else if (cfg.panelAutoDim < 60) "${cfg.panelAutoDim} s" else "${cfg.panelAutoDim / 60} min" },
+            change = { d -> val opts = listOf(0, 30, 60, 120, 300)
+                cfg.panelAutoDim = opts[(opts.indexOf(cfg.panelAutoDim).coerceAtLeast(0) + d + opts.size) % opts.size]; cfg.save() }),
         Item("Bedtime reminder", "A notification at this hour every night.", value = { if (cfg.bedtime < 0) "Off" else "%d:00".format(cfg.bedtime) },
             change = { d -> cfg.bedtime = when { cfg.bedtime < 0 && d > 0 -> 21; cfg.bedtime < 0 -> 23; else -> (cfg.bedtime + d).let { if (it > 23 || it < 0) -1 else it } }; cfg.save() }),
         Item("Break reminder", "The Now Playing screen buzzes and reminds you to take a break.", value = { if (cfg.breakMinutes == 0) "Off" else "Every ${cfg.breakMinutes} min" },
@@ -177,6 +181,12 @@ fun settingsMenu(app: Ryzer): Menu {
         Item("Live wallpaper", "Animated backgrounds tinted by your theme. A theme can also set its own in Theme Studio.",
             value = { cfg.live.replaceFirstChar { it.uppercase() } }, change = { d -> cfg.live = cycle(Live.KINDS, cfg.live, d); cfg.save() }),
         Item("Live wallpaper speed", value = { "${cfg.liveSpeed}%" }, change = { d -> cfg.liveSpeed = (cfg.liveSpeed + d * 25).coerceIn(25, 300); cfg.save() }),
+        toggle("High contrast", "Pure white (or black) text and strong outlines on any theme, for easier reading.", { cfg.highContrast }) { cfg.highContrast = it },
+        Item("Wallpaper slideshow", "Cycles through your pictures in RyzerOS/wallpapers.",
+            value = { if (cfg.slideshow == 0) "Off" else "Every ${cfg.slideshow} min" },
+            change = { d -> val opts = listOf(0, 1, 5, 15, 30, 60)
+                cfg.slideshow = opts[(opts.indexOf(cfg.slideshow).coerceAtLeast(0) + d + opts.size) % opts.size]; cfg.save()
+                if (cfg.slideshow > 0 && (app.wallpaperDir().listFiles()?.isEmpty() != false)) app.notify("Add pictures to ${app.wallpaperDir()} first") }),
         toggle("Glass panels", "See-through panels when a wallpaper or photo theme is on.", { cfg.glass }) { cfg.glass = it },
         toggle("Box-art colours", "Tints panels with the colours of the selected game's box art.", { cfg.artTint }) { cfg.artTint = it },
         toggle("System colours", "The accent colour changes to match the system you're on.", { cfg.systemAccent }) { cfg.systemAccent = it },
@@ -243,6 +253,11 @@ fun settingsMenu(app: Ryzer): Menu {
     val library = { Menu(app, "Library", listOf(
         Item("ROM folders", "Where Ryzer looks for <system> folders like 3ds, gc, ps2.", value = { "${app.romRoots().size}" }, select = { app.push(romFoldersMenu(app)) }),
         Item("Rescan ROMs", select = { app.rescan { app.notify("Found ${app.systems.sumOf { it.games.size }} games") } }),
+        Item("Library check-up", "Missing emulators, files Ryzer doesn't recognise, games without pictures and more.",
+            select = { app.push(Message(app, "Library check-up", libraryCheckup(app))) }),
+        toggle("Group multi-disc games", "One entry per game: tracks listed in a .cue or .gdi, and discs listed in an .m3u, are hidden.",
+            { cfg.groupDiscs }) { cfg.groupDiscs = it; app.rescan() },
+        toggle("Hide BIOS files", "Keeps files like scph1001.bin and gba_bios.bin out of your game lists.", { cfg.hideBios }) { cfg.hideBios = it; app.rescan() },
         Item("Artwork", "Downloads box art, screenshots or title screens for your games automatically.",
             value = { if (Scraper.running) "${Scraper.checked}/${Scraper.total}" else if (cfg.autoArt) "Automatic" else "Manual" },
             select = { app.push(artworkMenu(app)) }),
@@ -292,6 +307,7 @@ fun settingsMenu(app: Ryzer): Menu {
         Item("Display & dual screen", select = { app.push(display()) }),
         Item("Look & feel", "Interface size, font, wallpaper, theme schedule and Home layout.", select = { app.push(look()) }),
         Item("Play stats", "Play time, 7-day chart, top games and milestones.", select = { app.push(StatsScreen(app)) }),
+        Item("Goals & reminders", "Daily play goal, weekly report, streak and unplug reminders, Ryzer Wrapped.", select = { app.push(goalsMenu(app)) }),
         Item("Tools & games", "Snake, 2048, Game Roulette, play calendar, stats card, screenshots, timer, controller test, battery.",
             select = { app.push(toolsMenu(app)) }),
         Item("Performance", select = { app.push(performance()) }),

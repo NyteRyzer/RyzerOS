@@ -75,6 +75,16 @@ More screenshots (2048, Game Roulette, quick menu, the classic ribbon layout) ar
 - **Stats**: play time, streaks, a play calendar, session history, 14 milestones and a shareable stats card.
 - **Extras**: Snake, 2048, Game Roulette, a controller tester, battery info, a stopwatch and timer, a bedtime reminder, a quick menu (L + R) and kid mode.
 
+## New in 2.4: 20 new features
+
+- **Tidier library**: multi-disc games show once (`.cue` / `.gdi` / `.m3u`), BIOS files are hidden, and a **Library check-up** finds missing emulators and stray files.
+- **Game details from ES-DE / EmulationStation gamelists**: description, year, developer and genre in your lists, plus a full-screen **Cover viewer**.
+- **Ryzer Wrapped**: your month or year in games. Also a **daily play goal** ring, **weekly reports**, **streak reminders** and **6 new milestones**.
+- **Dual screen**: choose the screen for each game, and the **Now Playing** screen can auto-dim and shows **battery time left**.
+- **And more**: an unplug reminder, Game Roulette filters, recent searches, CSV export, "last played" times, a wallpaper slideshow and high-contrast mode.
+
+Full list in the [changelog](CHANGELOG.md#240-20-new-features).
+
 ## New in 2.3: swap screens mid-game, automatic updates
 
 - **Swap screens while you play**: on dual-screen handhelds, tap **⇅ Swap screens** on the Now Playing panel (or swipe it) to move a GBA, SNES, PSP or other single-screen game to the other screen. The game keeps running and keeps your controller, and Ryzer remembers the choice for that system. Needs Android 10 or newer.

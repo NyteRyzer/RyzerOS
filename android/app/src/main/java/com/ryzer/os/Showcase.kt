@@ -48,6 +48,9 @@ object Showcase {
                     }
                 }
                 "updatetest" -> Updater.check(app, manual = true, force = true)
+                "wrapped" -> app.push(WrappedScreen(app))
+                "checkup" -> app.push(Message(app, "Library check-up", libraryCheckup(app)))
+                "cover" -> sys?.games?.firstOrNull()?.let { app.push(CoverViewer(app, it)) }
                 "banner" -> Notifs.ryzer("Milestone unlocked: Marathon", "Play 3 hours in one day")
             }
         }

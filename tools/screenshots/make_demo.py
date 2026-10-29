@@ -112,7 +112,7 @@ BASE_CONFIG = {
     "theme": "ryzer-red", "sound": False, "boot": False, "animations": True, "fps": 30, "dual": "auto",
     "userName": "Nyte", "resumePrompt": False, "screensaver": 0, "batterySaver": False, "music": False,
     "seasonal": True, "live": "off", "homeLayout": "3ds", "uiVersion": 2, "launchAnim": False, "neon": False,
-    "transitions": False, "autoArt": False, "clockStyle": "digital", "iconRows": 3, "iconShape": "rounded", "grid": False,
+    "transitions": False, "autoArt": False, "dailyGoal": 90, "clockStyle": "digital", "iconRows": 3, "iconShape": "rounded", "grid": False,
 }
 
 CONFIGS = {
@@ -134,6 +134,8 @@ CONFIGS = {
     "land-home": {"theme": "purple-haze", "live": "starfield"},
     "land-games": {"theme": "gold-rush"},
     "artcheck": {"autoArt": True, "artWifiOnly": False},
+    "wrapped": {"theme": "neon-night"},
+    "checkup": {"theme": "ocean-deep"},
     "swapcheck": {"companion": True, "gameScreen": "main"},
 }
 
@@ -194,6 +196,28 @@ def main(out: Path):
         "sessions": sessions, "bestScores": {"snake": 41, "2048": 5120}, "firstSeen": first_seen,
         "pendingKey": "", "pendingStart": 0,
     }
+    # A multi-track disc (one game, not two), a BIOS file (hidden) and an ES-DE style gamelist (details)
+    psx = out / "ROMs" / "psx"
+    (psx / "Ape Escape (USA).bin").write_bytes(b"\0" * 2048)
+    (psx / "Ape Escape (USA).cue").write_text('FILE "Ape Escape (USA).bin" BINARY\n  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\n')
+    cover(psx / "images" / "Ape Escape (USA).png", "Ape Escape", "PLAYSTATION", "#3A4A9C")
+    (out / "ROMs" / "gba" / "gba_bios.bin").write_bytes(b"\0" * 1024)
+    facts = {
+        "Metroid Fusion (USA).gba": ("2002", "Nintendo R&D1", "Action, Platform", "Samus explores a research station overrun by the shape-shifting X parasite."),
+        "Advance Wars (USA).gba": ("2001", "Intelligent Systems", "Strategy", "Turn-based battles across islands, commanding infantry, tanks and aircraft."),
+        "Golden Sun (USA).gba": ("2001", "Camelot", "Role-playing", "Young adepts set out to stop the lighthouses of Weyard from being lit."),
+        "Fire Emblem (USA).gba": ("2003", "Intelligent Systems", "Tactical RPG", "Lead a band of knights across Elibe; fallen units are gone for good."),
+        "Castlevania - Aria of Sorrow (USA).gba": ("2003", "Konami", "Action, Exploration", "Soma Cruz explores a castle inside a solar eclipse, absorbing enemy souls."),
+        "Minish Cap (USA).gba": ("2004", "Flagship / Capcom", "Action-adventure", "Link shrinks to the size of the Minish to save Hyrule."),
+        "Mother 3 (Japan).gba": ("2006", "Brownie Brown / HAL", "Role-playing", "A family's story in the Nowhere Islands, told in eight chapters."),
+    }
+    lines = ["<?xml version=\"1.0\"?>", "<gameList>"]
+    for f, (year, dev, genre, desc) in facts.items():
+        lines += ["  <game>", f"    <path>./{f}</path>", f"    <name>{Path(f).stem}</name>", f"    <desc>{desc}</desc>",
+                  f"    <releasedate>{year}0101T000000</releasedate>", f"    <developer>{dev.replace('&', '&amp;')}</developer>",
+                  f"    <genre>{genre}</genre>", "    <players>1</players>", "  </game>"]
+    lines.append("</gameList>")
+    (out / "ROMs" / "gba" / "gamelist.xml").write_text("\n".join(lines))
     (out / "RyzerOS").mkdir(parents=True, exist_ok=True)
     (out / "RyzerOS" / "state.json").write_text(json.dumps(state, indent=1))
     (out / "configs").mkdir(exist_ok=True)

@@ -63,7 +63,23 @@ class LaunchSplash(app: Ryzer, private val game: Game) : Screen(app) {
 /** A slot-machine reel that spins through your games and lands on one. */
 class Roulette(app: Ryzer, private val pool: List<Game>) : Screen(app) {
     override val title = "Game Roulette"
-    private val reel = pool.shuffled().take(40).ifEmpty { pool }
+    /** L / R picks what goes on the reel. */
+    private val filters = listOf("all" to "All games", "unplayed" to "Never played", "backlog" to "Backlog", "favorites" to "Favorites",
+        "top" to "Top rated")
+    private var filter = 0
+    private var reel = makeReel()
+
+    private fun makeReel(): List<Game> {
+        val st = app.state
+        val picked = when (filters[filter].first) {
+            "unplayed" -> pool.filter { (st.launches[it.key] ?: 0) == 0 }
+            "backlog" -> pool.filter { st.status[it.key] == "backlog" }
+            "favorites" -> pool.filter { st.isFavorite(it.key) }
+            "top" -> pool.filter { (st.ratings[it.key] ?: 0) >= 4 }
+            else -> pool
+        }
+        return picked.shuffled().take(40)
+    }
     private var pos = 0f
     private var speed = 0f
     private var stopped = false
@@ -87,13 +103,14 @@ class Roulette(app: Ryzer, private val pool: List<Game>) : Screen(app) {
         when (a) {
             "a" -> if (stopped && reel.isNotEmpty()) { val g = picked(); app.pop(); app.launch(g) }
             "x" -> spin()
+            "l", "r" -> { filter = (filter + (if (a == "r") 1 else -1) + filters.size) % filters.size; reel = makeReel(); pos = 0f; spin() }
             "b" -> app.pop()
         }
     }
 
     override fun draw(c: Canvas, w: Float, h: Float) {
-        G.topBar(c, app, th, title, w)
-        if (reel.isEmpty()) { G.text(c, "No games to spin yet.", w / 2, h / 2, 26f, th.c("text_dim"), align = 'c'); return }
+        G.topBar(c, app, th, "$title  <  ${filters[filter].second}  >", w)
+        if (reel.isEmpty()) { G.text(c, "No games here. Press L / R for another list.", w / 2, h / 2, 24f, th.c("text_dim"), align = 'c'); return }
         val cy = h / 2 - 10
         val rowH = 56f
         val frac = pos - pos.toInt()
@@ -114,7 +131,7 @@ class Roulette(app: Ryzer, private val pool: List<Game>) : Screen(app) {
         }
     }
 
-    override fun hints() = listOf("X" to "Spin again", "B" to "Back", "A" to "Play")
+    override fun hints() = listOf("L/R" to "List", "X" to "Spin again", "A" to "Play")
 }
 
 // ===== Mini-games =====================================================================
@@ -516,6 +533,9 @@ fun toolsMenu(app: Ryzer) = Menu(app, "Tools", listOf(
     Item("Snake", "A quick game of Snake. Best: ${app.state.bestScores["snake"] ?: 0}", select = { app.push(SnakeGame(app)) }),
     Item("2048", "Slide and merge tiles. Best: ${app.state.bestScores["2048"] ?: 0}", select = { app.push(Game2048(app)) }),
     Item("Play calendar", "See the days you played, month by month.", select = { app.push(PlayCalendar(app)) }),
+    Item("Ryzer Wrapped", "Your month or year in games: totals, top games, best day.", select = { app.push(WrappedScreen(app)) }),
+    Item("Export library (CSV)", "Your games and play history as spreadsheets, in RyzerOS/exports.",
+        select = { runCatching { Export.run(app) }.onFailure { app.notify("Couldn't export: ${it.message?.take(60)}") } }),
     Item("Share my stats", "Makes a stats card picture and opens the share menu.", select = { runCatching { Sharing.statsCard(app) }.onFailure { app.notify("Couldn't make the card") } }),
     Item("Take a screenshot", "Saves Ryzer's screen to RyzerOS/screenshots.", select = { app.pop(); app.ctx.postScreenshot() }),
     Item("Stopwatch & timer", select = { app.push(StopwatchTimer(app)) }),
@@ -541,7 +561,11 @@ fun setSystemBrightness(app: Ryzer, d: Int) {
     }
 }
 
-const val WHATS_NEW = "2.3.1: smoother launches on dual screens. No blank flash on the second screen, no hitch as the game " +
+const val WHATS_NEW = "2.4 adds 20 features: multi-disc games show once, BIOS files hidden, game details from ES-DE gamelists, " +
+    "Library check-up, 'last played' times, recent searches, CSV export, a screen choice per game, Now Playing auto-dim, " +
+    "battery time left, an unplug reminder, a cover viewer, Ryzer Wrapped, a daily play goal, weekly reports, streak reminders, " +
+    "6 new milestones, Roulette filters, a wallpaper slideshow and high-contrast mode.\n\n" +
+    "2.3.1: smoother launches on dual screens. No blank flash on the second screen, no hitch as the game " +
     "starts, faster GameCube/PS2 launches, and artwork downloads pause while you play.\n\n" +
     "2.3: swap screens while you play. On the Now Playing screen, tap 'Swap screens' (or swipe up/down) to move " +
     "the game to the other screen without stopping it; Ryzer remembers the choice for that system. Ryzer also keeps itself up to " +
@@ -588,7 +612,8 @@ fun universalSearch(app: Ryzer, q: String): Menu {
         "Themes" to { app.push(ThemePicker(app)) }, "Notifications" to { app.push(NotificationsScreen(app)) },
         "Stats" to { app.push(StatsScreen(app)) }, "Tools" to { app.push(toolsMenu(app)) }, "Profile" to { app.push(profileMenu(app)) },
         "Snake" to { app.push(SnakeGame(app)) }, "2048" to { app.push(Game2048(app)) }, "Roulette" to { app.push(Roulette(app, app.allGames())) },
-        "Calendar" to { app.push(PlayCalendar(app)) }, "Battery" to { app.push(BatteryInfo(app)) }, "Controller test" to { app.push(ControllerTest(app)) },
+        "Calendar" to { app.push(PlayCalendar(app)) }, "Wrapped" to { app.push(WrappedScreen(app)) },
+        "Goals" to { app.push(goalsMenu(app)) }, "Library check-up" to { app.push(Message(app, "Library check-up", libraryCheckup(app))) }, "Battery" to { app.push(BatteryInfo(app)) }, "Controller test" to { app.push(ControllerTest(app)) },
         "Emulators" to { app.push(settingsMenu(app)) }, "Quick menu" to { app.push(QuickMenu(app)) },
     )
     places.filter { query in it.first.lowercase() }.forEach { (name, go) -> items += Item("Open: $name", select = go) }

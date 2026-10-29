@@ -137,7 +137,25 @@ class Ryzer(val ctx: MainActivity) {
     }
     fun previewTheme(t: Theme) { preview = t }
 
-    private fun decorate(base: Theme, now: Float): Theme {
+    private var contrastFor: Theme? = null
+    private var contrastTheme: Theme? = null
+
+    /** High-contrast mode: pure white or black text and strong borders, whatever the theme. */
+    private fun highContrast(base: Theme): Theme {
+        if (contrastFor === base) return contrastTheme!!
+        fun lum(c: Int) = (0.299 * ((c shr 16) and 255) + 0.587 * ((c shr 8) and 255) + 0.114 * (c and 255)) / 255
+        val dark = lum(base.c("panel")) < 0.5
+        val ink = if (dark) 0xFFFFFFFF.toInt() else 0xFF000000.toInt()
+        val colors = base.colors.toMutableMap()
+        colors["text"] = ink
+        colors["text_dim"] = mix(ink, base.c("panel"), 0.15f)
+        colors["panel_border"] = ink
+        colors["panel"] = if (dark) mix(base.c("panel"), 0xFF000000.toInt(), 0.5f) else mix(base.c("panel"), 0xFFFFFFFF.toInt(), 0.6f)
+        return Theme(base.id, base.name, colors, base.style, base.builtin, base.author).also { contrastFor = base; contrastTheme = it }
+    }
+
+    private fun decorate(theme: Theme, now: Float): Theme {
+        val base = if (cfg.highContrast) highContrast(theme) else theme
         val hue = (now * 40f) % 360f
         val accent = when {
             cfg.rgb -> android.graphics.Color.HSVToColor(floatArrayOf(hue, 0.75f, 1f))
@@ -162,7 +180,10 @@ class Ryzer(val ctx: MainActivity) {
         val roots = romRoots()
         val list = systems
         io.execute {
-            val error = runCatching { Library.scan(list, roots, cfg.cleanNames) }.exceptionOrNull()
+            val error = runCatching {
+                Library.scan(list, roots, cfg.cleanNames, cfg.groupDiscs, cfg.hideBios)
+                Library.loadMeta(list)   // descriptions, years, developers from ES-DE / EmulationStation gamelists
+            }.exceptionOrNull()
             main.post {
                 scanning = false
                 if (error != null) notify("Scan problem: ${error.javaClass.simpleName}", 4f)
@@ -278,9 +299,20 @@ class Ryzer(val ctx: MainActivity) {
     }
 
     fun openSearch() {
-        push(Keyboard(this, "Search games, apps & settings") { q ->
-            if (q.isNotEmpty()) push(universalSearch(this, q))
-        })
+        val ask = {
+            push(Keyboard(this, "Search games, apps & settings") { q -> if (q.isNotEmpty()) search(q) })
+        }
+        if (cfg.recentSearches.isEmpty()) { ask(); return }
+        push(Menu(this, "Search", listOf(Item("New search", "Type a game, app or setting.", select = { pop(); ask() })) +
+            cfg.recentSearches.map { q -> Item("Recent: $q", select = { pop(); search(q) }) } +
+            Item("Clear recent searches", select = { cfg.recentSearches.clear(); cfg.save(); pop(); notify("Recent searches cleared") })))
+    }
+
+    fun search(q: String) {
+        cfg.recentSearches.remove(q); cfg.recentSearches.add(0, q)
+        while (cfg.recentSearches.size > 6) cfg.recentSearches.removeAt(cfg.recentSearches.size - 1)
+        cfg.save()
+        push(universalSearch(this, q))
     }
 
     fun openRandom() {
@@ -308,8 +340,43 @@ class Ryzer(val ctx: MainActivity) {
 
     fun battery(): Pair<Int, Boolean> {
         val now = SystemClock.uptimeMillis()
-        if (now - batteryAt > 5000) { batteryAt = now; batteryCache = runCatching { readBattery() }.getOrDefault(-1 to false) }
+        if (now - batteryAt > 5000) {
+            batteryAt = now
+            batteryCache = runCatching { readBattery() }.getOrDefault(-1 to false)
+            noteBattery(batteryCache.first, batteryCache.second, now)
+        }
         return batteryCache
+    }
+
+    // Battery drain samples since the charger was last unplugged: (uptime ms, percent)
+    private val drain = ArrayList<Pair<Long, Int>>()
+    private var chargeAlerted = false
+
+    private fun noteBattery(pct: Int, charging: Boolean, now: Long) {
+        if (pct < 0) return
+        if (charging) {
+            drain.clear()
+            if (cfg.chargeAlert > 0 && pct >= cfg.chargeAlert && !chargeAlerted) {
+                chargeAlerted = true
+                sounds.play("fav")
+                Notifs.ryzer("Battery at $pct%", "Unplug now to help the battery last longer (Settings > Goals & reminders).")
+            }
+            return
+        }
+        chargeAlerted = false
+        if (drain.isEmpty() || drain.last().second != pct) drain.add(now to pct)
+        while (drain.size > 60) drain.removeAt(0)
+    }
+
+    /** Roughly how long the battery will last at the current rate, or null until there's enough data. */
+    fun batteryLeft(): Long? {
+        val (pct, charging) = battery()
+        if (charging || drain.size < 2) return null
+        val (t0, p0) = drain.first(); val (t1, p1) = drain.last()
+        val used = p0 - p1
+        val hours = (t1 - t0) / 3_600_000.0
+        if (used < 2 || hours < 0.15) return null
+        return (pct / (used / hours) * 3600).toLong()
     }
 
     fun wifiConnected(): Boolean {
@@ -349,8 +416,22 @@ class Ryzer(val ctx: MainActivity) {
     private var wallpaperBmp: android.graphics.Bitmap? = null
     fun wallpaperDir() = File(home, "wallpapers").apply { mkdirs() }
     /** A photo theme's own picture wins over the wallpaper setting. */
+    private var slideFiles: List<String> = emptyList()
+    private var slideListedAt = 0L
+
+    /** Wallpaper slideshow: the next picture from RyzerOS/wallpapers every few minutes. */
+    private fun slideshowName(): String {
+        val now = System.currentTimeMillis()
+        if (now - slideListedAt > 60_000) {
+            slideListedAt = now
+            slideFiles = wallpaperDir().listFiles { f -> f.extension.lowercase() in setOf("png", "jpg", "jpeg", "webp") }?.map { it.name }?.sorted().orEmpty()
+        }
+        if (slideFiles.isEmpty()) return cfg.wallpaper
+        return slideFiles[((now / (cfg.slideshow * 60_000L)) % slideFiles.size).toInt()]
+    }
+
     fun wallpaper(): android.graphics.Bitmap? {
-        val name = baseTheme.wallpaper.ifEmpty { cfg.wallpaper }
+        val name = baseTheme.wallpaper.ifEmpty { if (cfg.slideshow > 0) slideshowName() else cfg.wallpaper }
         if (name.isEmpty()) return null
         if (name != wallpaperName) {
             wallpaperName = name
@@ -498,6 +579,11 @@ class Ryzer(val ctx: MainActivity) {
         val g = Library.find(systems, session.first)
         if (session.second >= 60) notify("You played ${g?.let { title(it) } ?: "a game"} for ${formatDuration(session.second)}", 3.5f)
         Milestones.check(this)
+        if (cfg.dailyGoal > 0 && state.playedToday() >= cfg.dailyGoal * 60L && cfg.goalDay != today()) {
+            cfg.goalDay = today(); cfg.save()
+            sounds.play("fav")
+            Notifs.ryzer("Daily goal reached!", "${formatDuration(state.playedToday())} played today. Nice.")
+        }
     }
 
     fun update(dt: Float) {
@@ -522,6 +608,7 @@ class Ryzer(val ctx: MainActivity) {
             val want = if (hour in 7..18) cfg.dayTheme else cfg.nightTheme
             if (want != timeTheme && themes.containsKey(want)) { timeTheme = want; setTheme(want, save = false) }
         }
+        reminders()
         // Bedtime reminder, once per night
         if (cfg.bedtime >= 0) {
             val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
@@ -537,6 +624,29 @@ class Ryzer(val ctx: MainActivity) {
     }
 
     fun checkSoon() { checkTimer = 99f }
+
+    /** Weekly report (Mondays) and streak reminder (evenings). Checked every 30 seconds. */
+    private fun reminders() {
+        val cal = java.util.Calendar.getInstance()
+        if (cfg.weeklyReport && cal.get(java.util.Calendar.DAY_OF_WEEK) == java.util.Calendar.MONDAY && cfg.lastWeeklyReport != today()) {
+            cfg.lastWeeklyReport = today(); cfg.save()
+            val secs = (1..7).sumOf { state.daily[today(-it)] ?: 0L }
+            if (secs > 0) {
+                val days = (1..7).count { (state.daily[today(-it)] ?: 0L) > 0 }
+                val from = System.currentTimeMillis() - 7 * 86_400_000L
+                val top = state.sessions.filter { it.second >= from }.groupBy { it.first }.mapValues { e -> e.value.sumOf { it.third } }
+                    .maxByOrNull { it.value }?.key?.let { k -> Library.find(systems, k)?.let { title(it) } }
+                Notifs.ryzer("Your week in games", "${formatDuration(secs)} over $days day${if (days == 1) "" else "s"}" +
+                    (top?.let { ". Most played: $it." } ?: "."))
+            }
+        }
+        val streak = state.streak()
+        if (cfg.streakReminder && streak >= 2 && state.playedToday() == 0L && cal.get(java.util.Calendar.HOUR_OF_DAY) >= 19 &&
+            cfg.lastStreakReminder != today()) {
+            cfg.lastStreakReminder = today(); cfg.save()
+            Notifs.ryzer("Keep your $streak-day streak", "Play anything today to keep it going.")
+        }
+    }
 
     /** "Continue playing X?" once at startup, after the boot animation. */
     fun offerResume(tries: Int = 0) {

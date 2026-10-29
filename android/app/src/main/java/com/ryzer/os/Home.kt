@@ -482,6 +482,13 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
         }
         items += viewItems()
         items += Item("Game info", select = { app.push(Message(app, app.title(g), info(g))) })
+        items += Item("View cover", "The box art, full screen.", select = { app.push(CoverViewer(app, g)) })
+        if (g.system.id !in DualPlay.DUAL_SYSTEMS && app.ctx.secondaryDisplays().isNotEmpty()) items += Item("Opens on (dual screen)",
+            "Which screen this game opens on. 'System default' follows the system's setting.",
+            value = { when (st.gameScreen[g.key]) { "main" -> "Main screen"; "second" -> "Second screen"; else -> "System default" } },
+            change = { d -> val opts = listOf("", "main", "second")
+                val next = opts[(opts.indexOf(st.gameScreen[g.key] ?: "") + d + opts.size) % opts.size]
+                if (next.isEmpty()) st.gameScreen.remove(g.key) else st.gameScreen[g.key] = next; st.save() })
         if (Scraper.supports(g.system)) items += Item("Find artwork online", "Reads the ROM, finds the game in the libretro database and downloads its picture.",
             select = { app.pop(); Scraper.start(app, listOf(g), auto = false, force = true) })
         items += Item("Check ROM (CRC32)", "Reads the whole file and shows its checksum, to spot a damaged download.", select = { app.pop(); Sharing.checksum(app, g) })
@@ -499,7 +506,11 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
         return "System: ${g.system.name}\nFile: ${g.file.name}\nFolder: ${g.file.parent}\nSize: ${"%.1f".format(g.file.length() / 1e6)} MB\n" +
             "Play time: ${formatDuration(st.playtime(g.key))}\nLaunches: ${st.launches[g.key] ?: 0}\n" +
             "Rating: ${ListView.stars(st.ratings[g.key] ?: 0)}\nStatus: ${ListView.label(st.status[g.key] ?: "")}\n" +
+            (st.lastPlayed[g.key]?.let { "Last played: ${agoText(it)}\n" } ?: "") +
             (st.notes[g.key]?.let { "Notes: $it\n" } ?: "") +
+            (Library.meta[g.key]?.let { m -> listOf("Released" to m.year, "Developer" to m.developer, "Publisher" to m.publisher,
+                "Genre" to m.genre, "Players" to m.players).filter { it.second.isNotEmpty() }.joinToString("") { "${it.first}: ${it.second}\n" } +
+                (if (m.desc.isNotEmpty()) "\n${m.desc}\n" else "") } ?: "") +
             "Emulator: ${Launcher.label(app, st.gameEmu[g.key] ?: Launcher.chosen(app, g.system))}\n\n${g.system.demand}. ${g.system.note}"
     }
 
@@ -598,12 +609,20 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
         G.text(c, app.title(g), r.centerX(), y, if (compact) 22f else 30f, th.c("text"), align = 'c', isBold = true, maxW = r.width() - 16)
         y += if (compact) 26 else 36
         val st = app.state
-        val lines = listOfNotNull("Played ${formatDuration(st.playtime(g.key))}",
+        val meta = Library.meta[g.key]
+        val facts = meta?.let { m -> listOf(m.year, m.developer, m.genre).filter { it.isNotEmpty() }.joinToString("  ·  ") }?.takeIf { it.isNotEmpty() }
+        val lines = listOfNotNull(facts, "Played ${formatDuration(st.playtime(g.key))}" + (st.lastPlayed[g.key]?.let { ", ${agoText(it)}" } ?: ""),
             st.ratings[g.key]?.let { ListView.stars(it) }, st.status[g.key]?.let { ListView.label(it) },
             Launcher.label(app, st.gameEmu[g.key] ?: Launcher.chosen(app, g.system)))
         for (line in lines) {
             G.text(c, line, r.centerX(), y, if (compact) 19f else 24f, th.c("text_dim"), align = 'c', maxW = r.width() - 16)
             y += if (compact) 22 else 30
+        }
+        // The description from your gamelist, where there's room (top screen)
+        if (!compact && meta != null && meta.desc.isNotEmpty()) {
+            val rows = ((r.bottom - y - 8) / 22).toInt()
+            G.wrap(meta.desc.replace('\n', ' '), 18f, r.width() - 30).take(maxOf(0, rows)).forEach { l ->
+                G.text(c, l, r.left + 15, y, 18f, th.c("text"), maxW = r.width() - 30); y += 22 }
         }
     }
 

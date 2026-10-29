@@ -2,6 +2,38 @@
 
 Every version of Ryzer OS, newest first. Downloads for each one are on the [Releases page](https://github.com/NyteRyzer/RyzerOS/releases).
 
+## 2.4.0: 20 new features
+
+#### Library
+1. **Multi-disc games show once.** Tracks listed in a `.cue` or `.gdi` file, and discs listed in an `.m3u`, no longer appear as separate games (PS1, Saturn, Dreamcast, Sega CD...).
+2. **BIOS files are hidden.** Files like `scph1001.bin`, `gba_bios.bin` and `neogeo.zip` stay out of your game lists.
+3. **Game details from your gamelists.** If you use ES-DE (or EmulationStation, Batocera, RetroBat), Ryzer reads its `gamelist.xml` files and shows each game's description, release year, developer, genre and players, in the game list, Game info and the Cover viewer.
+4. **Library check-up** (*Settings → Library*): systems without an emulator, files Ryzer doesn't recognise, games without pictures, duplicates, empty folders, and what was tidied away.
+5. **"Last played 3 days ago"** on every game, and *Last played* sorting now covers your whole history.
+6. **Recent searches**: Y shows your last 6 searches.
+7. **Export your library** (*Tools*): your games and every play session as CSV spreadsheets.
+
+#### Dual screen and playing
+8. **Choose the screen for each game** (game options → *Opens on*), on top of the per-system choice.
+9. **Now Playing auto-dim**: the second screen goes dark after 30 s to 5 min without a touch. Tap to wake it.
+10. **Battery time left**: an estimate on the Now Playing screen, worked out from how fast the battery is draining.
+11. **Unplug reminder**: a notice when charging reaches 80, 85 or 90%, which helps the battery last longer.
+12. **Cover viewer**: the box art full screen, with the game's details on the top screen.
+
+#### Motivation
+13. **Ryzer Wrapped** (*Tools*): your month or year in games, with total time, days played, best streak, top 5 games, favourite system, biggest day and longest session.
+14. **Daily play goal**: a ring next to your name on the top screen fills up as you play, with a notice when you reach it. It also shows on the Now Playing screen.
+15. **Weekly report**: every Monday, a notice with last week's play time and your most-played game.
+16. **Streak reminder**: in the evening, if you have a streak going and haven't played yet.
+17. **6 new milestones**: Night Owl, Early Bird, Explorer, Completionist, Centurion and Weekend Warrior. The Ryzer Legend bonus theme now needs all 20.
+18. **Game Roulette filters**: spin through all games, never played, backlog, favorites or top rated (L / R).
+
+#### Look
+19. **Wallpaper slideshow**: cycles through `RyzerOS/wallpapers` every 1 to 60 minutes.
+20. **High-contrast mode**: pure white (or black) text and strong outlines on any theme.
+
+Plus: the *Goals & reminders* menu in Settings, and Play history now keeps your last 500 sessions.
+
 ## 2.3.1: smoother game launches on dual screens
 
 Opening a single-screen game (GBA, SNES, PSP, PS1, N64, GameCube...) on a dual-screen handheld no longer stutters or flashes:

@@ -37,7 +37,7 @@ object ListView {
         }
         if (!sortIt) return list
         return when (app.cfg.sort) {
-            "recent" -> list.sortedBy { st.recent.indexOf(it.key).let { i -> if (i < 0) Int.MAX_VALUE else i } }
+            "recent" -> list.sortedByDescending { st.lastPlayed[it.key] ?: 0L }
             "played" -> list.sortedByDescending { st.playtime(it.key) }
             "rating" -> list.sortedByDescending { st.ratings[it.key] ?: 0 }
             "size" -> list.sortedByDescending { it.file.length() }
@@ -71,7 +71,21 @@ object Milestones {
             r.state.launches.keys.any { Library.find(r.systems, it)?.system?.id in setOf("3ds", "gc", "ps2", "switch") } },
         M("theme", "Stylist", "Save your own theme") { r -> r.themes.values.any { !it.builtin } },
         M("marathon", "Marathon", "Play 3 hours in one day") { r -> r.state.daily.values.any { it >= 10800 } },
+        M("nightowl", "Night Owl", "Start a game after midnight") { r -> r.state.sessions.any { hourOf(it.second) in 0..3 } },
+        M("earlybird", "Early Bird", "Start a game before 7 am") { r -> r.state.sessions.any { hourOf(it.second) in 5..6 } },
+        M("explorer", "Explorer", "Play games on 10 different systems") { r ->
+            r.state.launches.keys.mapNotNull { Library.find(r.systems, it)?.system?.id }.toSet().size >= 10 },
+        M("completionist", "Completionist", "Mark 5 games as completed") { r -> r.state.status.values.count { it == "completed" } >= 5 },
+        M("century", "Centurion", "Play for 100 hours in total") { it.state.total() >= 360000 },
+        M("weekend", "Weekend Warrior", "Play 5 hours on a Saturday or Sunday") { r ->
+            r.state.daily.any { (d, secs) -> secs >= 18000 && dayOfWeek(d) in setOf(java.util.Calendar.SATURDAY, java.util.Calendar.SUNDAY) } },
     )
+
+    private fun hourOf(ms: Long) = java.util.Calendar.getInstance().apply { timeInMillis = ms }.get(java.util.Calendar.HOUR_OF_DAY)
+    private fun dayOfWeek(day: String): Int = runCatching {
+        java.util.Calendar.getInstance().apply { time = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).parse(day)!! }
+            .get(java.util.Calendar.DAY_OF_WEEK)
+    }.getOrDefault(0)
 
     /** Unlocks anything newly earned and announces it. */
     fun check(app: Ryzer) {
