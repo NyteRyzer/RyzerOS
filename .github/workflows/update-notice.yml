@@ -1,0 +1,51 @@
+name: update-notice
+
+# Installs an older Ryzer OS release in an emulator and records what its users see when the
+# newest release appears: the "Update available" notice and the update screen. Run it from the
+# Actions tab after a release is published.
+on:
+  workflow_dispatch:
+    inputs:
+      old_version:
+        description: "Version that's installed before the update"
+        default: "2.4.0"
+
+permissions:
+  contents: write
+
+jobs:
+  notice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pillow
+      - name: Download the old release
+        run: curl -fsSL -o old.apk "https://github.com/${{ github.repository }}/releases/download/v${{ inputs.old_version }}/RyzerOS.apk"
+      - name: Sample library
+        run: python tools/screenshots/make_demo.py demo
+      - name: Update notice
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -skin 960x1440
+          script: cd tools/screenshots && python update_notice.py ../../old.apk ../../demo ../../docs/screenshots/raw/updatenotice
+      - name: Commit screenshots
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898099+github-actions[bot]@users.noreply.github.com"
+          git add docs/screenshots/raw/updatenotice
+          git commit -m "Update notice check [skip ci]" || exit 0
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin "HEAD:$GITHUB_REF_NAME"
