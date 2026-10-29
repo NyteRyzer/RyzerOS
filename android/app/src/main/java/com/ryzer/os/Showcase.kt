@@ -53,8 +53,32 @@ object Showcase {
                 "cover" -> sys?.games?.firstOrNull()?.let { app.push(CoverViewer(app, it)) }
                 "banner" -> Notifs.ryzer("Milestone unlocked: Marathon", "Play 3 hours in one day")
                 "boot" -> app.current?.let { app.push(BootScreen(app, it, arg.toFloatOrNull() ?: 1f)) }
+                "perf" -> perf(app)
                 "tab" -> (app.stack.firstOrNull() as? BladesHome)?.let { it.rebuild(); it.showTab(arg.toIntOrNull() ?: 0) }
             }
         }
+    }
+
+    /**
+     * Times Home: draws both screens of Blades Home and of the Classic 3DS Home 120 times each
+     * into an off-screen 640x480 canvas and writes the average ms per frame to RyzerOS/perf.txt.
+     */
+    private fun perf(app: Ryzer) {
+        val cfg = app.cfg
+        val saved = cfg.uiStyle to cfg.homeLayout
+        val c = android.graphics.Canvas(android.graphics.Bitmap.createBitmap(640, 480, android.graphics.Bitmap.Config.ARGB_8888))
+        fun time(style: String, layout: String): Double {
+            cfg.uiStyle = style; cfg.homeLayout = layout; app.applyHomeLayout()
+            var t = 0f
+            fun frame() { t += 1 / 30f; app.render(c, Role.TOP, 640f, 480f, 1 / 30f, t); app.render(c, Role.MAIN, 640f, 480f, 1 / 30f, t) }
+            repeat(10) { frame() }   // warm the caches
+            val start = System.nanoTime()
+            repeat(120) { frame() }
+            return (System.nanoTime() - start) / 1e6 / 120
+        }
+        val blades = time("blades", "blades")
+        val classic = time("classic", "3ds")
+        cfg.uiStyle = saved.first; cfg.homeLayout = saved.second; app.applyHomeLayout()
+        java.io.File(app.home, "perf.txt").writeText("PERF blades=%.2f classic=%.2f\n".format(java.util.Locale.US, blades, classic))
     }
 }

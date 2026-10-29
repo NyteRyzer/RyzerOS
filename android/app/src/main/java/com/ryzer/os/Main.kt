@@ -806,6 +806,10 @@ class MainActivity : Activity() {
             a.cfg.lastVersion = now; a.cfg.save()
             java.io.File(cacheDir, "update").deleteRecursively()
         }
+        if (a.cfg.justMigrated) {   // first start of 3.0 over an older config
+            a.cfg.justMigrated = false; a.cfg.save()
+            a.notify("New look! Switch back in Settings → Look & feel.", 5f)
+        }
         val offer = a.cfg.resumePrompt && a.stack.size == 1
         a.rescan { if (offer) a.offerResume() }
     }

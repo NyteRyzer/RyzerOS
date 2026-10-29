@@ -41,6 +41,9 @@ SHOTS = [
     ("boot-0", "boot", "boot:0.3", "", 0),
     ("boot-1", "boot", "boot:0.85", "", 0),
     ("boot-2", "boot", "boot:1.2", "", 0),
+    ("blades-snow", "snow", "tab:0", "", 0),
+    ("blades-games", "home", "games:gba", "down down down down", 0),
+    ("blades-empty", "empty", "", "", 0),
 ]
 LANDSCAPE = [
     ("land-home", "land-home", "", "right", 0),
@@ -81,6 +84,16 @@ def run(shots, demo: Path, out: Path):
             time.sleep(0.5)
         time.sleep(2 + wait)
         snap(out / f"{name}.png")
+
+
+def perf_check(demo: Path, out: Path):
+    """Times Blades Home against Classic Home inside the app (showcase step "perf")."""
+    start("home", demo, "")
+    time.sleep(10)   # let the library load before timing
+    shell(f"am start -n {PKG}/.MainActivity --es showcase perf")
+    time.sleep(15)
+    adb("pull", "/sdcard/RyzerOS/perf.txt", str(out / "perf.txt"))
+    print("=== PERF ===", (out / "perf.txt").read_text().strip() if (out / "perf.txt").exists() else "missing", flush=True)
 
 
 def art_check(demo: Path):
@@ -224,7 +237,9 @@ def main(apk: str, demo: Path, out: Path):
     start("home", demo, "")
     time.sleep(12)
 
+    shell("mkdir -p /sdcard/EmptyRoms")
     run(SHOTS, demo, out)
+    perf_check(demo, out)
 
     shell("settings put system accelerometer_rotation 0")
     shell("settings put system user_rotation 1")

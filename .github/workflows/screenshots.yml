@@ -66,3 +66,7 @@ jobs:
           git commit -m "Update app screenshots [skip ci]" || exit 0
           git pull --rebase origin "$GITHUB_REF_NAME"
           git push origin "HEAD:$GITHUB_REF_NAME"
+      - name: Home speed check (Blades must stay within 25% of Classic)
+        run: |
+          cat docs/screenshots/raw/perf.txt
+          python3 -c "import re,sys; t=open('docs/screenshots/raw/perf.txt').read(); b,c=map(float,re.findall(r'=([0-9.]+)',t)); print(f'blades/classic = {b/c:.2f}'); sys.exit(0 if b<=1.25*c else 1)"

@@ -138,6 +138,8 @@ CONFIGS = {
     "checkup": {"theme": "ocean-deep"},
     "swapcheck": {"companion": True, "gameScreen": "main"},
     "classic": {"uiStyle": "classic"},
+    "snow": {"theme": "snow"},
+    "empty": {"romDirs": ["/sdcard/EmptyRoms"]},
     "boot": {"theme": "ryzer-strike", "bootStyle": "strike"},
 }
 
