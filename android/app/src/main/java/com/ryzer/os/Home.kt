@@ -547,11 +547,13 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
             val r = RectF(14f, top + (i - offset) * rowH, 14 + listW, top + (i - offset) * rowH + rowH - 4)
             val s = i == sel
             if (s) G.panel(c, r, th, true)
+            else if (Skin.blades) Skin.parallelogram(c, RectF(r.left - 5, r.top, r.right + 5, r.bottom), withAlpha(th.c("panel"), 0.5f * G.panelAlpha), 10f)
             app.hit(r) { if (sel == i) handle("a") else sel = i }
             if (st.isFavorite(g.key)) G.text(c, "*", r.left + 12, r.top + 4, 30f, th.c("warn"), isBold = true)
             val label = (if (system != null) app.title(g) else "${app.title(g)}  [${g.system.short}]") + if (g.key in st.hidden) "  (hidden)" else ""
             val right = (if (app.cfg.newBadges && st.isNew(g.key)) "NEW  " else "") + (st.ratings[g.key]?.let { "★$it" } ?: "")
-            G.text(c, label, r.left + 28, r.top + 6, 23f, if (s) th.c("text") else th.c("text_dim"), maxW = r.width() - 80, theme = th)
+            if (s && Skin.blades) Skin.text(c, label, r.left + 28, r.top + 4, 25f, th.c("text"), maxW = r.width() - 80)
+            else G.text(c, label, r.left + 28, r.top + 6, 23f, if (s) th.c("text") else th.c("text_dim"), maxW = r.width() - 80, theme = th)
             if (right.isNotEmpty()) G.text(c, right, r.right - 10, r.top + 7, 19f, th.c("warn"), align = 'r')
         }
         G.scrollbar(c, th, RectF(listW + 18, top, listW + 23, top + visible * rowH - 4), offset, visible, games.size)
@@ -592,8 +594,62 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
         }
     }
 
+    private var maxPlayFor: List<Game>? = null
+    private var maxPlay = 0L
+
+    /** Longest play time in this list, for the details play-time bar (recomputed when the list changes). */
+    private fun longestPlay(): Long {
+        if (maxPlayFor !== games) { maxPlayFor = games; maxPlay = games.maxOfOrNull { app.state.playtime(it.key) } ?: 0L }
+        return maxPlay
+    }
+
+    /** Blades details: slanted glowing cover, bold title, year · developer · genre and a play-time meter. */
+    private fun bladeDetails(c: Canvas, r: RectF, compact: Boolean, g: Game) {
+        G.panel(c, r, th)
+        val st = app.state
+        val coverH = if (compact) r.height() * 0.46f else r.height() - 190
+        val cw = min(r.width() - 40, coverH * 0.8f)
+        val cover = RectF(r.centerX() - cw / 2, r.top + 12, r.centerX() + cw / 2, r.top + 12 + coverH)
+        val skew = SkinMath.skewFor(cover.height())
+        Skin.glow(c, cover, withAlpha(g.system.color, 0.7f), skew)
+        c.save(); Skin.clip(c, cover, skew)
+        val bmp = G.image(g.image())
+        if (bmp != null) {
+            val sc = max(cover.width() / bmp.width, cover.height() / bmp.height)
+            val dw = bmp.width * sc; val dh = bmp.height * sc
+            c.drawBitmap(bmp, null, RectF(cover.centerX() - dw / 2, cover.centerY() - dh / 2, cover.centerX() + dw / 2, cover.centerY() + dh / 2),
+                android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG))
+        } else {
+            G.rect(c, cover, mix(th.c("panel"), g.system.color, 0.6f))
+            Skin.text(c, g.system.short, cover.centerX(), cover.centerY() - 20, 44f, th.c("highlight_text"), align = 'c')
+        }
+        c.restore()
+        Skin.outlinePara(c, cover, th.c("accent"), 2f, skew)
+        var y = cover.bottom + 8
+        Skin.text(c, app.title(g), r.centerX(), y, if (compact) 24f else 32f, th.c("text"), align = 'c', maxW = r.width() - 20)
+        y += if (compact) 26 else 36
+        Library.meta[g.key]?.let { m -> listOf(m.year, m.developer, m.genre).filter { it.isNotEmpty() }.joinToString(" · ") }
+            ?.takeIf { it.isNotEmpty() }?.let {
+                G.text(c, it, r.centerX(), y, if (compact) 18f else 22f, th.c("text_dim"), align = 'c', maxW = r.width() - 20)
+                y += if (compact) 22 else 28
+            }
+        val played = st.playtime(g.key)
+        val bw = r.width() - 40
+        Skin.segments(c, r.left + 20, y + 2, bw, 10f, SkinMath.segmentsOn(played.toDouble(), longestPlay().toDouble()), 16,
+            th.c("accent"), withAlpha(th.c("text_dim"), 0.25f))
+        y += 18
+        val line = "PLAYED ${formatDuration(played)}".uppercase() + (st.lastPlayed[g.key]?.let { "  ·  ${agoText(it)}" } ?: "")
+        G.text(c, line, r.centerX(), y, if (compact) 17f else 20f, th.c("text_dim"), align = 'c', maxW = r.width() - 20)
+        y += if (compact) 22 else 28
+        if (!compact) listOfNotNull(st.ratings[g.key]?.let { ListView.stars(it) }, st.status[g.key]?.let { ListView.label(it) },
+            Launcher.label(app, st.gameEmu[g.key] ?: Launcher.chosen(app, g.system))).forEach {
+            if (y < r.bottom - 22) { G.text(c, it, r.centerX(), y, 20f, th.c("text_dim"), align = 'c', maxW = r.width() - 20); y += 26 }
+        }
+    }
+
     private fun details(c: Canvas, r: RectF, compact: Boolean) {
         val g = current() ?: return
+        if (Skin.blades) return bladeDetails(c, r, compact, g)
         val tint = if (app.cfg.artTint) G.image(g.image())?.let { G.dominant(it) } else null
         G.panel(c, r, th, fillColor = tint?.let { withAlpha(mix(th.c("panel"), it, 0.3f), G.panelAlpha) })
         var y = r.top + 10

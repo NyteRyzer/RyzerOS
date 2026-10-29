@@ -19,6 +19,7 @@ import android.view.WindowManager
 import org.json.JSONObject
 import java.io.File
 import kotlin.math.max
+import kotlin.math.min
 
 /**
  * Dual-screen play for single-screen systems: the game opens on one display and this
@@ -244,7 +245,8 @@ class NowPlayingView(private val act: NowPlayingActivity, private val app: Ryzer
 
     private fun button(c: Canvas, th: Theme, r: RectF, label: String, active: Boolean = false, action: () -> Unit) {
         G.panel(c, r, th, selected = active)
-        G.text(c, label, r.centerX(), r.centerY() - 11, 21f, th.c("text"), align = 'c', isBold = active, maxW = r.width() - 8)
+        if (Skin.blades) Skin.text(c, label.uppercase(), r.centerX(), r.centerY() - 11, 20f, th.c("text"), align = 'c', maxW = r.width() - 14)
+        else G.text(c, label, r.centerX(), r.centerY() - 11, 21f, th.c("text"), align = 'c', isBold = active, maxW = r.width() - 8)
         hit(r, action)
     }
 
@@ -264,27 +266,61 @@ class NowPlayingView(private val act: NowPlayingActivity, private val app: Ryzer
         G.background(c, th, w, h, SystemClock.uptimeMillis() / 1000f)
         app.wallpaper()?.let { G.wallpaper(c, th, it, w, h) }
         // Header
-        G.text(c, "NOW PLAYING", 16f, 12f, 20f, th.c("accent"), isBold = true)
-        G.text(c, clock(), w - 16, 10f, 24f, th.c("text"), align = 'r')
+        val blades = Skin.blades
         val (bat, chg) = app.battery()
         val left = app.batteryLeft()?.let { "  ~${formatDuration(it)} left" } ?: ""
-        if (bat >= 0) G.text(c, "$bat%" + (if (chg) " +" else "") + left, w - 110, 12f, 20f, th.c("text_dim"), align = 'r')
-        G.line(c, 12f, 40f, w - 12, 40f, th.c("panel_border"))
+        if (blades) {
+            G.rect(c, RectF(0f, 0f, w, 40f), withAlpha(0xFF000000.toInt(), 0.28f))
+            Skin.parallelogram(c, RectF(-14f, 6f, 170f, 36f), th.c("accent"), 12f)
+            Skin.text(c, "NOW PLAYING", 12f, 9f, 22f, th.c("highlight_text"))
+            val cr = Skin.text(c, clock(), w - 16, 8f, 24f, th.c("text"), align = 'r')
+            if (bat >= 0) {
+                val bx = G.batterySegments(c, th, cr.left - 12, 14f, bat, chg)
+                if (left.isNotEmpty()) G.text(c, left.trim(), bx - 8, 12f, 18f, th.c("text_dim"), align = 'r')
+            }
+            G.rect(c, RectF(0f, 39f, w, 41f), withAlpha(th.c("accent"), 0.5f))
+        } else {
+            G.text(c, "NOW PLAYING", 16f, 12f, 20f, th.c("accent"), isBold = true)
+            G.text(c, clock(), w - 16, 10f, 24f, th.c("text"), align = 'r')
+            if (bat >= 0) G.text(c, "$bat%" + (if (chg) " +" else "") + left, w - 110, 12f, 20f, th.c("text_dim"), align = 'r')
+            G.line(c, 12f, 40f, w - 12, 40f, th.c("panel_border"))
+        }
 
         // Game card
         val art = RectF(16f, 52f, 16f + 150f, 52f + 150f)
         val bmp = G.image(game.image())
-        if (bmp != null) G.drawImageFit(c, bmp, art) else {
+        if (blades) {
+            val sk = 18f
+            Skin.glow(c, art, withAlpha(game.system.color, 0.7f), sk)
+            c.save(); Skin.clip(c, art, sk)
+            if (bmp != null) {
+                val sc = max(art.width() / bmp.width, art.height() / bmp.height)
+                c.drawBitmap(bmp, null, RectF(art.centerX() - bmp.width * sc / 2, art.centerY() - bmp.height * sc / 2,
+                    art.centerX() + bmp.width * sc / 2, art.centerY() + bmp.height * sc / 2), android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG))
+            } else {
+                G.rect(c, art, mix(th.c("panel"), game.system.color, 0.7f))
+                Skin.text(c, game.system.short, art.centerX(), art.centerY() - 22, 48f, th.c("highlight_text"), align = 'c')
+            }
+            c.restore()
+            Skin.outlinePara(c, art, th.c("accent"), 2f, sk)
+        } else if (bmp != null) G.drawImageFit(c, bmp, art) else {
             G.rect(c, art, mix(th.c("panel"), game.system.color, 0.7f), th.radius)
             G.text(c, game.system.short, art.centerX(), art.centerY() - 22, 48f, th.c("highlight_text"), align = 'c', isBold = true)
         }
         val x = art.right + 16
         val st = app.state
         G.wrap(app.title(game), 34f, w - x - 16).take(2).forEachIndexed { i, l ->
-            G.text(c, l, x, 52f + i * 34, 34f, th.c("text"), isBold = true) }
+            if (blades) Skin.text(c, l, x, 50f + i * 34, 36f, th.c("text"), maxW = w - x - 16)
+            else G.text(c, l, x, 52f + i * 34, 34f, th.c("text"), isBold = true) }
         G.text(c, "${game.system.name}  |  ${Launcher.label(app, emuId)}", x, 124f, 20f, th.c("text_dim"), maxW = w - x - 16)
         val secs = elapsed()
-        G.text(c, "Playing for ${clockDuration(secs)}", x, 150f, 24f, th.c("accent"), isBold = true)
+        if (blades) {
+            Skin.text(c, "PLAYING ${clockDuration(secs)}", x, 146f, 24f, th.c("accent"))
+            // Session meter: against today's goal, else an hour
+            val target = (if (app.cfg.dailyGoal > 0) app.cfg.dailyGoal else 60) * 60.0
+            Skin.segments(c, x, 168f, min(260f, w - x - 16), 8f, SkinMath.segmentsOn(secs.toDouble(), target), 16,
+                th.c("accent"), withAlpha(th.c("text_dim"), 0.25f))
+        } else G.text(c, "Playing for ${clockDuration(secs)}", x, 150f, 24f, th.c("accent"), isBold = true)
         val total = st.playtime(game.key) + secs
         val limitLine = if (app.cfg.dailyLimit > 0) {
             val left = app.cfg.dailyLimit * 60L - (st.playedToday() + secs)
@@ -293,7 +329,7 @@ class NowPlayingView(private val act: NowPlayingActivity, private val app: Ryzer
             val today = (st.playedToday() + secs) / 60
             if (today >= app.cfg.dailyGoal) "  |  daily goal done!" else "  |  goal ${today}/${app.cfg.dailyGoal} min"
         } else ""
-        G.text(c, "Total ${formatDuration(total)}$limitLine", x, 178f, 19f, th.c("text_dim"), maxW = w - x - 16)
+        G.text(c, "Total ${formatDuration(total)}$limitLine", x, if (blades) 181f else 178f, 19f, th.c("text_dim"), maxW = w - x - 16)
 
         // Newest notification (if any arrived while playing)
         if (app.cfg.notifOnPanel && !app.cfg.notifDnd) Notifs.list.firstOrNull()?.let { n ->
@@ -343,7 +379,8 @@ class NowPlayingView(private val act: NowPlayingActivity, private val app: Ryzer
         // Swap screens: the big button in the header, so it's easy to hit with a thumb
         if (DualPlay.canSwap()) {
             val r = RectF(w / 2 - 110, 4f, w / 2 + 110, 36f)
-            G.rect(c, r, th.c("accent"), 16f)
+            if (blades) { Skin.glow(c, r, withAlpha(th.c("accent"), 0.5f), 12f); Skin.parallelogram(c, r, th.c("accent"), 12f) }
+            else G.rect(c, r, th.c("accent"), 16f)
             G.text(c, "⇅  Swap screens", r.centerX(), r.top + 5, 21f, th.c("highlight_text"), align = 'c', isBold = true)
             hit(r) { swap() }
         }
