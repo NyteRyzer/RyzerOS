@@ -100,7 +100,8 @@ open class Menu(app: Ryzer, override val title: String, var items: List<Item>, p
     override fun drawTop(c: Canvas, w: Float, h: Float) {
         G.topBar(c, app, th, title, w)
         current()?.let {
-            G.text(c, it.label, w / 2, h / 2 - 40, 40f, th.c("text"), align = 'c', isBold = true, maxW = w - 40)
+            if (Skin.blades) Skin.text(c, it.label.uppercase(), w / 2, h / 2 - 44, 46f, th.c("text"), align = 'c', maxW = w - 40)
+            else G.text(c, it.label, w / 2, h / 2 - 40, 40f, th.c("text"), align = 'c', isBold = true, maxW = w - 40)
             G.wrap(it.help, 22f, w - 60).take(4).forEachIndexed { i, line ->
                 G.text(c, line, w / 2, h / 2 + 10 + i * 26, 22f, th.c("text_dim"), align = 'c')
             }
