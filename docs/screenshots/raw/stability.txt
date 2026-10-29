@@ -1,0 +1,4 @@
+[home] events finished=True running=True problems=0
+[classic] events finished=True running=True problems=0
+[home-gold] events finished=True running=True problems=0
+crash.txt: empty
