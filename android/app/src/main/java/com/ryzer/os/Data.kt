@@ -560,9 +560,9 @@ object Library {
                     for (f in files) {
                         if (!f.isFile || f.name.startsWith(".")) continue
                         val ext = f.extension.lowercase()
+                        if (hideBios && BIOS.containsMatchIn(f.name)) { stats.hiddenBios++; continue }
                         if (".$ext" !in sys.extensions) { if (ext !in NOT_GAMES && stats.unknown.size < 200) stats.unknown += f; continue }
                         if (f.path.lowercase() in parts) { stats.hiddenTracks++; continue }
-                        if (hideBios && BIOS.containsMatchIn(f.name)) { stats.hiddenBios++; continue }
                         found[f.path] = Game(f, sys, clean)
                         any = true
                     }
