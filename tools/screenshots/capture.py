@@ -38,6 +38,9 @@ SHOTS = [
     ("checkup", "checkup", "checkup", "", 0),
     ("blades-settings", "home", "settings", "down", 0),
     ("classic-settings", "classic", "settings", "", 0),
+    ("boot-0", "boot", "boot:0.3", "", 0),
+    ("boot-1", "boot", "boot:0.85", "", 0),
+    ("boot-2", "boot", "boot:1.2", "", 0),
 ]
 LANDSCAPE = [
     ("land-home", "land-home", "", "right", 0),

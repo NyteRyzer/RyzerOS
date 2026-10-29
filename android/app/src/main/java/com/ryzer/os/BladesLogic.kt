@@ -49,3 +49,16 @@ object BladeTabs {
 
     fun firstNonEmpty(groups: List<List<Int>>): Int = groups.indexOfFirst { it.isNotEmpty() }.takeIf { it >= 0 } ?: 3
 }
+
+/** Timeline of the "Strike" boot animation, in seconds. Each phase runs 0..1 over its window. */
+object StrikeBoot {
+    const val duration = 2.0f
+
+    fun progress(t: Float, start: Float, end: Float): Float = ((t - start) / (end - start)).coerceIn(0f, 1f)
+    fun bladesIn(t: Float) = progress(t, 0f, 0.5f)
+    fun mark(t: Float) = progress(t, 0.4f, 0.9f)
+    fun title(t: Float) = progress(t, 0.8f, 1.4f)
+    fun bladesOut(t: Float) = progress(t, 1.6f, 2.0f)
+    /** The mark lands from 140% down to its real size. */
+    fun markScale(t: Float) = 1.4f - 0.4f * mark(t)
+}

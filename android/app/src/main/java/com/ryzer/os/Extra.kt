@@ -197,7 +197,7 @@ fun settingsMenu(app: Ryzer): Menu {
         Item("Night light", "A warm filter that's easier on the eyes at night.", value = { if (cfg.nightLight == 0) "Off" else "${cfg.nightLight}%" },
             change = { d -> cfg.nightLight = (cfg.nightLight + d * 10).coerceIn(0, 50); cfg.save() }),
         Item("Boot animation style", value = { cfg.bootStyle.replaceFirstChar { it.uppercase() } },
-            change = { d -> cfg.bootStyle = cycle(listOf("classic", "glitch", "minimal"), cfg.bootStyle, d); cfg.save() }),
+            change = { d -> cfg.bootStyle = cycle(listOf("strike", "classic", "glitch", "minimal"), cfg.bootStyle, d); cfg.save() }),
         Item("Boot message", "Your own text on the boot screen.", value = { cfg.bootMessage.ifEmpty { "None" } }, select = {
             app.push(Keyboard(app, "Boot message", cfg.bootMessage, 30) { cfg.bootMessage = it; cfg.save() }) }),
         Item("Home tiles", "Choose which tiles show on Home.", select = { app.push(tileEditor(app)) }),

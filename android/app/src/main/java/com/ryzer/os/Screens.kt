@@ -229,14 +229,16 @@ class Keyboard(app: Ryzer, override val title: String, initial: String = "", pri
     override fun hints() = listOf("L" to "Shift", "X" to "Del", "START" to "Done", "A" to "Type")
 }
 
-class BootScreen(app: Ryzer, private val next: Screen) : Screen(app) {
-    private var t = 0f
-    private val duration = 2.4f
+/** [frozenAt] holds the animation at one moment (the screenshot workflow uses it). */
+class BootScreen(app: Ryzer, private val next: Screen, private val frozenAt: Float? = null) : Screen(app) {
+    private var t = frozenAt ?: 0f
+    private val strike = app.cfg.bootStyle == "strike"
+    private val duration = if (strike) StrikeBoot.duration else 2.4f
     init { app.sounds.play("boot") }
 
-    override fun handle(a: String) = finish()
+    override fun handle(a: String) { if (frozenAt == null) finish() else app.pop() }
     private fun finish() { if (app.current === this) app.replace(next) }
-    override fun update(dt: Float) { t += dt; if (t >= duration) finish() }
+    override fun update(dt: Float) { if (frozenAt != null) return; t += dt; if (t >= duration) finish() }
     override fun hints() = emptyList<Pair<String, String>>()
 
     override fun draw(c: Canvas, w: Float, h: Float) {
@@ -245,6 +247,7 @@ class BootScreen(app: Ryzer, private val next: Screen) : Screen(app) {
         if (app.cfg.bootMessage.isNotBlank() && p > 0.5f)
             G.text(c, app.cfg.bootMessage, cx, h - 60, 24f, withAlpha(th.c("accent"), min(1f, (p - 0.5f) * 3)), align = 'c', maxW = w - 40)
         when (app.cfg.bootStyle) {
+            "strike" -> return drawStrike(c, w, h, cx, cy)
             "minimal" -> {   // a quiet fade-in
                 val a = min(1f, p * 1.5f)
                 c.saveLayerAlpha(0f, 0f, w, h, (a * 255).toInt())
@@ -286,8 +289,53 @@ class BootScreen(app: Ryzer, private val next: Screen) : Screen(app) {
         if (p > 0.7f) G.text(c, "v${BuildInfo.version}  |  ${BuildInfo.device}", cx, cy + 128, 22f, th.c("text_dim"), align = 'c', maxW = w - 40)
     }
 
+    private fun ease(x: Float) = 1 - (1 - x) * (1 - x) * (1 - x)
+
+    /** "Strike": blades slash in, the mark lands with a glow, RYZER OS cuts in, blades leave. */
+    private fun drawStrike(c: Canvas, w: Float, h: Float, cx: Float, cy: Float) {
+        val inP = StrikeBoot.bladesIn(t); val outP = StrikeBoot.bladesOut(t)
+        for (i in 0 until 5) {
+            val local = ease(((inP * 1.6f) - i * 0.15f).coerceIn(0f, 1f))
+            if (local <= 0f) continue
+            val bw = 46f + (i % 2) * 30
+            val fx = w * 0.06f + i * w * 0.2f
+            val x = -w * 0.6f + (fx + w * 0.6f) * local + ease(outP) * (w + 400)
+            Skin.parallelogram(c, RectF(x - 200, -20f, x + bw, h + 20), withAlpha(th.c("accent"), 0.16f + 0.06f * (i % 3)), 200f)
+        }
+        val m = StrikeBoot.mark(t)
+        if (m > 0f) {
+            val sc = StrikeBoot.markScale(t)
+            val r = RectF(cx - 44 * sc, cy - 56 * sc, cx + 44 * sc, cy + 56 * sc)
+            Skin.glow(c, r, withAlpha(th.c("accent"), 0.7f * m), 30 * sc)
+            Skin.parallelogram(c, r, withAlpha(th.c("accent"), m), 30 * sc)
+            Skin.text(c, "R", cx - 4 * sc, cy - 46 * sc, 120 * sc, withAlpha(th.c("highlight_text"), m), align = 'c')
+        }
+        val tp = StrikeBoot.title(t)
+        if (tp > 0f) {
+            val ty = cy + 74
+            val tw = Skin.measure("RYZER OS", 64f)
+            c.save()
+            c.clipRect(cx - tw / 2 - 10, 0f, cx - tw / 2 + (tw + 20) * ease(tp), h)
+            if (tp < 1f && (t * 30).toInt() % 2 == 0) {   // red/cyan split while it cuts in
+                Skin.text(c, "RYZER OS", cx - 4, ty, 64f, withAlpha(0xFFFF2A3D.toInt(), 0.8f), align = 'c')
+                Skin.text(c, "RYZER OS", cx + 4, ty, 64f, withAlpha(0xFF00E5FF.toInt(), 0.8f), align = 'c')
+            }
+            Skin.text(c, "RYZER OS", cx, ty, 64f, th.c("text"), align = 'c')
+            c.restore()
+            Skin.parallelogram(c, RectF(cx - tw / 2, ty + 54, cx - tw / 2 + tw * ease(tp), ty + 60), th.c("accent"), 4f)
+            if (tp >= 1f) G.text(c, "v${BuildInfo.version}  |  ${BuildInfo.device}", cx, ty + 72, 22f, th.c("text_dim"), align = 'c', maxW = w - 40)
+        }
+    }
+
     override fun drawTop(c: Canvas, w: Float, h: Float) {
         val p = min(1f, t / duration)
+        if (strike) {
+            Skin.text(c, (app.cfg.bootMessage.ifBlank { "Starting up" }).uppercase(), w / 2, h / 2 - 40, 32f, th.c("text"), align = 'c', maxW = w - 40)
+            Skin.segments(c, w / 4, h / 2 + 10, w / 2, 14f, SkinMath.segmentsOn(t.toDouble(), duration.toDouble()), 16,
+                th.c("accent"), withAlpha(th.c("text_dim"), 0.25f))
+            G.text(c, "v${BuildInfo.version}  ·  ${BuildInfo.device}", w / 2, h / 2 + 40, 20f, th.c("text_dim"), align = 'c', maxW = w - 40)
+            return
+        }
         G.text(c, app.cfg.bootMessage.ifBlank { "Starting up" }, w / 2, h / 2 - 30, 30f, th.c("text_dim"), align = 'c', maxW = w - 40)
         val bar = RectF(w / 4, h / 2 + 10, w * 3 / 4, h / 2 + 18)
         G.rect(c, bar, th.c("panel"), 4f)

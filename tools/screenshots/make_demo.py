@@ -138,6 +138,7 @@ CONFIGS = {
     "checkup": {"theme": "ocean-deep"},
     "swapcheck": {"companion": True, "gameScreen": "main"},
     "classic": {"uiStyle": "classic"},
+    "boot": {"theme": "ryzer-strike", "bootStyle": "strike"},
 }
 
 
