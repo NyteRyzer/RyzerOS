@@ -2,6 +2,10 @@
 
 Every version of Ryzer OS, newest first. Downloads for each one are on the [Releases page](https://github.com/NyteRyzer/RyzerOS/releases).
 
+## 3.0.1: switching games fixed
+
+- **Picking another game now really starts it.** If you went back to Ryzer while a game was still open (the *Ryzer* button on Now Playing, or the Home key) and then chose a different game for the same emulator, RetroArch, My Boy!, PPSSPP, Dolphin, melonDS and others brought back the first game, while Ryzer showed the new title. Every emulator now starts fresh with the game you picked. "Open with another app" works the same way.
+
 ## 3.0.0: the Blades redesign
 
 A new look for the whole app: bold, slanted and built for handhelds.

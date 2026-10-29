@@ -561,7 +561,8 @@ fun setSystemBrightness(app: Ryzer, d: Int) {
     }
 }
 
-const val WHATS_NEW = "3.0 is the Blades redesign. A new Home with four tabs (Continue, Systems, Collections, Tools: L / R to switch) " +
+const val WHATS_NEW = "3.0.1: choosing another game while one is still open now starts the new game, instead of bringing back the first one.\n\n" +
+    "3.0 is the Blades redesign. A new Home with four tabs (Continue, Systems, Collections, Tools: L / R to switch) " +
     "of tall slanted cards, a big hero card with power bars on the top screen, a bold new style on every menu, list and dialog, " +
     "a new boot animation (Strike) and a new default theme, Ryzer Strike. Prefer the old look? Settings > Look & feel > " +
     "Interface style: Classic, and Home layout brings back 3DS, Ribbon or Grid.\n\n" +

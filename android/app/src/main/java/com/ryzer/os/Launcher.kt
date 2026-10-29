@@ -116,8 +116,7 @@ object Launcher {
             if (k.startsWith("bool:")) i.putExtra(k.removePrefix("bool:"), value.toBoolean()) else i.putExtra(k, value)
         }
         var flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        if ("clear_task" in emu.flags) flags = flags or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        if ("clear_top" in emu.flags) flags = flags or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        if (LaunchRules.startsFresh(emu.flags)) flags = flags or Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         // Only grant access to links Ryzer itself serves. Asking Android to grant a storage-framework
         // link Ryzer doesn't own makes it reject the whole launch with a SecurityException.
         val usesProvider = (data?.contains("{provider}") == true) || extras.values.any { "{provider}" in it }
@@ -155,7 +154,8 @@ object Launcher {
         val uri = providerUri(game.file)
         val i = Intent(Intent.ACTION_VIEW).setDataAndType(uri, RomProvider.mime(game.file))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-        if (pkg != null) i.setPackage(pkg)
+        // A chosen app starts fresh too, so a second game doesn't just bring back the first (see LaunchRules)
+        if (pkg != null) i.setPackage(pkg).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         return if (pkg == null) Intent.createChooser(i, "Open ${game.name} with").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) else i
     }
 
