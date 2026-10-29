@@ -47,6 +47,9 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
+      - name: Unit tests
+        working-directory: android
+        run: ./gradlew --no-daemon testReleaseUnitTest
       - name: Build APK
         working-directory: android
         run: ./gradlew --no-daemon assembleRelease

@@ -1,0 +1,26 @@
+{
+  "id": "ryzer-strike",
+  "name": "Ryzer Strike",
+  "author": "Ryzer",
+  "colors": {
+    "bg_top": "#0A0A10",
+    "bg_bottom": "#120A12",
+    "panel": "#1A1A24",
+    "panel_border": "#3A2A36",
+    "accent": "#FF2A3D",
+    "accent2": "#00E5FF",
+    "text": "#F5F5FA",
+    "text_dim": "#8E8C9A",
+    "highlight_text": "#FFFFFF",
+    "good": "#3DDC84",
+    "warn": "#FFC23D",
+    "bad": "#FF3D57"
+  },
+  "style": {
+    "corner_radius": 6,
+    "tile_style": "glow",
+    "background": "gradient",
+    "font_scale": 1.0,
+    "particles": false
+  }
+}

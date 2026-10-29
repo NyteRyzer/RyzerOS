@@ -5,12 +5,13 @@ import pytest
 from ryzer import config, launcher, library, paths, themes, tweaks
 
 
-def test_twenty_builtin_themes_are_valid():
+def test_builtin_themes_are_valid():
     builtin = themes._load_dir(paths.BUILTIN_THEMES_DIR, builtin=True)
     files = list(paths.BUILTIN_THEMES_DIR.glob("*.json"))
-    assert len(files) == 20
-    assert len(builtin) == 20  # every file parsed
+    assert len(files) == 21
+    assert len(builtin) == 21  # every file parsed
     assert "ryzer-red" in builtin
+    assert "ryzer-strike" in builtin
 
 
 def test_user_theme_roundtrip_and_override(ryzer_home):

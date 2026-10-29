@@ -30,7 +30,7 @@ private fun writeText(f: File, text: String) {
 
 /** User settings, saved as config.json in the Ryzer folder so they survive reinstalls. */
 class Config(private val file: File) {
-    var theme = "ryzer-red"
+    var theme = "ryzer-strike"   // new installs only; existing configs keep theirs
     var sound = true
     var volume = 70
     var clock24 = false
@@ -81,8 +81,8 @@ class Config(private val file: File) {
     var rgb = false              // animated rainbow accent
     var nightLight = 0           // warm filter strength 0..50
     var glass = true             // see-through panels over wallpapers
-    var homeLayout = "3ds"       // 3ds | ribbon | grid
-    var bootStyle = "classic"    // classic | glitch | minimal
+    var homeLayout = "blades"    // blades | 3ds | ribbon | grid
+    var bootStyle = "strike"     // strike | classic | glitch | minimal
     var soundPack = "classic"    // classic | chiptune | soft
     var music = false            // play RyzerOS/music in the menus
     var musicVolume = 40
@@ -135,6 +135,10 @@ class Config(private val file: File) {
     var slideshow = 0            // minutes between wallpapers, 0 = off
     var highContrast = false
     val recentSearches = mutableListOf<String>()
+    // 3.0
+    var uiStyle = "blades"       // blades | classic
+    /** Set for one run when an older config was switched to the 3.0 look, so Home can say so. */
+    var justMigrated = false
 
     init { load() }
 
@@ -191,7 +195,10 @@ class Config(private val file: File) {
         panelAutoDim = j.optInt("panelAutoDim", panelAutoDim); chargeAlert = j.optInt("chargeAlert", chargeAlert)
         slideshow = j.optInt("slideshow", slideshow); highContrast = j.optBoolean("highContrast", highContrast)
         recentSearches.clear(); recentSearches += j.optJSONArray("recentSearches").strings()
-        if (j.optInt("uiVersion", 1) < 2) homeLayout = "3ds"   // 2.0 introduces the new Home; old configs switch once
+        uiStyle = j.optString("uiStyle", uiStyle)
+        if (j.optInt("uiVersion", 1) < 3) {   // 3.0 introduces the Blades look; old configs switch once
+            uiStyle = "blades"; homeLayout = "blades"; bootStyle = "strike"; justMigrated = true
+        }
     }
 
     fun save() = writeJson(file, JSONObject().apply {
@@ -212,7 +219,7 @@ class Config(private val file: File) {
         put("homeLayout", homeLayout); put("bootStyle", bootStyle); put("soundPack", soundPack); put("music", music)
         put("musicVolume", musicVolume); put("userName", userName)
         put("notifBanners", notifBanners); put("notifDnd", notifDnd); put("notifOnPanel", notifOnPanel); put("ryzerNotices", ryzerNotices)
-        put("swapKey", swapKey); put("live", live); put("liveSpeed", liveSpeed); put("iconRows", iconRows); put("avatar", avatar); put("uiVersion", 2)
+        put("swapKey", swapKey); put("live", live); put("liveSpeed", liveSpeed); put("iconRows", iconRows); put("avatar", avatar); put("uiVersion", 3)
         put("launchAnim", launchAnim); put("newBadges", newBadges); put("neon", neon); put("transitions", transitions)
         put("iconShape", iconShape); put("bedtime", bedtime); put("bootMessage", bootMessage); put("seasonal", seasonal)
         put("photoFrame", photoFrame); put("resumePrompt", resumePrompt); put("hiddenTiles", JSONArray(hiddenTiles.toList()))
@@ -224,6 +231,7 @@ class Config(private val file: File) {
         put("streakReminder", streakReminder); put("lastStreakReminder", lastStreakReminder)
         put("groupDiscs", groupDiscs); put("hideBios", hideBios); put("panelAutoDim", panelAutoDim); put("chargeAlert", chargeAlert)
         put("slideshow", slideshow); put("highContrast", highContrast); put("recentSearches", JSONArray(recentSearches))
+        put("uiStyle", uiStyle)
     })
 }
 

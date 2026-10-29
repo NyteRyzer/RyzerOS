@@ -57,3 +57,7 @@ val copyThemes = tasks.register<Copy>("copyRyzerThemes") {
     into(layout.buildDirectory.dir("generated/ryzerAssets/themes"))
 }
 tasks.named("preBuild") { dependsOn(copyThemes) }
+
+dependencies {
+    testImplementation("junit:junit:4.13.2")
+}
