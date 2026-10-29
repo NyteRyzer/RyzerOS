@@ -96,6 +96,27 @@ def perf_check(demo: Path, out: Path):
     print("=== PERF ===", (out / "perf.txt").read_text().strip() if (out / "perf.txt").exists() else "missing", flush=True)
 
 
+def stability_check(demo: Path, out: Path):
+    """Random-input stress test (Android's monkey) in Blades, Classic and the 3DS layout. The report
+    (monkey's crash/ANR lines, whether Ryzer is still running, and crash.txt from the whole run so far)
+    goes to stability.txt; the workflow fails the run if it shows any problem."""
+    report = []
+    for config in ("home", "classic", "home-gold"):
+        start(config, demo, "")
+        time.sleep(8)
+        r = subprocess.run(["adb", "shell", f"monkey -p {PKG} --pct-syskeys 0 --pct-appswitch 0 --throttle 40 -s 42 -v 2500"],
+                           capture_output=True, text=True)
+        bad = [ln for ln in r.stdout.splitlines() if "CRASH" in ln or "NOT RESPONDING" in ln or "ANR" in ln]
+        alive = subprocess.run(["adb", "shell", f"pidof {PKG}"], capture_output=True, text=True).stdout.strip()
+        done = "Monkey finished" in r.stdout
+        report.append(f"[{config}] events finished={done} running={bool(alive)} problems={len(bad)}")
+        report += [f"  {ln}" for ln in bad]
+    crash = subprocess.run(["adb", "shell", "cat /sdcard/RyzerOS/crash.txt"], capture_output=True, text=True).stdout.strip()
+    report.append("crash.txt: " + ("empty" if not crash or "No such file" in crash else "\n" + crash))
+    (out / "stability.txt").write_text("\n".join(report) + "\n")
+    print("=== STABILITY ===\n" + "\n".join(report) + "\n=== END STABILITY ===", flush=True)
+
+
 def art_check(demo: Path):
     """End-to-end check of the artwork downloader: games with no picture should get one.
     Results go to the log only (the downloaded pictures are real box art, not committed)."""
@@ -240,6 +261,7 @@ def main(apk: str, demo: Path, out: Path):
     shell("mkdir -p /sdcard/EmptyRoms")
     run(SHOTS, demo, out)
     perf_check(demo, out)
+    stability_check(demo, out)
 
     shell("settings put system accelerometer_rotation 0")
     shell("settings put system user_rotation 1")
