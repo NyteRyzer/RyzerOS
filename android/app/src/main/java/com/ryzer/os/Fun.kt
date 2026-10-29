@@ -561,7 +561,11 @@ fun setSystemBrightness(app: Ryzer, d: Int) {
     }
 }
 
-const val WHATS_NEW = "2.4 adds 20 features: multi-disc games show once, BIOS files hidden, game details from ES-DE gamelists, " +
+const val WHATS_NEW = "3.0 is the Blades redesign. A new Home with four tabs (Continue, Systems, Collections, Tools: L / R to switch) " +
+    "of tall slanted cards, a big hero card with power bars on the top screen, a bold new style on every menu, list and dialog, " +
+    "a new boot animation (Strike) and a new default theme, Ryzer Strike. Prefer the old look? Settings > Look & feel > " +
+    "Interface style: Classic, and Home layout brings back 3DS, Ribbon or Grid.\n\n" +
+    "2.4 added 20 features: multi-disc games show once, BIOS files hidden, game details from ES-DE gamelists, " +
     "Library check-up, 'last played' times, recent searches, CSV export, a screen choice per game, Now Playing auto-dim, " +
     "battery time left, an unplug reminder, a cover viewer, Ryzer Wrapped, a daily play goal, weekly reports, streak reminders, " +
     "6 new milestones, Roulette filters, a wallpaper slideshow and high-contrast mode.\n\n" +

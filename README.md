@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>A console-style frontend for retro handhelds.</b><br>
-  3DS-style dual-screen Home · Theme Studio · 25 themes · notifications · play stats · mini-games
+  New in 3.0: the Blades redesign · dual-screen Home · Theme Studio · 26 themes · play stats · mini-games
 </p>
 
 <p align="center">
@@ -29,13 +29,18 @@ Ryzer OS replaces your handheld's home screen with a fast, good-looking console 
 
 ## Screenshots
 
-Real captures of Ryzer OS 2.1 running with a sample library. Each one shows the top and bottom screen of a dual-screen handheld.
+Real captures of Ryzer OS 3.0 running with a sample library. Each one shows the top and bottom screen of a dual-screen handheld.
 
 <table>
   <tr>
-    <td align="center" width="33%"><img src="docs/screenshots/home.png" alt="3DS-style Home"><br><sub><b>3DS-style Home</b></sub></td>
-    <td align="center" width="33%"><img src="docs/screenshots/home-neon.png" alt="Neon mode + live wallpaper"><br><sub><b>Neon mode + live wallpaper</b></sub></td>
-    <td align="center" width="33%"><img src="docs/screenshots/home-gold.png" alt="Unlockable bonus themes"><br><sub><b>Unlockable bonus themes</b></sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/home.png" alt="Blades Home"><br><sub><b>Blades Home</b></sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/home-system.png" alt="Systems tab with power bars"><br><sub><b>Systems tab with power bars</b></sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/home-neon.png" alt="Collections tab, neon theme"><br><sub><b>Collections tab, neon theme</b></sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="33%"><img src="docs/screenshots/blades-settings.png" alt="New slanted menus"><br><sub><b>New slanted menus</b></sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/boot-1.png" alt="Strike boot animation"><br><sub><b>Strike boot animation</b></sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/home-gold.png" alt="3DS layout + bonus theme"><br><sub><b>3DS layout + bonus theme</b></sub></td>
   </tr>
   <tr>
     <td align="center" width="33%"><img src="docs/screenshots/games.png" alt="Game lists with box art"><br><sub><b>Game lists with box art</b></sub></td>
@@ -43,7 +48,7 @@ Real captures of Ryzer OS 2.1 running with a sample library. Each one shows the 
     <td align="center" width="33%"><img src="docs/screenshots/foryou.png" alt="For You picks"><br><sub><b>For You picks</b></sub></td>
   </tr>
   <tr>
-    <td align="center" width="33%"><img src="docs/screenshots/themes.png" alt="25 themes, live preview"><br><sub><b>25 themes, live preview</b></sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/themes.png" alt="26 themes, live preview"><br><sub><b>26 themes, live preview</b></sub></td>
     <td align="center" width="33%"><img src="docs/screenshots/studio.png" alt="Theme Studio"><br><sub><b>Theme Studio</b></sub></td>
     <td align="center" width="33%"><img src="docs/screenshots/stats.png" alt="Play stats"><br><sub><b>Play stats</b></sub></td>
   </tr>
@@ -61,19 +66,29 @@ Real captures of Ryzer OS 2.1 running with a sample library. Each one shows the 
   </tr>
 </table>
 
-More screenshots (2048, Game Roulette, quick menu, the classic ribbon layout) are on the [website](https://nyteryzer.github.io/RyzerOS/#screens).
+More screenshots (2048, Game Roulette, quick menu, the Classic style and the Ribbon layout) are on the [website](https://nyteryzer.github.io/RyzerOS/#screens).
 
 ## Highlights
 
-- **3DS-style Home**: a floating 3D banner for the selected game or system on the top screen, and a sideways-scrolling icon grid with a toolbar on the bottom. Prefer something else? The classic **Ribbon** and **Grid** layouts are one setting away.
+- **Blades Home**: four tabs of tall slanted cards on the bottom screen, and a big hero card with your box art and "power bars" on the top. Prefer something else? The **3DS**, **Ribbon** and **Grid** layouts, and the rounded **Classic** style, are one setting away.
 - **Real dual-screen play** on the RG DS, AYN Thor, AYANEO Pocket DS and Retroid Dual. GBA, SNES, PSP and other single-screen games open on one screen, with a **Now Playing** touch panel on the other: timer, volume, notes, ratings and emulator controls. **Swap the screens mid-game** from the panel. DS and 3DS games get both screens. In the menus, **L3 / R3** swaps the screens.
 - **Theme Studio**: design every colour, pattern, live wallpaper, font, corner and panel. You can also make a theme from any photo, and share themes as codes.
-- **25 themes**: 20 built in, plus 5 bonus themes you unlock with milestones. There are also 10 live wallpapers, seasonal effects, neon mode and 4 icon shapes.
+- **26 themes**: 21 built in (including the new Ryzer Strike), plus 5 bonus themes you unlock with milestones. There are also 10 live wallpapers, seasonal effects, neon mode and 4 icon shapes.
 - **Automatic artwork**: Ryzer reads each ROM, identifies the game in the libretro database (No-Intro, Redump, FBNeo) and downloads its box art, screenshot or title screen. No account is needed, and your ROM folders are never touched.
 - **Notification centre**: your Android notifications in Ryzer, with banners and do not disturb.
 - **A smarter library**: For You picks, smart collections, NEW badges, ratings, a backlog tracker, collections, and search across games, apps and settings.
 - **Stats**: play time, streaks, a play calendar, session history, 14 milestones and a shareable stats card.
 - **Extras**: Snake, 2048, Game Roulette, a controller tester, battery info, a stopwatch and timer, a bedtime reminder, a quick menu (L + R) and kid mode.
+
+## New in 3.0: the Blades redesign
+
+- **A new Home**: Continue, Systems, Collections and Tools tabs (L / R), each item a tall slanted card with its art. The top screen shows a big slanted cover, the title in bold italic, and power bars for play time, rating or library size.
+- **A new style everywhere**: slanted menus and lists with a glow on the selected row, a new header with a battery meter, coloured Settings sections and a bold italic typeface.
+- **Now Playing and game lists** match, with play-time and session meters.
+- **Strike**, a new 2-second boot animation, and **Ryzer Strike**, a new default theme for new installs.
+- **The old look is one setting away**: *Settings → Look & feel → Interface style: Classic*.
+
+Full list in the [changelog](CHANGELOG.md#300-the-blades-redesign).
 
 ## New in 2.4: 20 new features
 

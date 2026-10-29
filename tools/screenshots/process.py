@@ -25,6 +25,12 @@ def font(size, weight="Bold"):
     return ImageFont.load_default()
 
 
+def display(size):
+    """The app's own bold italic display font (Titillium Web), for the hero title."""
+    p = ROOT / "android/app/src/main/assets/fonts/TitilliumWeb-BoldItalic.ttf"
+    return ImageFont.truetype(str(p), size) if p.is_file() else font(size)
+
+
 def rounded(img: Image.Image, radius: int) -> Image.Image:
     mask = Image.new("L", img.size, 0)
     ImageDraw.Draw(mask).rounded_rectangle([0, 0, img.width - 1, img.height - 1], radius, fill=255)
@@ -78,7 +84,7 @@ def hero(shots: dict, out: Path, version: str):
     img.alpha_composite(grid)
 
     # three devices, the middle one in front
-    order = [("home-neon", -7, 700, 70), ("home-gold", 7, 1170, 70), ("home", 0, 935, 22)]
+    order = [("home-system", -7, 700, 70), ("home-neon", 7, 1170, 70), ("home", 0, 935, 22)]
     for name, angle, cx, top in order:
         if name not in shots:
             continue
@@ -89,19 +95,19 @@ def hero(shots: dict, out: Path, version: str):
     # title block
     d = ImageDraw.Draw(img)
     x = 64
-    d.rounded_rectangle([x, 92, x + 46, 138], 10, fill=(255, 42, 61))
-    d.text((x + 62, 88), "RYZER OS", font=font(50), fill=(255, 255, 255))
-    d.text((x, 168), "Your handheld,", font=font(46), fill=(243, 243, 247))
-    d.text((x, 222), "your console.", font=font(46), fill=(255, 92, 92))
+    d.polygon([(x + 14, 92), (x + 52, 92), (x + 38, 138), (x, 138)], fill=(255, 42, 61))   # slanted Blades mark
+    d.text((x + 66, 80), "RYZER OS", font=display(58), fill=(255, 255, 255))
+    d.text((x, 160), "YOUR HANDHELD,", font=display(50), fill=(243, 243, 247))
+    d.text((x, 214), "YOUR CONSOLE.", font=display(50), fill=(255, 92, 92))
     lines = ["A console-style frontend for", "Anbernic, AYN, Retroid & AYANEO.", "",
-             "3DS-style dual-screen Home", "Automatic box art", "Theme Studio · 25 themes · stats"]
+             "New in 3.0: the Blades redesign", "Dual-screen Home · automatic box art", "Theme Studio · 26 themes · stats"]
     y = 300
     for ln in lines:
         d.text((x, y), ln, font=font(24, "Medium"), fill=(190, 190, 205))
         y += 34 if ln else 14
     pill = f"  v{version} · free APK  "
     tw = d.textlength(pill, font=font(22))
-    d.rounded_rectangle([x, 548, x + tw + 8, 590], 21, fill=(255, 42, 61))
+    d.polygon([(x + 12, 548), (x + tw + 20, 548), (x + tw + 8, 590), (x, 590)], fill=(255, 42, 61))
     d.text((x + 4, 556), pill, font=font(22), fill=(255, 255, 255))
     img.convert("RGB").save(out / "hero.png", optimize=True)
 
