@@ -1,1 +1,1 @@
-PERF blades=2.66 classic=4.11
+PERF blades=2.40 classic=3.89
