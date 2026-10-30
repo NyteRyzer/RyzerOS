@@ -1,30 +1,5 @@
 [home] events finished=True running=True problems=0
 [classic] events finished=True running=True problems=0
 [home-gold] events finished=True running=True problems=0
-crash.txt: 
-Ryzer OS 3.0.1 | Google sdk_gphone64_x86_64 | Android 14 (API 34) | Thu Oct 29 18:56:06 CDT 2026
-java.lang.RuntimeException: Launch attempt failed for Maps: content://com.ryzer.os.roms/storage/emulated/0/ROMs/snes/Super%20Metroid%20(USA).sfc#Intent;type=application/octet-stream;launchFlags=0x14008003;package=com.google.android.apps.maps;end
-	at a.A1.run(SourceFile:201)
-	at a.B1.l(SourceFile:928)
-	at a.B1.k(SourceFile:35)
-	at a.v0.c(SourceFile:1218)
-	at a.c0.a(SourceFile:19)
-	at a.B1.z(SourceFile:1)
-	at a.B1.i(SourceFile:29)
-	at com.ryzer.os.MainActivity.onKeyDown(SourceFile:172)
-	at android.view.KeyEvent.dispatch(KeyEvent.java:2928)
-	at android.app.Activity.dispatchKeyEvent(Activity.java:4340)
-	at com.android.internal.policy.DecorView.dispatchKeyEvent(DecorView.java:392)
-	at android.view.ViewRootImpl$ViewPostImeInputStage.processKeyEvent(ViewRootImpl.java:6945)
-	at android.view.ViewRootImpl$ViewPostImeInputStage.onProcess(ViewRootImpl.java:6811)
-	at android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6229)
-	at android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)
-	at android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)
-	at android.view.ViewRootImpl$AsyncInputStage.forward(ViewRootImpl.java:6417)
-	at android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)
-	at android.view.ViewRootImpl$AsyncInputStage.apply(ViewRootImpl.java:6474)
-	at android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6233)
-	at android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)
-	at android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)
-	at android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)
-	at android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6233)
+handled launch/update errors: 0
+crash.txt: empty
