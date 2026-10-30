@@ -43,6 +43,11 @@ Real captures of Ryzer OS 3.0 running with a sample library. Each one shows the 
     <td align="center" width="33%"><img src="docs/screenshots/home-gold.png" alt="3DS layout + bonus theme"><br><sub><b>3DS layout + bonus theme</b></sub></td>
   </tr>
   <tr>
+    <td align="center" width="33%"><img src="docs/screenshots/system-icons.png" alt="Console icons for 27 systems"><br><sub><b>Console icons for 27 systems</b></sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/theme-circuit.png" alt="Cyberpunk theme, circuit background"><br><sub><b>Cyberpunk: circuit background</b></sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/theme-aurora.png" alt="Neon Night theme, aurora glow"><br><sub><b>Neon Night: aurora glow</b></sub></td>
+  </tr>
+  <tr>
     <td align="center" width="33%"><img src="docs/screenshots/games.png" alt="Game lists with box art"><br><sub><b>Game lists with box art</b></sub></td>
     <td align="center" width="33%"><img src="docs/screenshots/grid.png" alt="Grid view"><br><sub><b>Grid view</b></sub></td>
     <td align="center" width="33%"><img src="docs/screenshots/foryou.png" alt="For You picks"><br><sub><b>For You picks</b></sub></td>
