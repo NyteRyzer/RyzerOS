@@ -112,7 +112,13 @@ def stability_check(demo: Path, out: Path):
         report.append(f"[{config}] events finished={done} running={bool(alive)} problems={len(bad)}")
         report += [f"  {ln}" for ln in bad]
     crash = subprocess.run(["adb", "shell", "cat /sdcard/RyzerOS/crash.txt"], capture_output=True, text=True).stdout.strip()
-    report.append("crash.txt: " + ("empty" if not crash or "No such file" in crash else "\n" + crash))
+    entries = [] if not crash or "No such file" in crash else [e for e in crash.split("\n\n") if e.strip()]
+    # Handled, expected failures: random input can pick "Open with another app" > an app that can't open
+    # ROMs (Ryzer then explains it), or the updater can't reach GitHub. Anything else is a real problem.
+    expected = ("Launch attempt failed for", "Update check failed", "Update download failed")
+    real = [e for e in entries if not any(x in e for x in expected)]
+    report.append(f"handled launch/update errors: {len(entries) - len(real)}")
+    report.append("crash.txt: " + ("empty" if not real else "\n" + "\n\n".join(real)))
     (out / "stability.txt").write_text("\n".join(report) + "\n")
     print("=== STABILITY ===\n" + "\n".join(report) + "\n=== END STABILITY ===", flush=True)
 
