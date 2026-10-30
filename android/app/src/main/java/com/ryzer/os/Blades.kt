@@ -32,6 +32,8 @@ class BladesHome(app: Ryzer) : Screen(app) {
     private var noGames = false
     /** Picture file per tile and the largest system's game count, worked out once per rebuild rather than per frame. */
     private var artFiles = mapOf<Tile, java.io.File?>()
+    /** System tiles with your own picture (RyzerOS/tiles): shown as they are, without the console icon. */
+    private var customArt = setOf<Tile>()
     private var largestSystem = 0
 
     fun rebuild() {
@@ -40,6 +42,7 @@ class BladesHome(app: Ryzer) : Screen(app) {
         groups = BladeTabs.group(tiles.map { it.kind })
         noGames = app.allGames().isEmpty()
         artFiles = tiles.associateWith { artFile(it) }
+        customArt = tiles.filter { it.kind == "system" && customTile(it) != null }.toSet()
         largestSystem = app.systems.maxOfOrNull { app.visible(it.games).size } ?: 0
         for (i in sel.indices) sel[i] = BladeTabs.clampSel(sel[i], groups[i].size)
         if (!moved && sel.any { it != 0 }) moved = true   // a tap picked a blade
@@ -118,12 +121,30 @@ class BladesHome(app: Ryzer) : Screen(app) {
     private fun artFile(tile: Tile): java.io.File? {
         tile.game?.let { if (tile.kind == "pinned" || tile.kind == "gotd" || tile.kind == "continue") return it.image() }
         val s = tile.system?.takeIf { tile.kind == "system" } ?: return null
-        val dir = java.io.File(app.home, "tiles")
-        listOf("png", "jpg", "webp").map { java.io.File(dir, "${s.id}.$it") }.firstOrNull { it.isFile }?.let { return it }
+        customTile(tile)?.let { return it }
         return app.visible(s.games).maxByOrNull { app.state.playtime(it.key) }?.takeIf { app.state.playtime(it.key) > 0 }?.image()
     }
 
+    private fun customTile(tile: Tile): java.io.File? {
+        val s = tile.system ?: return null
+        val dir = java.io.File(app.home, "tiles")
+        return listOf("png", "jpg", "webp").map { java.io.File(dir, "${s.id}.$it") }.firstOrNull { it.isFile }
+    }
+
     private fun art(tile: Tile): Bitmap? = artFiles[tile]?.let { G.image(it) }
+
+    /**
+     * The console icon for a system tile, over its (dimmed) cover art or on the system colour, centred a little
+     * above the middle of [r]. Returns false for anything that isn't a system, or has a custom tile picture.
+     */
+    private fun systemIcon(c: Canvas, tile: Tile, r: RectF, overArt: Boolean): Boolean {
+        val s = tile.system?.takeIf { tile.kind == "system" && tile !in customArt } ?: return false
+        if (overArt) G.rect(c, r, withAlpha(0xFF000000.toInt(), 0.55f))
+        val side = min(r.width() * 0.86f, r.height() * 0.5f)
+        val cy = r.top + r.height() * 0.42f
+        SystemIcons.draw(c, s.id, s.color, RectF(r.centerX() - side / 2, cy - side / 2, r.centerX() + side / 2, cy + side / 2))
+        return true
+    }
 
     private val blurCache = object : LinkedHashMap<Bitmap, Bitmap>(8, 0.75f, true) {
         override fun removeEldestEntry(e: MutableMap.MutableEntry<Bitmap, Bitmap>) = size > 8
@@ -222,7 +243,7 @@ class BladesHome(app: Ryzer) : Screen(app) {
         G.rect(c, r, fill)
         val bmp = art(tile)
         if (bmp != null) fillCover(c, bmp, r)
-        else glyph(c, tile, r.centerX(), r.centerY(), r.width(), ink(fill))
+        if (!systemIcon(c, tile, r, overArt = bmp != null) && bmp == null) glyph(c, tile, r.centerX(), r.centerY(), r.width(), ink(fill))
         if (!selected) G.rect(c, r, withAlpha(0xFF000000.toInt(), 0.45f))
         // Name band along the bottom
         val bandH = if (selected) 34f else 26f
@@ -258,8 +279,12 @@ class BladesHome(app: Ryzer) : Screen(app) {
     private fun compactHero(c: Canvas, tile: Tile, r: RectF) {
         G.panel(c, r, th)
         val art = RectF(r.left + 14, r.top + 6, r.left + 60, r.bottom - 6)
-        art(tile)?.let { c.save(); Skin.clip(c, art, 10f); fillCover(c, it, art); c.restore() }
-            ?: Skin.parallelogram(c, art, bandColor(tile), 10f)
+        val sys = tile.system?.takeIf { tile.kind == "system" && tile !in customArt }
+        when {
+            sys != null -> SystemIcons.draw(c, sys.id, sys.color, art)
+            else -> art(tile)?.let { c.save(); Skin.clip(c, art, 10f); fillCover(c, it, art); c.restore() }
+                ?: Skin.parallelogram(c, art, bandColor(tile), 10f)
+        }
         Skin.text(c, bannerTitle(tile), r.left + 72, r.top + 6, 26f, th.c("text"), maxW = r.width() - 90)
         G.text(c, tile.note, r.left + 72, r.top + 36, 18f, th.c("text_dim"), maxW = r.width() - 90)
     }
@@ -288,7 +313,8 @@ class BladesHome(app: Ryzer) : Screen(app) {
         c.save(); Skin.clip(c, card, skew)
         val cardFill = mix(th.c("panel"), tile.color ?: th.c("accent"), 0.7f)
         G.rect(c, card, cardFill)
-        if (bmp != null) fillCover(c, bmp, card) else glyph(c, tile, card.centerX(), card.centerY(), card.width(), ink(cardFill))
+        if (bmp != null) fillCover(c, bmp, card)
+        if (!systemIcon(c, tile, card, overArt = bmp != null) && bmp == null) glyph(c, tile, card.centerX(), card.centerY(), card.width(), ink(cardFill))
         c.restore()
         Skin.outlinePara(c, card, th.c("accent"), 3f, skew)
 

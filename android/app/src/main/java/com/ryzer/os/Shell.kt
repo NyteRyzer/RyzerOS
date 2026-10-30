@@ -272,6 +272,10 @@ class HomeShell(app: Ryzer) : Screen(app) {
         val ic = th.c("highlight_text")
         when {
             art != null -> { c.save(); c.clipRect(RectF(r.left + 3, r.top + 3, r.right - 3, r.bottom - 3)); G.drawImageFit(c, art, RectF(r.left + 3, r.top + 3, r.right - 3, r.bottom - 3)); c.restore() }
+            tile.kind == "system" && tile.system != null -> {
+                val side = r.height() * 0.66f
+                SystemIcons.draw(c, tile.system.id, tile.system.color, RectF(r.centerX() - side / 2, r.top + 2, r.centerX() + side / 2, r.top + 2 + side))
+            }
             tile.kind == "system" || tile.kind == "pinned" || tile.kind == "gotd" ->
                 G.text(c, tile.system?.short ?: tile.label, r.centerX(), r.centerY() - r.height() * 0.17f, r.height() * 0.32f, ic, align = 'c', isBold = true, maxW = r.width() - 8)
             else -> drawIcon(c, tile.kind, r.centerX(), r.centerY() - 6, r.height() * 0.2f, ic)

@@ -28,6 +28,8 @@ class Item(
     var colorKey: String? = null
     /** Blades: a colour stripe at the row's left edge (Settings sections use one each). */
     var stripe: Int? = null
+    /** A system: the row shows that console's icon before its label (the Emulators list). */
+    var icon: GameSystem? = null
 }
 
 open class Menu(app: Ryzer, override val title: String, var items: List<Item>, private val subtitle: String = "") : Screen(app) {
@@ -72,14 +74,17 @@ open class Menu(app: Ryzer, override val title: String, var items: List<Item>, p
             G.panel(c, r, th, selected)
             app.hit(r) { if (sel == i) handle("a") else sel = i }
             val col = if (selected) th.c("text") else mix(th.c("text"), th.c("text_dim"), 0.4f)
+            val iconW = it.icon?.let { s ->
+                SystemIcons.draw(c, s.id, s.color, RectF(r.left + 12, r.top + 4, r.left + 12 + (r.height() - 8), r.bottom - 4)); r.height()
+            } ?: 0f
             if (blades) {
                 (it.stripe ?: it.colorKey?.let { k -> th.c(k) })?.let { sc ->
                     val k = SkinMath.skewFor(r.height())   // same lean as the row, 8 px wide along its left edge
                     Skin.parallelogram(c, RectF(r.left - k / 2, r.top, r.left + k / 2 + 8, r.bottom), sc, k)
                 }
-                if (selected) Skin.text(c, it.label, r.left + 18, r.top + 9, 26f, col, maxW = r.width() / 2)
-                else G.text(c, it.label, r.left + 18, r.top + 10, 24f, col, maxW = r.width() / 2, theme = th)
-            } else G.text(c, it.label, r.left + 14, r.top + 8, 24f, col, maxW = r.width() / 2, theme = th)
+                if (selected) Skin.text(c, it.label, r.left + 18 + iconW, r.top + 9, 26f, col, maxW = r.width() / 2 - iconW)
+                else G.text(c, it.label, r.left + 18 + iconW, r.top + 10, 24f, col, maxW = r.width() / 2 - iconW, theme = th)
+            } else G.text(c, it.label, r.left + 14 + iconW, r.top + 8, 24f, col, maxW = r.width() / 2 - iconW, theme = th)
             var x = r.right - 14
             it.swatch?.let { sw ->
                 val sr = RectF(x - 26, r.centerY() - 10, x, r.centerY() + 10)

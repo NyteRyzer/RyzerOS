@@ -122,6 +122,7 @@ fun settingsMenu(app: Ryzer): Menu {
             change = { d -> cfg.romAccess = cycle(listOf("auto", "provider", "folder"), cfg.romAccess, d); cfg.save() }),
     ) + app.systems.map { s ->
         Item(s.name, "${s.demand}. ${s.note}", value = { Launcher.label(app, Launcher.chosen(app, s)) }, select = { app.push(EmulatorPicker(app, s)) })
+            .also { it.icon = s }
     }) }
 
     val display = { Menu(app, "Display & dual screen", listOf(

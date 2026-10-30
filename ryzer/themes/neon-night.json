@@ -3,14 +3,14 @@
   "name": "Neon Night",
   "author": "Ryzer",
   "colors": {
-    "bg_top": "#0B0221",
-    "bg_bottom": "#02000A",
-    "panel": "#160A33",
-    "panel_border": "#4B2A8A",
+    "bg_top": "#0D0226",
+    "bg_bottom": "#020008",
+    "panel": "#1A0B3A",
+    "panel_border": "#4B1E7A",
     "accent": "#FF2BD6",
     "accent2": "#2BF0FF",
-    "text": "#F2EBFF",
-    "text_dim": "#8E80B3",
+    "text": "#F7F0FF",
+    "text_dim": "#A898C4",
     "highlight_text": "#FFFFFF",
     "good": "#2BFF88",
     "warn": "#FFE62B",
@@ -19,7 +19,7 @@
   "style": {
     "corner_radius": 12,
     "tile_style": "glow",
-    "background": "grid",
+    "background": "aurora",
     "font_scale": 1.0,
     "particles": true
   }

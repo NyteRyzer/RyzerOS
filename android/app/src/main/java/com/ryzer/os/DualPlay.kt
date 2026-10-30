@@ -299,13 +299,13 @@ class NowPlayingView(private val act: NowPlayingActivity, private val app: Ryzer
                     art.centerX() + bmp.width * sc / 2, art.centerY() + bmp.height * sc / 2), android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG))
             } else {
                 G.rect(c, art, mix(th.c("panel"), game.system.color, 0.7f))
-                Skin.text(c, game.system.short, art.centerX(), art.centerY() - 22, 48f, th.c("highlight_text"), align = 'c')
+                SystemIcons.draw(c, game.system.id, game.system.color, RectF(art).apply { inset(14f, 14f) })
             }
             c.restore()
             Skin.outlinePara(c, art, th.c("accent"), 2f, sk)
         } else if (bmp != null) G.drawImageFit(c, bmp, art) else {
             G.rect(c, art, mix(th.c("panel"), game.system.color, 0.7f), th.radius)
-            G.text(c, game.system.short, art.centerX(), art.centerY() - 22, 48f, th.c("highlight_text"), align = 'c', isBold = true)
+            SystemIcons.draw(c, game.system.id, game.system.color, RectF(art).apply { inset(10f, 10f) })
         }
         val x = art.right + 16
         val st = app.state

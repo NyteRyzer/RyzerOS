@@ -2,6 +2,11 @@
 
 Every version of Ryzer OS, newest first. Downloads for each one are on the [Releases page](https://github.com/NyteRyzer/RyzerOS/releases).
 
+## 3.1.0: console icons and new themes
+
+- **Every system has its own icon now**: 27 console-shaped icons (3DS and DS flip handhelds, PSP, PS2, GBA, Game Boy, SNES and N64 controllers, Switch, arcade cabinet and more), drawn in each system's colour. They're on the Systems tab (over your most-played game's cover), the top-screen hero, the 3DS, Ribbon and Grid layouts, game lists, Now Playing and *Settings → Emulators*. A picture in `RyzerOS/tiles` still replaces the icon. See them all in *Tools → System icons*.
+- **All 21 built-in themes redesigned for Blades**: deeper colours, glowing accents and five new background patterns: speedlines, hex, circuit, halftone and aurora. Light themes (Snow, Arctic, Mint, Cherry Blossom) got stronger accents and easier-to-read text. Your chosen theme stays selected, and Theme Studio has the new patterns too.
+
 ## 3.0.1: switching games fixed
 
 - **Picking another game now really starts it.** If you went back to Ryzer while a game was still open (the *Ryzer* button on Now Playing, or the Home key) and then chose a different game for the same emulator, RetroArch, My Boy!, PPSSPP, Dolphin, melonDS and others brought back the first game, while Ryzer showed the new title. Every emulator now starts fresh with the game you picked. "Open with another app" works the same way.

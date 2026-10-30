@@ -4,7 +4,7 @@
   "author": "Ryzer",
   "colors": {
     "bg_top": "#0A0A10",
-    "bg_bottom": "#120A12",
+    "bg_bottom": "#140A14",
     "panel": "#1A1A24",
     "panel_border": "#3A2A36",
     "accent": "#FF2A3D",
@@ -19,7 +19,7 @@
   "style": {
     "corner_radius": 6,
     "tile_style": "glow",
-    "background": "gradient",
+    "background": "speedlines",
     "font_scale": 1.0,
     "particles": false
   }

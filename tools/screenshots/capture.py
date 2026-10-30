@@ -44,6 +44,12 @@ SHOTS = [
     ("blades-snow", "snow", "tab:0", "", 0),
     ("blades-games", "home", "games:gba", "down down down down", 0),
     ("blades-empty", "empty", "", "", 0),
+    ("system-icons", "home", "icons", "", 0),
+    ("theme-circuit", "t-cyberpunk", "tab:1", "right", 0),
+    ("theme-hex", "t-lava", "tab:1", "right right", 0),
+    ("theme-halftone", "t-ocean", "tab:2", "", 0),
+    ("theme-aurora", "t-neon", "tab:0", "", 0),
+    ("theme-arctic", "t-arctic", "tab:1", "", 0),
 ]
 LANDSCAPE = [
     ("land-home", "land-home", "", "right", 0),

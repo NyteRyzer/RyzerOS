@@ -49,7 +49,8 @@ class Theme(
     companion object {
         val COLOR_KEYS = listOf("bg_top", "bg_bottom", "panel", "panel_border", "accent", "accent2",
             "text", "text_dim", "highlight_text", "good", "warn", "bad")
-        val BACKGROUNDS = listOf("gradient", "solid", "scanlines", "grid", "dots", "waves", "stars", "stripes", "checker", "diagonal")
+        val BACKGROUNDS = listOf("gradient", "solid", "scanlines", "grid", "dots", "waves", "stars", "stripes", "checker", "diagonal",
+            "speedlines", "hex", "circuit", "halftone", "aurora")
         val TILE_STYLES = listOf("glow", "flat", "outline")
 
         fun hex(c: Int) = String.format("#%06X", c and 0xFFFFFF)
@@ -195,7 +196,8 @@ object G {
 
     fun background(c: Canvas, th: Theme, w: Float, h: Float, t: Float) {
         // Keyed on the background colours only, so live accent effects (RGB mode) don't rebuild it every frame
-        val key = "${th.id}|${th.c("bg_top")}|${th.c("bg_bottom")}|${th.c("text")}|${th.background}|${w.toInt()}x${h.toInt()}|${Skin.blades}"
+        val key = "${th.id}|${th.c("bg_top")}|${th.c("bg_bottom")}|${th.c("text")}|${th.background}|${w.toInt()}x${h.toInt()}|${Skin.blades}|" +
+            if (th.background in ACCENT_PATTERNS && Ryzer.instance?.cfg?.rgb != true) "${th.c("accent")}|${th.c("accent2")}" else ""
         val bmp = bgCache[key] ?: buildBg(th, w.toInt().coerceAtLeast(1), h.toInt().coerceAtLeast(1)).also {
             if (bgCache.size > 6) bgCache.clear()
             bgCache[key] = it
@@ -215,6 +217,9 @@ object G {
             }
         }
     }
+
+    /** Patterns drawn in the accent colours: the cache key includes them (except in RGB mode, whose accent changes every frame). */
+    private val ACCENT_PATTERNS = setOf("speedlines", "hex", "circuit", "halftone", "aurora")
 
     private fun buildBg(th: Theme, w: Int, h: Int): Bitmap {
         val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
@@ -236,6 +241,50 @@ object G {
             "diagonal" -> { var x = -h; while (x < w) { line(c, x.toFloat(), h.toFloat(), (x + h).toFloat(), 0f, withAlpha(lineCol, 0.7f), 2f); x += 22 } }
             "stars" -> { val r = Random(7); repeat(w * h / 2200) { circle(c, r.nextInt(w).toFloat(), r.nextInt(h).toFloat(), 0.8f,
                 mix(th.c("bg_top"), th.c("text"), r.nextFloat() * 0.6f)) } }
+            // 3.1 patterns, made for the Blades look (all baked into this cached bitmap)
+            "speedlines" -> { val r = Random(11); repeat(w * h / 9000 + 8) { i ->
+                val x = r.nextInt(w).toFloat(); val y = r.nextInt(h).toFloat(); val len = 60f + r.nextInt(140)
+                line(c, x, y, x + len, y - len * 0.45f, withAlpha(if (i % 3 == 0) th.c("accent2") else th.c("accent"), 0.16f + r.nextFloat() * 0.1f), if (i % 2 == 0) 2f else 1f)
+            } }
+            "hex" -> {
+                val rr = 18f; val hp = Path()
+                var row = -1
+                while (row * rr * 1.5f < h + rr) {
+                    var col = -1
+                    while (col * rr * 1.75f < w + rr) {
+                        val cx = col * rr * 1.75f + (if (row % 2 != 0) rr * 0.87f else 0f); val cy = row * rr * 1.5f
+                        hp.reset()
+                        for (k in 0 until 6) {
+                            val a = Math.toRadians(60.0 * k + 30)
+                            val x = cx + rr * cos(a).toFloat(); val y = cy + rr * sin(a).toFloat()
+                            if (k == 0) hp.moveTo(x, y) else hp.lineTo(x, y)
+                        }
+                        hp.close()
+                        path(c, hp, withAlpha(th.c("accent"), 0.08f + 0.12f * (cy / h).coerceIn(0f, 1f)), filled = false, w = 1f)
+                        col++
+                    }
+                    row++
+                }
+            }
+            "circuit" -> { val r = Random(3); repeat(w * h / 6000 + 10) {
+                val x = r.nextInt(w).toFloat(); val y = r.nextInt(h).toFloat(); val seg = 24f + r.nextInt(70); val drop = 20f + r.nextInt(40)
+                val col = withAlpha(th.c("accent"), 0.18f)
+                line(c, x, y, x + seg, y, col, 1.5f); line(c, x + seg, y, x + seg + 14, y + 14, col, 1.5f)
+                line(c, x + seg + 14, y + 14, x + seg + 14, y + 14 + drop, col, 1.5f)
+                ring(c, x + seg + 14, y + 17 + drop, 3f, withAlpha(th.c("accent2"), 0.4f), 1.5f)
+                circle(c, x, y, 2f, withAlpha(th.c("accent"), 0.3f))
+            } }
+            "halftone" -> { var y = 0; while (y < h) { var x = (y / 10 % 2) * 5; while (x < w) {
+                circle(c, x.toFloat(), y.toFloat(), 0.3f + 1.8f * y / h, withAlpha(th.c("accent"), 0.2f)); x += 10 }; y += 10 } }
+            "aurora" -> {
+                val gp = Paint(Paint.ANTI_ALIAS_FLAG)
+                gp.shader = android.graphics.RadialGradient(w * 0.12f, h * 0.05f, max(w, h) * 0.55f,
+                    withAlpha(th.c("accent"), 0.32f), withAlpha(th.c("accent"), 0f), Shader.TileMode.CLAMP)
+                c.drawRect(0f, 0f, w.toFloat(), h.toFloat(), gp)
+                gp.shader = android.graphics.RadialGradient(w * 0.9f, h * 0.95f, max(w, h) * 0.6f,
+                    withAlpha(th.c("accent2"), 0.28f), withAlpha(th.c("accent2"), 0f), Shader.TileMode.CLAMP)
+                c.drawRect(0f, 0f, w.toFloat(), h.toFloat(), gp)
+            }
         }
         if (Skin.blades) {   // faint diagonal bands, baked in so they cost nothing per frame
             val band = withAlpha(th.c("accent"), 0.05f)

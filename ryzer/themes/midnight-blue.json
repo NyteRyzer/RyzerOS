@@ -3,14 +3,14 @@
   "name": "Midnight Blue",
   "author": "Ryzer",
   "colors": {
-    "bg_top": "#0A1630",
-    "bg_bottom": "#02060F",
-    "panel": "#0F1F3D",
-    "panel_border": "#2A4A80",
+    "bg_top": "#071226",
+    "bg_bottom": "#01040C",
+    "panel": "#0E1C38",
+    "panel_border": "#23407A",
     "accent": "#3D8BFF",
     "accent2": "#7DD3FC",
-    "text": "#EAF2FF",
-    "text_dim": "#7F93B5",
+    "text": "#EEF4FF",
+    "text_dim": "#8EA2C4",
     "highlight_text": "#FFFFFF",
     "good": "#34D399",
     "warn": "#FBBF24",
@@ -19,7 +19,7 @@
   "style": {
     "corner_radius": 12,
     "tile_style": "glow",
-    "background": "gradient",
+    "background": "hex",
     "font_scale": 1.0,
     "particles": false
   }

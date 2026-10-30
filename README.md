@@ -80,6 +80,11 @@ More screenshots (2048, Game Roulette, quick menu, the Classic style and the Rib
 - **Stats**: play time, streaks, a play calendar, session history, 14 milestones and a shareable stats card.
 - **Extras**: Snake, 2048, Game Roulette, a controller tester, battery info, a stopwatch and timer, a bedtime reminder, a quick menu (L + R) and kid mode.
 
+## New in 3.1: console icons and new themes
+
+- **27 console-shaped system icons**, from the 3DS and PSP to the SNES pad and the arcade cabinet, on Home, game lists, Now Playing and Settings.
+- **All 21 themes redesigned** for the Blades look, with new speedlines, hex, circuit, halftone and aurora backgrounds.
+
 ## New in 3.0: the Blades redesign
 
 - **A new Home**: Continue, Systems, Collections and Tools tabs (L / R), each item a tall slanted card with its art. The top screen shows a big slanted cover, the title in bold italic, and power bars for play time, rating or library size.

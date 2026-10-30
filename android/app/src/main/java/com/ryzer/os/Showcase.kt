@@ -54,6 +54,7 @@ object Showcase {
                 "banner" -> Notifs.ryzer("Milestone unlocked: Marathon", "Play 3 hours in one day")
                 "boot" -> app.current?.let { app.push(BootScreen(app, it, arg.toFloatOrNull() ?: 1f)) }
                 "perf" -> perf(app)
+                "icons" -> app.push(IconSheet(app))
                 "tab" -> (app.stack.firstOrNull() as? BladesHome)?.let { it.rebuild(); it.showTab(arg.toIntOrNull() ?: 0) }
             }
         }

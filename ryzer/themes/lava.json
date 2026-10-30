@@ -3,14 +3,14 @@
   "name": "Lava",
   "author": "Ryzer",
   "colors": {
-    "bg_top": "#2B0A00",
-    "bg_bottom": "#0A0200",
-    "panel": "#360F02",
-    "panel_border": "#8A2A05",
+    "bg_top": "#2A0700",
+    "bg_bottom": "#080100",
+    "panel": "#330D02",
+    "panel_border": "#7A2A08",
     "accent": "#FF5A00",
     "accent2": "#FFD000",
-    "text": "#FFF0E0",
-    "text_dim": "#B07A5E",
+    "text": "#FFF3EA",
+    "text_dim": "#C29A86",
     "highlight_text": "#1A0500",
     "good": "#8BE36B",
     "warn": "#FFD000",
@@ -19,7 +19,7 @@
   "style": {
     "corner_radius": 12,
     "tile_style": "glow",
-    "background": "waves",
+    "background": "hex",
     "font_scale": 1.0,
     "particles": true
   }

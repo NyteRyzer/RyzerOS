@@ -534,6 +534,7 @@ fun toolsMenu(app: Ryzer) = Menu(app, "Tools", listOf(
     Item("2048", "Slide and merge tiles. Best: ${app.state.bestScores["2048"] ?: 0}", select = { app.push(Game2048(app)) }),
     Item("Play calendar", "See the days you played, month by month.", select = { app.push(PlayCalendar(app)) }),
     Item("Ryzer Wrapped", "Your month or year in games: totals, top games, best day.", select = { app.push(WrappedScreen(app)) }),
+    Item("System icons", "The console icon Ryzer draws for each system.", select = { app.push(IconSheet(app)) }),
     Item("Export library (CSV)", "Your games and play history as spreadsheets, in RyzerOS/exports.",
         select = { runCatching { Export.run(app) }.onFailure { app.notify("Couldn't export: ${it.message?.take(60)}") } }),
     Item("Share my stats", "Makes a stats card picture and opens the share menu.", select = { runCatching { Sharing.statsCard(app) }.onFailure { app.notify("Couldn't make the card") } }),
@@ -561,7 +562,9 @@ fun setSystemBrightness(app: Ryzer, d: Int) {
     }
 }
 
-const val WHATS_NEW = "3.0.1: choosing another game while one is still open now starts the new game, instead of bringing back the first one.\n\n" +
+const val WHATS_NEW = "3.1: every system has its own console icon (Tools > System icons), and all 21 built-in themes are redesigned " +
+    "with new speedlines, hex, circuit, halftone and aurora backgrounds.\n\n" +
+    "3.0.1: choosing another game while one is still open now starts the new game, instead of bringing back the first one.\n\n" +
     "3.0 is the Blades redesign. A new Home with four tabs (Continue, Systems, Collections, Tools: L / R to switch) " +
     "of tall slanted cards, a big hero card with power bars on the top screen, a bold new style on every menu, list and dialog, " +
     "a new boot animation (Strike) and a new default theme, Ryzer Strike. Prefer the old look? Settings > Look & feel > " +

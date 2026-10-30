@@ -257,7 +257,7 @@ class HomeScreen(app: Ryzer) : Screen(app) {
         val art = tileArt(tile)
         when {
             art != null -> { c.save(); c.clipRect(band); G.drawImageFit(c, art, band); c.restore() }
-            tile.kind == "system" -> G.text(c, tile.label, band.centerX(), band.centerY() - 20, if (selected) 44f else 38f, iconCol, align = 'c', isBold = true, maxW = band.width() - 6)
+            tile.kind == "system" && tile.system != null -> SystemIcons.draw(c, tile.system.id, tile.system.color, RectF(band).apply { inset(4f, 4f) })
             tile.kind == "pinned" || tile.kind == "gotd" -> G.text(c, tile.system?.short ?: "", band.centerX(), band.centerY() - 20, 38f, iconCol, align = 'c', isBold = true)
             else -> drawIcon(c, tile.kind, band.centerX(), band.centerY(), if (selected) 26f else 22f, iconCol)
         }
@@ -337,7 +337,7 @@ class HomeScreen(app: Ryzer) : Screen(app) {
             val bmp = G.image(g.image())
             if (bmp != null) G.drawImageFit(c, bmp, r) else {
                 G.rect(c, r, mix(th.c("panel"), g.system.color, 0.6f), 8f)
-                G.text(c, g.system.short, r.centerX(), r.centerY() - 14, 28f, th.c("highlight_text"), align = 'c', isBold = true)
+                SystemIcons.draw(c, g.system.id, g.system.color, RectF(r).apply { inset(6f, 6f) })
             }
             G.text(c, app.title(g), r.centerX(), r.bottom + 4, 15f, th.c("text_dim"), align = 'c', maxW = bw)
             app.hit(r) { app.launch(g) }
@@ -583,7 +583,7 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
             if (bmp != null) G.drawImageFit(c, bmp, art)
             else {
                 G.rect(c, art, mix(th.c("panel"), g.system.color, 0.6f), max(0f, th.radius - 4))
-                G.text(c, g.system.short, art.centerX(), art.centerY() - 16, 34f, th.c("highlight_text"), align = 'c', isBold = true)
+                SystemIcons.draw(c, g.system.id, g.system.color, RectF(art).apply { inset(6f, 6f) })
             }
             if (app.state.isFavorite(g.key)) G.text(c, "*", r.right - 16, r.top + 4, 30f, th.c("warn"), isBold = true)
             if (app.cfg.newBadges && app.state.isNew(g.key)) {
@@ -621,7 +621,7 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
                 android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG))
         } else {
             G.rect(c, cover, mix(th.c("panel"), g.system.color, 0.6f))
-            Skin.text(c, g.system.short, cover.centerX(), cover.centerY() - 20, 44f, th.c("highlight_text"), align = 'c')
+            SystemIcons.draw(c, g.system.id, g.system.color, RectF(cover).apply { inset(cover.width() * 0.12f, cover.height() * 0.12f) })
         }
         c.restore()
         Skin.outlinePara(c, cover, th.c("accent"), 2f, skew)
@@ -659,7 +659,7 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
         } else {
             val art = RectF(r.left + 10, y, r.right - 10, y + if (compact) 90 else 140)
             G.rect(c, art, mix(th.c("panel"), g.system.color, 0.6f), max(0f, th.radius - 4))
-            G.text(c, g.system.short, art.centerX(), art.centerY() - 18, 44f, th.c("highlight_text"), align = 'c', isBold = true)
+            SystemIcons.draw(c, g.system.id, g.system.color, RectF(art).apply { inset(6f, 6f) })
             y = art.bottom + 8
         }
         G.text(c, app.title(g), r.centerX(), y, if (compact) 22f else 30f, th.c("text"), align = 'c', isBold = true, maxW = r.width() - 16)

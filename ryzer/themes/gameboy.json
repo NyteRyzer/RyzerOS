@@ -1,6 +1,6 @@
 {
   "id": "gameboy",
-  "name": "Pocket DMG",
+  "name": "Game Boy",
   "author": "Ryzer",
   "colors": {
     "bg_top": "#9BBC0F",
@@ -10,7 +10,7 @@
     "accent": "#0F380F",
     "accent2": "#306230",
     "text": "#0F380F",
-    "text_dim": "#306230",
+    "text_dim": "#204D20",
     "highlight_text": "#9BBC0F",
     "good": "#0F380F",
     "warn": "#306230",

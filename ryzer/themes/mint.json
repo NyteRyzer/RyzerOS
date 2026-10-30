@@ -3,14 +3,14 @@
   "name": "Mint",
   "author": "Ryzer",
   "colors": {
-    "bg_top": "#E6FFF6",
-    "bg_bottom": "#B8F2DE",
-    "panel": "#F5FFFB",
-    "panel_border": "#8FD9BF",
+    "bg_top": "#E8FFF7",
+    "bg_bottom": "#B5EFD9",
+    "panel": "#FFFFFF",
+    "panel_border": "#9FD9C3",
     "accent": "#0CA678",
     "accent2": "#1098AD",
-    "text": "#0B2E24",
-    "text_dim": "#4F7A6C",
+    "text": "#0B2B22",
+    "text_dim": "#4C7468",
     "highlight_text": "#FFFFFF",
     "good": "#0CA678",
     "warn": "#F59F00",
@@ -19,7 +19,7 @@
   "style": {
     "corner_radius": 16,
     "tile_style": "flat",
-    "background": "gradient",
+    "background": "halftone",
     "font_scale": 1.0,
     "particles": false
   }

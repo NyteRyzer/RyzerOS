@@ -3,14 +3,14 @@
   "name": "Arctic",
   "author": "Ryzer",
   "colors": {
-    "bg_top": "#E8F1F8",
-    "bg_bottom": "#C9DCEB",
+    "bg_top": "#EAF4FB",
+    "bg_bottom": "#C6DDEE",
     "panel": "#FFFFFF",
-    "panel_border": "#A9C4DA",
+    "panel_border": "#A9C7DE",
     "accent": "#1C7ED6",
-    "accent2": "#15AABF",
-    "text": "#10202E",
-    "text_dim": "#5A6F80",
+    "accent2": "#0FB5C9",
+    "text": "#0F2233",
+    "text_dim": "#4A6378",
     "highlight_text": "#FFFFFF",
     "good": "#2B8A3E",
     "warn": "#E67700",
@@ -19,7 +19,7 @@
   "style": {
     "corner_radius": 16,
     "tile_style": "flat",
-    "background": "dots",
+    "background": "hex",
     "font_scale": 1.0,
     "particles": false
   }

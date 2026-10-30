@@ -3,14 +3,14 @@
   "name": "Matrix",
   "author": "Ryzer",
   "colors": {
-    "bg_top": "#000D02",
+    "bg_top": "#000A02",
     "bg_bottom": "#000000",
-    "panel": "#001A06",
-    "panel_border": "#00591A",
+    "panel": "#00160A",
+    "panel_border": "#0B4D1E",
     "accent": "#00FF41",
-    "accent2": "#9CFF57",
-    "text": "#B6FFC8",
-    "text_dim": "#2E8A47",
+    "accent2": "#B6FF6A",
+    "text": "#E6FFEC",
+    "text_dim": "#5FA874",
     "highlight_text": "#000000",
     "good": "#00FF41",
     "warn": "#D4FF3A",
@@ -19,7 +19,7 @@
   "style": {
     "corner_radius": 2,
     "tile_style": "outline",
-    "background": "scanlines",
+    "background": "circuit",
     "font_scale": 1.0,
     "particles": false
   }

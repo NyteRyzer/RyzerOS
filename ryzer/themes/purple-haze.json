@@ -3,14 +3,14 @@
   "name": "Purple Haze",
   "author": "Ryzer",
   "colors": {
-    "bg_top": "#24103D",
-    "bg_bottom": "#0B0414",
-    "panel": "#2D1550",
-    "panel_border": "#5E35A0",
+    "bg_top": "#1E0B36",
+    "bg_bottom": "#08030F",
+    "panel": "#2A1248",
+    "panel_border": "#5A2E8F",
     "accent": "#B57BFF",
-    "accent2": "#FF9EE5",
-    "text": "#F4EDFF",
-    "text_dim": "#9B87BD",
+    "accent2": "#FF7AD9",
+    "text": "#F8F0FF",
+    "text_dim": "#A893C4",
     "highlight_text": "#14082A",
     "good": "#7CF0B4",
     "warn": "#FFD36E",
@@ -19,7 +19,7 @@
   "style": {
     "corner_radius": 12,
     "tile_style": "glow",
-    "background": "stars",
+    "background": "aurora",
     "font_scale": 1.0,
     "particles": true
   }

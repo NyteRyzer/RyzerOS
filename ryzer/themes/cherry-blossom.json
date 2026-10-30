@@ -3,14 +3,14 @@
   "name": "Cherry Blossom",
   "author": "Ryzer",
   "colors": {
-    "bg_top": "#FFE4EC",
-    "bg_bottom": "#FFC7D6",
-    "panel": "#FFF5F8",
-    "panel_border": "#F4A7BB",
-    "accent": "#E84A7F",
+    "bg_top": "#FFE9F0",
+    "bg_bottom": "#FFC2D4",
+    "panel": "#FFF7FA",
+    "panel_border": "#F2A7BF",
+    "accent": "#E3366F",
     "accent2": "#8E6CC9",
-    "text": "#4A2233",
-    "text_dim": "#9C6C7E",
+    "text": "#3A1020",
+    "text_dim": "#7A4F60",
     "highlight_text": "#FFFFFF",
     "good": "#3BA776",
     "warn": "#E0962B",
@@ -19,7 +19,7 @@
   "style": {
     "corner_radius": 20,
     "tile_style": "flat",
-    "background": "dots",
+    "background": "aurora",
     "font_scale": 1.0,
     "particles": true
   }

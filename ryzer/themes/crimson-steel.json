@@ -3,14 +3,14 @@
   "name": "Crimson Steel",
   "author": "Ryzer",
   "colors": {
-    "bg_top": "#2A2D33",
-    "bg_bottom": "#121316",
-    "panel": "#30333A",
-    "panel_border": "#4D525C",
-    "accent": "#D7263D",
-    "accent2": "#A0A6B0",
-    "text": "#F1F2F4",
-    "text_dim": "#8C929C",
+    "bg_top": "#22252B",
+    "bg_bottom": "#0C0D10",
+    "panel": "#2A2D34",
+    "panel_border": "#4A4F59",
+    "accent": "#E8233D",
+    "accent2": "#C9D1DC",
+    "text": "#F2F4F7",
+    "text_dim": "#9AA1AC",
     "highlight_text": "#FFFFFF",
     "good": "#3DDC84",
     "warn": "#F2C14E",
@@ -19,7 +19,7 @@
   "style": {
     "corner_radius": 4,
     "tile_style": "flat",
-    "background": "scanlines",
+    "background": "speedlines",
     "font_scale": 1.0,
     "particles": false
   }
