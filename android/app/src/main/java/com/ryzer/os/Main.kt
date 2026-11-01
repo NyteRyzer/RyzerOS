@@ -89,6 +89,7 @@ class Ryzer(val ctx: MainActivity) {
 
     init {
         instance = this
+        Skin.display(ctx)   // load the display font now, so the first frame measures titles with it
         Library.coversDir = Scraper.coversDir(this)
         G.setFont(cfg.font)
         when (cfg.themeMode) {   // theme of the day / random theme on every start
@@ -447,14 +448,13 @@ class Ryzer(val ctx: MainActivity) {
         if (cfg.clockStyle == "words") {
             val lines = G.wrap(wordTime(), 40f, w - 60)
             lines.forEachIndexed { i, l -> G.text(c, l, w / 2, y + 10 + i * 42, 40f, th.c("text"), align = 'c', isBold = true) }
-            G.text(c, java.text.SimpleDateFormat("EEEE, MMMM d", java.util.Locale.getDefault()).format(java.util.Date()), w / 2, y + 20 + lines.size * 42, 24f,
+            G.text(c, TimeText.format(System.currentTimeMillis(), "EEEE, MMMM d"), w / 2, y + 20 + lines.size * 42, 24f,
                 th.c("accent"), align = 'c')
             return
         }
-        val now = java.util.Date()
-        val fmt = java.text.SimpleDateFormat(if (cfg.clock24) "HH:mm" else "h:mm", java.util.Locale.getDefault())
-        G.text(c, fmt.format(now), w / 2, y, 110f, th.c("text"), align = 'c', isBold = true)
-        G.text(c, java.text.SimpleDateFormat("EEEE, MMMM d", java.util.Locale.getDefault()).format(now), w / 2, y + 92, 28f,
+        val now = System.currentTimeMillis()
+        G.text(c, TimeText.clock(now, cfg.clock24, amPm = false), w / 2, y, 110f, th.c("text"), align = 'c', isBold = true)
+        G.text(c, TimeText.format(now, "EEEE, MMMM d"), w / 2, y + 92, 28f,
             th.c("accent"), align = 'c')
     }
 

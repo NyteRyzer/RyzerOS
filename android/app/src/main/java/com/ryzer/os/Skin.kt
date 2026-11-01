@@ -47,7 +47,7 @@ object Skin {
     }
 
     /** Clips to a parallelogram (for covers); pair with c.save()/c.restore(). */
-    fun clip(c: Canvas, r: RectF, skew: Float = SkinMath.skewFor(r.height())) { c.clipPath(Path(shape(r, skew))) }
+    fun clip(c: Canvas, r: RectF, skew: Float = SkinMath.skewFor(r.height())) { c.clipPath(shape(r, skew)) }   // clipPath copies it
 
     private const val GLOW = 14
     private val glowCache = object : LinkedHashMap<String, Bitmap>(24, 0.75f, true) {
@@ -78,6 +78,8 @@ object Skin {
     private val glowDst = RectF()
     private val glowP = Paint(Paint.FILTER_BITMAP_FLAG)
 
+    private val segR = RectF()
+
     /** A row of [count] slanted segments, the first [on] lit. */
     fun segments(c: Canvas, x: Float, y: Float, w: Float, h: Float, on: Int, count: Int, onColor: Int, offColor: Int) {
         val gap = 3f
@@ -85,7 +87,8 @@ object Skin {
         val skew = (h * 0.5f).coerceAtMost(sw * 0.6f)
         for (i in 0 until count) {
             val sx = x + i * (sw + gap)
-            parallelogram(c, RectF(sx, y, sx + sw, y + h), if (i < on) onColor else offColor, skew)
+            segR.set(sx, y, sx + sw, y + h)
+            parallelogram(c, segR, if (i < on) onColor else offColor, skew)
         }
     }
 

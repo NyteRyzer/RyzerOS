@@ -2,6 +2,13 @@
 
 Every version of Ryzer OS, newest first. Downloads for each one are on the [Releases page](https://github.com/NyteRyzer/RyzerOS/releases).
 
+## 3.1.1: smoother and more polished
+
+- **Smoother on slow chips.** Home, game lists, Now Playing and the clock no longer create new objects every frame (date formatters, paints, shapes), which means less stutter on handhelds like the RG DS.
+- **Sharper details.** On the Systems tab the cover behind a console icon is darker, so its printed title no longer shows through. The 3DS layout's selected icon now glows square, matching the icon. Titles are measured in the right font from the very first frame.
+- **Fixes.** A game list's play-time meter updates after you play. After you edit a theme's accent colour in Theme Studio, its background stripes follow the new colour. Big covers no longer stay in memory after you scroll past them.
+- **Safer releases.** A new version is only published if the emulator tests ran on that exact code and passed (speed, random-input stress test, no errors).
+
 ## 3.1.0: console icons and new themes
 
 - **Every system has its own icon now**: 27 console-shaped icons (3DS and DS flip handhelds, PSP, PS2, GBA, Game Boy, SNES and N64 controllers, Switch, arcade cabinet and more), drawn in each system's colour. They're on the Systems tab (over your most-played game's cover), the top-screen hero, the 3DS, Ribbon and Grid layouts, game lists, Now Playing and *Settings → Emulators*. A picture in `RyzerOS/tiles` still replaces the icon. See them all in *Tools → System icons*.

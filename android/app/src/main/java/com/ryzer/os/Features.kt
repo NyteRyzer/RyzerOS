@@ -354,7 +354,7 @@ class Screensaver(app: Ryzer) : Screen(app) {
                 val fade = when { t < 0.6f -> 1 - t / 0.6f; t > 7.4f -> (t - 7.4f) / 0.6f; else -> 0f }
                 if (fade > 0) G.rect(c, RectF(0f, 0f, w, h), withAlpha(0xFF000000.toInt(), fade))
             }
-            val clock = java.text.SimpleDateFormat(if (app.cfg.clock24) "HH:mm" else "h:mm", java.util.Locale.getDefault()).format(java.util.Date())
+            val clock = TimeText.clock(h24 = app.cfg.clock24, amPm = false)
             G.text(c, clock, w - 24, h - 90, 60f, withAlpha(0xFFFFFFFF.toInt(), 0.85f), align = 'r', isBold = true)
             return
         }
@@ -369,7 +369,7 @@ class Screensaver(app: Ryzer) : Screen(app) {
         } else {
             G.emblem(c, th, px + bw / 2, py + bh / 2, 50f)
         }
-        val clock = java.text.SimpleDateFormat(if (app.cfg.clock24) "HH:mm" else "h:mm", java.util.Locale.getDefault()).format(java.util.Date())
+        val clock = TimeText.clock(h24 = app.cfg.clock24, amPm = false)
         G.text(c, clock, w - 24, h - 90, 60f, withAlpha(th.c("text"), 0.7f + 0.3f * sin(t)), align = 'r', isBold = true)
     }
 

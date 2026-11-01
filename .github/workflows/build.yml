@@ -74,6 +74,8 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+      - name: Release gate (the emulator tested this exact code, and it passed)
+        run: python3 tools/release_gate.py
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}

@@ -29,7 +29,7 @@ fun drawAvatar(c: Canvas, app: Ryzer, th: Theme, cx: Float, cy: Float, r: Float)
         c.clipPath(path)
         val sc = max(2 * r / pic.width, 2 * r / pic.height)
         c.drawBitmap(pic, null, RectF(cx - pic.width * sc / 2, cy - pic.height * sc / 2, cx + pic.width * sc / 2, cy + pic.height * sc / 2),
-            android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG))
+            G.bitmapPaint)
         c.restore()
     } else {
         G.circle(c, cx, cy, r, th.c("accent"))
@@ -172,7 +172,7 @@ class HomeShell(app: Ryzer) : Screen(app) {
         }
         if (onToolbar) G.text(c, tl.getOrNull(tool)?.label ?: "", w - 14, 8f, 20f, th.c("accent"), align = 'r', isBold = true)
         else {
-            val clock = java.text.SimpleDateFormat(if (app.cfg.clock24) "HH:mm" else "h:mm", java.util.Locale.getDefault()).format(java.util.Date())
+            val clock = TimeText.clock(h24 = app.cfg.clock24, amPm = false)
             G.text(c, clock, w - 14, 9f, 26f, th.c("text"), align = 'r', isBold = true)
             val (bat, chg) = app.battery()
             if (bat >= 0) G.text(c, "$bat%" + if (chg) "+" else "", w - 14, 33f, 14f, th.c("text_dim"), align = 'r')
@@ -259,7 +259,11 @@ class HomeShell(app: Ryzer) : Screen(app) {
         }
         val rad = if (shape == "square") 2f else max(8f, th.radius)
         G.rect(c, RectF(r.left + 3, r.top + 5, r.right + 3, r.bottom + 5), 0x40000000, rad)   // drop shadow
-        if (selected) G.panel(c, r, th, true, (sin(t * 4) + 1) / 2)
+        if (selected) {
+            // Blades panels are slanted; these icons are square, so give them a square glow and outline instead
+            if (Skin.blades) { Skin.glow(c, r, withAlpha(th.c("accent"), 0.45f + 0.2f * (sin(t * 4) + 1) / 2), 0f); G.rect(c, r, th.c("panel"), rad) }
+            else G.panel(c, r, th, true, (sin(t * 4) + 1) / 2)
+        }
         drawIconBody(c, tile, r, rad)
         G.outline(c, r, if (selected) th.c("accent") else withAlpha(th.c("panel_border"), 0.8f), if (selected) 3f else 1f, rad)
         if (tile.kind == "pinned") G.text(c, "PIN", r.right - 6, r.top + 4, 14f, th.c("highlight_text"), align = 'r', isBold = true)
@@ -295,8 +299,8 @@ class HomeShell(app: Ryzer) : Screen(app) {
         val gr = G.text(c, greeting(app), 50f, 10f, 22f, th.c("text"), isBold = true, maxW = w * 0.45f)
         drawGoalRing(c, app, th, gr.right + 22, 22f, 13f)
         val now = java.util.Date()
-        val clock = java.text.SimpleDateFormat(if (app.cfg.clock24) "HH:mm" else "h:mm a", java.util.Locale.getDefault()).format(now)
-        val date = java.text.SimpleDateFormat("EEE MMM d", java.util.Locale.getDefault()).format(now)
+        val clock = TimeText.clock(now.time, app.cfg.clock24)
+        val date = TimeText.format(now.time, "EEE MMM d")
         val rr = G.text(c, clock, w - 14, 9f, 24f, th.c("text"), align = 'r', isBold = true)
         G.text(c, date, rr.left - 12, 12f, 19f, th.c("text_dim"), align = 'r')
         val n = Notifs.unread()

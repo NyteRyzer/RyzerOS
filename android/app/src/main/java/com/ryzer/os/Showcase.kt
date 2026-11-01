@@ -66,7 +66,11 @@ object Showcase {
      */
     private fun perf(app: Ryzer) {
         val cfg = app.cfg
+        val out = java.io.File(app.home, "perf.txt")
+        // render() draws the top of the stack: time Home only when nothing is open over it
+        if (app.stack.size != 1) { out.writeText("PERF skipped: a screen is open over Home\n"); return }
         val saved = cfg.uiStyle to cfg.homeLayout
+        val home = app.stack[0]
         val c = android.graphics.Canvas(android.graphics.Bitmap.createBitmap(640, 480, android.graphics.Bitmap.Config.ARGB_8888))
         fun time(style: String, layout: String): Double {
             cfg.uiStyle = style; cfg.homeLayout = layout; app.applyHomeLayout()
@@ -78,9 +82,12 @@ object Showcase {
             repeat(120) { frame() }
             return (System.nanoTime() - start) / 1e6 / 120
         }
-        val blades = time("blades", "blades")
-        val classic = time("classic", "3ds")
-        cfg.uiStyle = saved.first; cfg.homeLayout = saved.second; app.applyHomeLayout()
-        java.io.File(app.home, "perf.txt").writeText("PERF blades=%.2f classic=%.2f\n".format(java.util.Locale.US, blades, classic))
+        val (blades, classic) = try {
+            time("blades", "blades") to time("classic", "3ds")
+        } finally {   // put back the settings and the very same Home (its tab and selection), even if drawing failed
+            cfg.uiStyle = saved.first; cfg.homeLayout = saved.second
+            app.stack[0] = home
+        }
+        out.writeText("PERF blades=%.2f classic=%.2f\n".format(java.util.Locale.US, blades, classic))
     }
 }

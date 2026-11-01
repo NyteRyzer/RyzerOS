@@ -562,7 +562,8 @@ fun setSystemBrightness(app: Ryzer, d: Int) {
     }
 }
 
-const val WHATS_NEW = "3.1: every system has its own console icon (Tools > System icons), and all 21 built-in themes are redesigned " +
+const val WHATS_NEW = "3.1.1: smoother on slower handhelds, plus small visual fixes.\n\n" +
+    "3.1: every system has its own console icon (Tools > System icons), and all 21 built-in themes are redesigned " +
     "with new speedlines, hex, circuit, halftone and aurora backgrounds.\n\n" +
     "3.0.1: choosing another game while one is still open now starts the new game, instead of bringing back the first one.\n\n" +
     "3.0 is the Blades redesign. A new Home with four tabs (Continue, Systems, Collections, Tools: L / R to switch) " +

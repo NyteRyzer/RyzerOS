@@ -58,6 +58,8 @@ jobs:
         with:
           name: screenshots
           path: docs/screenshots/raw
+      - name: Record the tested app code
+        run: echo "android=$(git rev-parse HEAD:android) ryzer=$(git rev-parse HEAD:ryzer)" > docs/screenshots/raw/tested.txt
       - name: Commit screenshots
         run: |
           git config user.name "github-actions[bot]"
@@ -66,11 +68,5 @@ jobs:
           git commit -m "Update app screenshots [skip ci]" || exit 0
           git pull --rebase origin "$GITHUB_REF_NAME"
           git push origin "HEAD:$GITHUB_REF_NAME"
-      - name: Home speed check (Blades must stay within 25% of Classic)
-        run: |
-          cat docs/screenshots/raw/perf.txt
-          python3 -c "import re,sys; t=open('docs/screenshots/raw/perf.txt').read(); b,c=map(float,re.findall(r'=([0-9.]+)',t)); print(f'blades/classic = {b/c:.2f}'); sys.exit(0 if b<=1.25*c else 1)"
-      - name: Stability check (no crashes, no freezes)
-        run: |
-          cat docs/screenshots/raw/stability.txt
-          python3 -c "import sys; t=open('docs/screenshots/raw/stability.txt').read(); ok=('problems=0' in t and 'problems=' not in t.replace('problems=0','') and 'running=False' not in t and 'finished=False' not in t and 'crash.txt: empty' in t); sys.exit(0 if ok else 1)"
+      - name: Release gate (speed, stability, tested code)
+        run: python3 tools/release_gate.py

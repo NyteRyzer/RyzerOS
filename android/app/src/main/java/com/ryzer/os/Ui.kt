@@ -128,6 +128,8 @@ fun withAlpha(c: Int, a: Float) = ((a.coerceIn(0f, 1f) * 255).toInt() shl 24) or
  * layout looks the same on a 640x480 RG DS panel and a 1080p AYN Odin.
  */
 object G {
+    /** Shared paint for scaled bitmaps (covers, wallpapers): made once instead of on every frame. */
+    val bitmapPaint = Paint(Paint.FILTER_BITMAP_FLAG)
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
     private val textP = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -197,7 +199,8 @@ object G {
     fun background(c: Canvas, th: Theme, w: Float, h: Float, t: Float) {
         // Keyed on the background colours only, so live accent effects (RGB mode) don't rebuild it every frame
         val key = "${th.id}|${th.c("bg_top")}|${th.c("bg_bottom")}|${th.c("text")}|${th.background}|${w.toInt()}x${h.toInt()}|${Skin.blades}|" +
-            if (th.background in ACCENT_PATTERNS && Ryzer.instance?.cfg?.rgb != true) "${th.c("accent")}|${th.c("accent2")}" else ""
+            // Blades stripes and the 3.1 patterns use the accents (RGB mode changes them every frame, so it keeps the old ones)
+            if ((Skin.blades || th.background in ACCENT_PATTERNS) && Ryzer.instance?.cfg?.rgb != true) "${th.c("accent")}|${th.c("accent2")}" else ""
         val bmp = bgCache[key] ?: buildBg(th, w.toInt().coerceAtLeast(1), h.toInt().coerceAtLeast(1)).also {
             if (bgCache.size > 6) bgCache.clear()
             bgCache[key] = it
@@ -298,7 +301,7 @@ object G {
     fun wallpaper(c: Canvas, th: Theme, bmp: Bitmap, w: Float, h: Float) {
         val sc = max(w / bmp.width, h / bmp.height)
         val dw = bmp.width * sc; val dh = bmp.height * sc
-        c.drawBitmap(bmp, null, RectF((w - dw) / 2, (h - dh) / 2, (w + dw) / 2, (h + dh) / 2), Paint(Paint.FILTER_BITMAP_FLAG))
+        c.drawBitmap(bmp, null, RectF((w - dw) / 2, (h - dh) / 2, (w + dw) / 2, (h + dh) / 2), bitmapPaint)
         rect(c, RectF(0f, 0f, w, h), withAlpha(th.c("bg_bottom"), th.wallpaperDim))
     }
 
@@ -383,7 +386,7 @@ object G {
         Skin.parallelogram(c, RectF(-14f, 6f, tw + 46f, 40f), th.c("accent"), 14f)
         Skin.text(c, label, 14f, 9f, 26f, th.c("highlight_text"), maxW = w * 0.55f)
         val now = java.util.Date()
-        val clock = java.text.SimpleDateFormat(if (app.cfg.clock24) "HH:mm" else "h:mm a", java.util.Locale.getDefault()).format(now)
+        val clock = TimeText.clock(now.time, app.cfg.clock24)
         var x = Skin.text(c, clock, w - 16, 10f, 26f, th.c("text"), align = 'r').left - 14
         if (app.cfg.showBattery) {
             val (pct, charging) = app.battery()
@@ -402,7 +405,7 @@ object G {
         if (Skin.blades) return bladeTopBar(c, app, th, title, w)
         text(c, title, 16f, 10f, 26f, th.c("text"), isBold = true, theme = th, maxW = w * 0.55f)
         val now = java.util.Date()
-        val clock = java.text.SimpleDateFormat(if (app.cfg.clock24) "HH:mm" else "h:mm a", java.util.Locale.getDefault()).format(now)
+        val clock = TimeText.clock(now.time, app.cfg.clock24)
         var x = w - 16
         val r = text(c, clock, x, 11f, 24f, th.c("text"), align = 'r', theme = th)
         x = r.left - 14
@@ -555,7 +558,7 @@ object G {
         val sc = min(box.width() / bmp.width, box.height() / bmp.height)
         val dw = bmp.width * sc; val dh = bmp.height * sc
         val dst = RectF(box.centerX() - dw / 2, box.top, box.centerX() + dw / 2, box.top + dh)
-        c.drawBitmap(bmp, null, dst, Paint(Paint.FILTER_BITMAP_FLAG))
+        c.drawBitmap(bmp, null, dst, bitmapPaint)
         return dst
     }
 }

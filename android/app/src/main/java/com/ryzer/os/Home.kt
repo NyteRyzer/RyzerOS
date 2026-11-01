@@ -377,7 +377,7 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
         sel = games.indexOfFirst { it.key == keep }.let { if (it >= 0) it else sel.coerceIn(0, max(0, games.size - 1)) }
     }
 
-    override fun onResume() = refresh()
+    override fun onResume() { maxPlayFor = null; refresh() }   // play times may have changed while you played
     fun current() = games.getOrNull(sel)
     private val grid get() = app.cfg.grid
 
@@ -618,7 +618,7 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
             val sc = max(cover.width() / bmp.width, cover.height() / bmp.height)
             val dw = bmp.width * sc; val dh = bmp.height * sc
             c.drawBitmap(bmp, null, RectF(cover.centerX() - dw / 2, cover.centerY() - dh / 2, cover.centerX() + dw / 2, cover.centerY() + dh / 2),
-                android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG))
+                G.bitmapPaint)
         } else {
             G.rect(c, cover, mix(th.c("panel"), g.system.color, 0.6f))
             SystemIcons.draw(c, g.system.id, g.system.color, RectF(cover).apply { inset(cover.width() * 0.12f, cover.height() * 0.12f) })

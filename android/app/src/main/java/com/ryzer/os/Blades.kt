@@ -2,7 +2,6 @@ package com.ryzer.os
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.Paint
 import android.graphics.RectF
 import android.os.SystemClock
 import kotlin.math.abs
@@ -139,29 +138,31 @@ class BladesHome(app: Ryzer) : Screen(app) {
      */
     private fun systemIcon(c: Canvas, tile: Tile, r: RectF, overArt: Boolean): Boolean {
         val s = tile.system?.takeIf { tile.kind == "system" && tile !in customArt } ?: return false
-        if (overArt) G.rect(c, r, withAlpha(0xFF000000.toInt(), 0.55f))
+        if (overArt) G.rect(c, r, withAlpha(0xFF000000.toInt(), 0.68f))   // dark enough that the cover's own title stays in the background
         val side = min(r.width() * 0.86f, r.height() * 0.5f)
         val cy = r.top + r.height() * 0.42f
         SystemIcons.draw(c, s.id, s.color, RectF(r.centerX() - side / 2, cy - side / 2, r.centerX() + side / 2, cy + side / 2))
         return true
     }
 
-    private val blurCache = object : LinkedHashMap<Bitmap, Bitmap>(8, 0.75f, true) {
-        override fun removeEldestEntry(e: MutableMap.MutableEntry<Bitmap, Bitmap>) = size > 8
+    /** Keyed by the picture's file, so a cover the image cache has let go of isn't kept alive here. */
+    private val blurCache = object : LinkedHashMap<String, Bitmap>(8, 0.75f, true) {
+        override fun removeEldestEntry(e: MutableMap.MutableEntry<String, Bitmap>) = size > 8
     }
 
     /** A cheap, cached blur: shrink to a few dozen pixels, then let filtering smear it back up. */
-    private fun blurred(src: Bitmap): Bitmap = blurCache.getOrPut(src) {
+    private fun blurred(key: String, src: Bitmap): Bitmap = blurCache.getOrPut(key) {
         val w = 24; val h = max(8, (24f * src.height / src.width).toInt())
         Bitmap.createScaledBitmap(Bitmap.createScaledBitmap(src, w, h, true), w * 4, h * 4, true)
     }
 
-    private val filter = Paint(Paint.FILTER_BITMAP_FLAG)
+    private val coverR = RectF()
 
     private fun fillCover(c: Canvas, bmp: Bitmap, r: RectF) {
         val sc = max(r.width() / bmp.width, r.height() / bmp.height)
         val dw = bmp.width * sc; val dh = bmp.height * sc
-        c.drawBitmap(bmp, null, RectF(r.centerX() - dw / 2, r.centerY() - dh / 2, r.centerX() + dw / 2, r.centerY() + dh / 2), filter)
+        coverR.set(r.centerX() - dw / 2, r.centerY() - dh / 2, r.centerX() + dw / 2, r.centerY() + dh / 2)
+        c.drawBitmap(bmp, null, coverR, G.bitmapPaint)
     }
 
     private fun bandColor(tile: Tile) = if (tile.kind == "system") tile.color ?: th.c("accent") else th.c("accent")
@@ -220,8 +221,9 @@ class BladesHome(app: Ryzer) : Screen(app) {
         val cx = w / 2
         val baseY = top + sh
         // Unselected first, selected last so its glow sits on top
-        val order = list.indices.sortedBy { if (it == s) 1 else 0 }
-        for (i in order) {
+        for (k in 0..list.size) {
+            val i = if (k == list.size) s else k
+            if (k < list.size && k == s || i !in list.indices) continue
             val d = i - scroll
             val grow = (1 - abs(d)).coerceIn(0f, 1f)
             val bw = uw + (sw - uw) * grow; val bh = uh + (sh - uh) * grow
@@ -295,7 +297,7 @@ class BladesHome(app: Ryzer) : Screen(app) {
         val tile = current()
         val bmp = tile?.let { art(it) }
         if (bmp != null) {
-            fillCover(c, blurred(bmp), RectF(0f, 0f, w, h))
+            fillCover(c, blurred(artFiles[tile]?.path ?: "", bmp), RectF(0f, 0f, w, h))
             G.rect(c, RectF(0f, 0f, w, h), withAlpha(th.c("bg_bottom"), 0.62f))
         }
         // dark diagonal wedge behind the text side
@@ -358,7 +360,7 @@ class BladesHome(app: Ryzer) : Screen(app) {
         val gr = Skin.text(c, greeting(app), 50f, 9f, 24f, th.c("text"), maxW = w * 0.45f)
         drawGoalRing(c, app, th, gr.right + 22, 22f, 13f)
         val now = java.util.Date()
-        val clock = java.text.SimpleDateFormat(if (app.cfg.clock24) "HH:mm" else "h:mm a", java.util.Locale.getDefault()).format(now)
+        val clock = TimeText.clock(now.time, app.cfg.clock24)
         var x = Skin.text(c, clock, w - 14, 8f, 26f, th.c("text"), align = 'r').left - 14
         if (app.cfg.showBattery) {
             val (pct, chg) = app.battery()

@@ -296,7 +296,7 @@ class NowPlayingView(private val act: NowPlayingActivity, private val app: Ryzer
             if (bmp != null) {
                 val sc = max(art.width() / bmp.width, art.height() / bmp.height)
                 c.drawBitmap(bmp, null, RectF(art.centerX() - bmp.width * sc / 2, art.centerY() - bmp.height * sc / 2,
-                    art.centerX() + bmp.width * sc / 2, art.centerY() + bmp.height * sc / 2), android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG))
+                    art.centerX() + bmp.width * sc / 2, art.centerY() + bmp.height * sc / 2), G.bitmapPaint)
             } else {
                 G.rect(c, art, mix(th.c("panel"), game.system.color, 0.7f))
                 SystemIcons.draw(c, game.system.id, game.system.color, RectF(art).apply { inset(14f, 14f) })
@@ -422,7 +422,7 @@ class NowPlayingView(private val act: NowPlayingActivity, private val app: Ryzer
             G.text(c, l, r.left + 14, r.top + 36 + i * 22, 19f, th.c("text")) }
     }
 
-    private fun clock() = java.text.SimpleDateFormat(if (app.cfg.clock24) "HH:mm" else "h:mm a", java.util.Locale.getDefault()).format(java.util.Date())
+    private fun clock() = TimeText.clock(h24 = app.cfg.clock24)
 
     private fun clockDuration(s: Long) = if (s >= 3600) "%d:%02d:%02d".format(s / 3600, s / 60 % 60, s % 60) else "%d:%02d".format(s / 60, s % 60)
 
