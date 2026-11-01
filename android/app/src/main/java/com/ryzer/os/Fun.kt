@@ -52,7 +52,7 @@ class LaunchSplash(app: Ryzer, private val game: Game) : Screen(app) {
         val size = 120 + 160 * p
         val box = RectF(w / 2 - size / 2, h / 2 - size / 2 - 20, w / 2 + size / 2, h / 2 + size / 2 - 20)
         val art = G.image(game.image())
-        if (art != null) G.drawImageFit(c, art, box) else G.text(c, game.system.short, w / 2, h / 2 - 60, 60 + 50 * p, th.c("highlight_text"), align = 'c', isBold = true)
+        if (art != null) G.drawImageFit(c, art, box) else SystemIcons.draw(c, game.system.id, game.system.color, box)
         G.text(c, app.title(game), w / 2, box.bottom + 14, 30f, th.c("text"), align = 'c', isBold = true, maxW = w - 40)
         G.text(c, "Starting ${Launcher.label(app, app.state.gameEmu[game.key] ?: Launcher.chosen(app, game.system))}...", w / 2, box.bottom + 50, 20f, th.c("text_dim"), align = 'c')
     }
@@ -687,7 +687,7 @@ class ResumePrompt(app: Ryzer, private val game: Game) : Screen(app) {
         val art = G.image(game.image())
         val box = RectF(r.left + 16, r.top + 16, r.left + 16 + r.height() - 32, r.bottom - 16)
         if (art != null) G.drawImageFit(c, art, box) else { G.rect(c, box, mix(th.c("panel"), game.system.color, 0.7f), 10f)
-            G.text(c, game.system.short, box.centerX(), box.centerY() - 22, 40f, th.c("highlight_text"), align = 'c', isBold = true) }
+            SystemIcons.draw(c, game.system.id, game.system.color, RectF(box).apply { inset(8f, 8f) }) }
         val x = box.right + 18; val mw = r.right - x - 16
         G.text(c, greeting(app), x, r.top + 18, 22f, th.c("accent"), maxW = mw)
         G.text(c, "Continue playing?", x, r.top + 50, 26f, th.c("text_dim"), maxW = mw)

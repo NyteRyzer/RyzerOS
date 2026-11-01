@@ -319,7 +319,8 @@ class HomeShell(app: Ryzer) : Screen(app) {
         if (art != null) G.drawImageFit(c, art, RectF(artBox.left - float * 0.5f, artBox.top, artBox.right - float * 0.5f, artBox.bottom))
         else {
             G.rect(c, artBox, mix(th.c("panel"), tile.color ?: th.c("accent"), 0.75f), th.radius)
-            if (tile.kind == "system" || tile.system != null) G.text(c, tile.system?.short ?: "", artBox.centerX(), artBox.centerY() - 34, 64f, th.c("highlight_text"), align = 'c', isBold = true)
+            if (tile.kind == "system" && tile.system != null) SystemIcons.draw(c, tile.system.id, tile.system.color, RectF(artBox).apply { inset(artBox.width() * 0.1f, artBox.height() * 0.1f) })
+            else if (tile.system != null) G.text(c, tile.system.short, artBox.centerX(), artBox.centerY() - 34, 64f, th.c("highlight_text"), align = 'c', isBold = true)
             else drawIcon(c, tile.kind, artBox.centerX(), artBox.centerY(), 40f, th.c("highlight_text"))
         }
         val tx = artBox.right + 22

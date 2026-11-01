@@ -5,7 +5,7 @@ Every version of Ryzer OS, newest first. Downloads for each one are on the [Rele
 ## 3.1.1: smoother and more polished
 
 - **Smoother on slow chips.** Home, game lists, Now Playing and the clock no longer create new objects every frame (date formatters, paints, shapes), which means less stutter on handhelds like the RG DS.
-- **Sharper details.** On the Systems tab the cover behind a console icon is darker, so its printed title no longer shows through. The 3DS layout's selected icon now glows square, matching the icon. Titles are measured in the right font from the very first frame.
+- **Sharper details.** On the Systems tab the cover behind a console icon is darker, so its printed title no longer shows through. The 3DS layout's selected icon now glows square, matching the icon. The console icons now also appear on the 3DS layout's top-screen banner and the launch splash, where the system's short name still showed. Titles are measured in the right font from the very first frame.
 - **Fixes.** A game list's play-time meter updates after you play. After you edit a theme's accent colour in Theme Studio, its background stripes follow the new colour. Big covers no longer stay in memory after you scroll past them.
 - **Safer releases.** A new version is only published if the emulator tests ran on that exact code and passed (speed, random-input stress test, no errors).
 
