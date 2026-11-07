@@ -298,6 +298,7 @@ class HomeShell(app: Ryzer) : Screen(app) {
         drawAvatar(c, app, th, 26f, 22f, 15f)
         val gr = G.text(c, greeting(app), 50f, 10f, 22f, th.c("text"), isBold = true, maxW = w * 0.45f)
         drawGoalRing(c, app, th, gr.right + 22, 22f, 13f)
+        Weather.line(app)?.let { G.text(c, it, gr.right + if (app.cfg.dailyGoal > 0) 44 else 14, 12f, 19f, th.c("text_dim"), maxW = w * 0.22f) }
         val now = java.util.Date()
         val clock = TimeText.clock(now.time, app.cfg.clock24)
         val date = TimeText.format(now.time, "EEE MMM d")

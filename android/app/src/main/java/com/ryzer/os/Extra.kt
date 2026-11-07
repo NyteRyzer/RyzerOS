@@ -287,7 +287,13 @@ fun settingsMenu(app: Ryzer): Menu {
 
     val controls = { Menu(app, "Controls", listOf(
         toggle("Swap A / B", "Use the other face button to confirm (for Nintendo-style layouts).", { cfg.swapAB }) { cfg.swapAB = it },
-        toggle("Vibration", "A light tick of rumble on button presses (devices with a vibration motor).", { cfg.haptics }) { cfg.haptics = it },
+        Item("Vibration", "Rumble on button presses (devices with a vibration motor).",
+            value = { cfg.haptic.replaceFirstChar { it.uppercase() } }, change = { d ->
+                cfg.haptic = cycle(listOf("off", "light", "medium", "strong"), cfg.haptic, d); cfg.haptics = cfg.haptic != "off"; cfg.save(); app.ctx.buzz() }),
+        Item("Weather", "Temperature and sky for your city on the top screen.", value = { Weather.line(app) ?: if (cfg.weather) cfg.weatherCity else "Off" },
+            select = { app.push(weatherMenu(app)) }),
+        toggle("Start with my last game", "Ryzer opens straight into the game you played last. Home is right there when you come back.",
+            { cfg.bootLastGame }) { cfg.bootLastGame = it },
         Item("Controls help", select = { app.push(Message(app, "Controls", "D-pad / stick: move\nA: open / play   B: back\nX: favorite / random   Y: search\n" +
             "L / R: page or letter jump\nL + R together: quick menu (volume, brightness, Wi-Fi...)\n" +
             "START: options / settings   SELECT: themes (Home) or grid/list (game lists)\nTouch: tap anything, including the button hints.")) }),

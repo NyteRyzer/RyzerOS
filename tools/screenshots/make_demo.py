@@ -143,6 +143,7 @@ CONFIGS = {
     "t-ocean": {"theme": "ocean-deep"},
     "t-neon": {"theme": "neon-night"},
     "t-arctic": {"theme": "arctic"},
+    "weather": {"theme": "ryzer-strike", "weather": True, "weatherCity": "Chicago, United States", "weatherLat": 41.85, "weatherLon": -87.65, "weatherF": True},
     "snow": {"theme": "snow"},
     "empty": {"romDirs": ["/sdcard/EmptyRoms"]},
     "boot": {"theme": "ryzer-strike", "bootStyle": "strike"},

@@ -85,6 +85,10 @@ More screenshots (2048, Game Roulette, quick menu, the Classic style and the Rib
 - **Stats**: play time, streaks, a play calendar, session history, 14 milestones and a shareable stats card.
 - **Extras**: Snake, 2048, Game Roulette, a controller tester, battery info, a stopwatch and timer, a bedtime reminder, a quick menu (L + R) and kid mode.
 
+## New in 3.2: 20 small features
+
+Weather on the top screen, an **Up Next** queue, arrange your systems, console facts, tags and region badges, your own covers, **Play with...** another emulator, typo-tolerant search, weekly challenges, completion per system, a clock and brightness on Now Playing, and more. Full list in the [changelog](CHANGELOG.md#320-20-small-new-features).
+
 ## New in 3.1: console icons and new themes
 
 - **27 console-shaped system icons**, from the 3DS and PSP to the SNES pad and the arcade cabinet, on Home, game lists, Now Playing and Settings.

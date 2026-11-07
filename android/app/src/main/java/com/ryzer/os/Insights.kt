@@ -185,6 +185,7 @@ fun libraryCheckup(app: Ryzer): String {
     val meta = Library.meta.size
     sb.append(if (meta > 0) "✓ Details (descriptions, years, developers) found for $meta game(s) in your ES-DE / EmulationStation gamelists.\n"
         else "• No gamelist.xml found. If you use ES-DE, its scraped descriptions show up here automatically.\n")
+    sb.append(storageLines(app))
     return sb.toString()
 }
 
@@ -233,6 +234,9 @@ object Export {
 fun goalsMenu(app: Ryzer): Menu {
     val cfg = app.cfg
     return Menu(app, "Goals & reminders", listOf(
+        Item("This week's challenge", "A new small goal every week. You get a notice when you finish it.",
+            value = { WeeklyChallenge.progress(app).let { (c, n) -> "$n / ${c.target}" } },
+            select = { app.notify(WeeklyChallenge.line(app), 4f) }),
         Item("Daily play goal", "A ring on the top screen fills up as you play, and you get a notice when you reach it.",
             value = { if (cfg.dailyGoal == 0) "Off" else "${cfg.dailyGoal} min" },
             change = { d -> val opts = listOf(0, 15, 30, 45, 60, 90, 120)

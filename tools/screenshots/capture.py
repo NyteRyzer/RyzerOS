@@ -50,6 +50,9 @@ SHOTS = [
     ("theme-halftone", "t-ocean", "tab:2", "", 0),
     ("theme-aurora", "t-neon", "tab:0", "", 0),
     ("theme-arctic", "t-arctic", "tab:1", "", 0),
+    ("weather", "weather", "tab:1", "", 6),
+    ("stats-systems", "stats", "stats", "right", 0),
+    ("search-fuzzy", "home", "search:zelda minsh", "", 0),
 ]
 LANDSCAPE = [
     ("land-home", "land-home", "", "right", 0),

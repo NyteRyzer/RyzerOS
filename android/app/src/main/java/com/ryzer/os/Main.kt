@@ -175,6 +175,31 @@ class Ryzer(val ctx: MainActivity) {
     fun endPreview() { preview = null }
 
     // ----- library -----
+    /** Emulator id for the next launch only (game options > Play with...). */
+    var playOnceWith: String? = null
+
+    /** Rescans just one system's folders (its options), keeping everything else as it is. */
+    fun rescanSystem(sys: GameSystem) {
+        if (scanning) return
+        scanning = true
+        val roots = romRoots()
+        io.execute {
+            val error = runCatching {
+                val before = Library.lastScan
+                Library.scan(listOf(sys), roots, cfg.cleanNames, cfg.groupDiscs, cfg.hideBios)
+                Library.lastScan = before
+                Library.reindex(systems)
+            }.exceptionOrNull()
+            main.post {
+                scanning = false
+                notify(if (error == null) "${sys.short}: ${plural(visible(sys.games).size, "game")}" else "Scan problem: ${error.javaClass.simpleName}")
+                if (error == null && state.noteSeen(sys.games.map { it.key })) state.save()
+                safely { current?.onResume() }
+                ctx.redraw()
+            }
+        }
+    }
+
     fun rescan(done: (() -> Unit)? = null) {
         if (scanning) return
         scanning = true
@@ -192,6 +217,7 @@ class Ryzer(val ctx: MainActivity) {
                 safely { current?.onResume(); done?.invoke() }
                 if (error == null && cfg.autoArt && !cfg.kidMode) safely { Scraper.start(this, allGames(), auto = true, onlyMissing = true) }
                 safely { Updater.maybeCheck(this) }
+                safely { Weather.maybeRefresh(this) }
                 ctx.redraw()
             }
         }
@@ -210,7 +236,8 @@ class Ryzer(val ctx: MainActivity) {
 
     fun launchNow(game: Game) {
         val sys = game.system
-        val choice = state.gameEmu[game.key] ?: Launcher.chosen(this, sys)
+        // "Play with..." picks an emulator for this one launch only
+        val choice = playOnceWith?.also { playOnceWith = null } ?: state.gameEmu[game.key] ?: Launcher.chosen(this, sys)
         val intents: List<Intent> = when {
             choice == null -> emptyList()
             choice == Launcher.CHOOSER -> listOf(Launcher.anyAppIntent(game, null))
@@ -241,6 +268,7 @@ class Ryzer(val ctx: MainActivity) {
         val start = Runnable {
             var lastError: Throwable? = null
             state.startPlay(game.key)
+            if (state.upNext.remove(game.key)) state.save()   // played: off the Up Next list
             music.pause()
             var gameOptions: android.os.Bundle? = null
             if (screens != null) {
@@ -497,6 +525,7 @@ class Ryzer(val ctx: MainActivity) {
     fun drawDefaultTop(c: Canvas, w: Float, h: Float) {
         G.topBar(c, this, activeTheme, "", w)
         drawBigClock(c, w, h / 2 - 80)
+        Weather.line(this)?.let { G.text(c, it, w / 2, h / 2 + 70, 24f, activeTheme.c("text_dim"), align = 'c') }
     }
 
     fun render(c: Canvas, role: Role, w: Float, h: Float, dt: Float, t: Float) {
@@ -579,6 +608,7 @@ class Ryzer(val ctx: MainActivity) {
         val g = Library.find(systems, session.first)
         if (session.second >= 60) notify("You played ${g?.let { title(it) } ?: "a game"} for ${formatDuration(session.second)}", 3.5f)
         Milestones.check(this)
+        WeeklyChallenge.check(this)
         if (cfg.dailyGoal > 0 && state.playedToday() >= cfg.dailyGoal * 60L && cfg.goalDay != today()) {
             cfg.goalDay = today(); cfg.save()
             sounds.play("fav")
@@ -591,6 +621,7 @@ class Ryzer(val ctx: MainActivity) {
         checkTimer += dt
         if (checkTimer < 30f) return
         checkTimer = 0f
+        Weather.maybeRefresh(this)   // at most hourly, on Wi-Fi, when it's turned on
         // Battery: warnings and automatic power saving
         val (pct, charging) = battery()
         batteryLow = cfg.batterySaver && pct in 0..19 && !charging
@@ -811,7 +842,12 @@ class MainActivity : Activity() {
             a.notify("New look! Switch back in Settings → Look & feel.", 5f)
         }
         val offer = a.cfg.resumePrompt && a.stack.size == 1
-        a.rescan { if (offer) a.offerResume() }
+        val bootGame = a.cfg.bootLastGame && a.stack.size == 1 && !a.cfg.kidMode
+        a.rescan {
+            // "Start with my last game": straight into it, Home stays underneath for when you come back
+            val last = if (bootGame) a.state.recent.firstNotNullOfOrNull { Library.find(a.systems, it) } else null
+            if (last != null) a.launch(last) else if (offer) a.offerResume()
+        }
     }
 
     /** Called by the permission screen once access is granted, so data moves to /RyzerOS. */
@@ -927,9 +963,10 @@ class MainActivity : Activity() {
     fun buzz() {
         val v = vibrator ?: return
         if (!v.hasVibrator()) return
+        val (ms, amp) = when (app?.cfg?.haptic) { "off" -> return; "medium" -> 20L to 140; "strong" -> 32L to 255; else -> 12L to 60 }
         runCatching {
-            if (Build.VERSION.SDK_INT >= 26) v.vibrate(android.os.VibrationEffect.createOneShot(12, 60))
-            else @Suppress("DEPRECATION") v.vibrate(12)
+            if (Build.VERSION.SDK_INT >= 26) v.vibrate(android.os.VibrationEffect.createOneShot(ms, amp))
+            else @Suppress("DEPRECATION") v.vibrate(ms)
         }
     }
 

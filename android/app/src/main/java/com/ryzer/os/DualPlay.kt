@@ -350,6 +350,12 @@ class NowPlayingView(private val act: NowPlayingActivity, private val app: Ryzer
             G.rect(c, r, withAlpha(th.c("warn"), 0.9f), 10f)
             G.text(c, "You've played ${formatDuration(secs)} - time for a short break?", r.centerX(), r.top + 9, 21f, th.c("bg_bottom"), align = 'c', isBold = true)
             hit(r) { breakShownAt = 0 }
+        } else if (bat in 0..15 && !chg) {
+            // Low battery while you play: Ryzer is in the background, so its usual warning would go unseen
+            val r = RectF(16f, panelTop, w - 16, panelTop + 40)
+            val pulse = 0.65f + 0.35f * kotlin.math.sin(SystemClock.uptimeMillis() / 300.0).toFloat()
+            G.rect(c, r, withAlpha(th.c("bad"), 0.9f * pulse), 10f)
+            G.text(c, "Battery $bat% - save your game and plug in", r.centerX(), r.top + 9, 21f, 0xFFFFFFFF.toInt(), align = 'c', isBold = true)
         }
 
         // Page area
@@ -358,8 +364,19 @@ class NowPlayingView(private val act: NowPlayingActivity, private val app: Ryzer
             "hotkeys" -> textPanel(c, th, area, "Emulator controls", DualPlay.hotkeys(app, emuId))
             "notes" -> textPanel(c, th, area, "Notes", st.notes[game.key]?.takeIf { it.isNotBlank() }
                 ?: "No notes for this game yet. Add some in Ryzer: game options (START) > Notes.")
+            "clock" -> {
+                G.panel(c, area, th)
+                val now = System.currentTimeMillis()
+                Skin.text(c, TimeText.clock(now, app.cfg.clock24, amPm = false), area.centerX(), area.top + 4, 84f, th.c("text"), align = 'c')
+                G.text(c, TimeText.format(now, "EEEE, MMMM d"), area.centerX(), area.top + 74, 22f, th.c("accent"), align = 'c')
+                G.text(c, "Playing for ${clockDuration(secs)}", area.centerX(), area.top + 104, 22f, th.c("text_dim"), align = 'c')
+            }
             else -> {
                 G.panel(c, area, th)
+                // Screen brightness (Android asks once for permission to change it)
+                val bw2 = 104f
+                button(c, th, RectF(area.right - bw2 * 2 - 18, area.bottom - 50, area.right - bw2 - 14, area.bottom - 10), "Bright -") { setSystemBrightness(app, -1) }
+                button(c, th, RectF(area.right - bw2 - 10, area.bottom - 50, area.right - 10, area.bottom - 10), "Bright +") { setSystemBrightness(app, 1) }
                 val lines = listOfNotNull(
                     "Rating: ${ListView.stars(st.ratings[game.key] ?: 0)}",
                     "Status: ${ListView.label(st.status[game.key] ?: "")}",
@@ -399,7 +416,9 @@ class NowPlayingView(private val act: NowPlayingActivity, private val app: Ryzer
             if (s.isEmpty()) st.status.remove(game.key) else st.status[game.key] = s
             st.save()
         }
-        button(c, th, cell(0, row2), "Info", page == "info") { page = "info" }
+        // Info and the big clock share a button: tap again to switch between them
+        button(c, th, cell(0, row2), if (page == "clock") "Clock" else "Info", page == "info" || page == "clock") {
+            page = if (page == "info") "clock" else "info" }
         button(c, th, cell(1, row2), "Controls", page == "hotkeys") { page = "hotkeys" }
         button(c, th, cell(2, row2), "Notes", page == "notes") { page = "notes" }
         button(c, th, cell(3, row2), if (brk > 0) "Break ${brk}m" else "Break off") {

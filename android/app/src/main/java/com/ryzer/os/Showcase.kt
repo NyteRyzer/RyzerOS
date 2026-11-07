@@ -55,6 +55,7 @@ object Showcase {
                 "boot" -> app.current?.let { app.push(BootScreen(app, it, arg.toFloatOrNull() ?: 1f)) }
                 "perf" -> perf(app)
                 "icons" -> app.push(IconSheet(app))
+                "search" -> app.push(universalSearch(app, arg))
                 "tab" -> (app.stack.firstOrNull() as? BladesHome)?.let { it.rebuild(); it.showTab(arg.toIntOrNull() ?: 0) }
             }
         }

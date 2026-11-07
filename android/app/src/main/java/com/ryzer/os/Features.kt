@@ -183,7 +183,8 @@ class StatsScreen(app: Ryzer) : Screen(app) {
             val bar = RectF(90f, y + 4, 90 + (w - 300) * secs / peak, y + 22)
             G.rect(c, RectF(90f, y + 4, w - 210, y + 22), th.c("panel"), 4f)
             G.rect(c, bar, s.color, 4f)
-            G.text(c, "${formatDuration(secs)}  |  $n games", w - 20, y + 4, 18f, th.c("text_dim"), align = 'r')
+            val done = ListOps.completion(s.games.map { st.status[it.key] ?: "" })
+            G.text(c, "${formatDuration(secs)}  |  $n games  |  $done% done", w - 20, y + 4, 18f, th.c("text_dim"), align = 'r')
         }
     }
 
@@ -191,7 +192,7 @@ class StatsScreen(app: Ryzer) : Screen(app) {
     private fun history(c: Canvas, w: Float, h: Float) {
         val list = app.state.sessions
         if (list.isEmpty()) { G.text(c, "No sessions yet. Play something!", w / 2, h / 2, 24f, th.c("text_dim"), align = 'c'); return }
-        val fmt = java.text.SimpleDateFormat("EEE MMM d, h:mm a", java.util.Locale.getDefault())
+        val fmt = TimeText.formatter("EEE MMM d, h:mm a")
         val rows = ((h - 100) / 30).toInt()
         list.take(rows).forEachIndexed { i, (k, start, secs) ->
             val g = Library.find(app.systems, k)
@@ -500,6 +501,7 @@ fun sortedSystems(app: Ryzer): List<GameSystem> {
         "games" -> shown.sortedByDescending { it.games.size }
         "recent" -> shown.sortedBy { s ->
             st.recent.indexOfFirst { k -> s.games.any { it.key == k } }.let { if (it < 0) Int.MAX_VALUE else it } }
-        else -> shown
+        else -> if (app.cfg.systemOrder.isEmpty()) shown
+            else ListOps.ordered(shown.map { it.id }, app.cfg.systemOrder).mapNotNull { id -> shown.firstOrNull { it.id == id } }
     }
 }

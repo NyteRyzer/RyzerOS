@@ -2,6 +2,38 @@
 
 Every version of Ryzer OS, newest first. Downloads for each one are on the [Releases page](https://github.com/NyteRyzer/RyzerOS/releases).
 
+## 3.2.0: 20 small new features
+
+#### Home
+1. **Weather on the top screen**: set your city in *Settings → Look & feel → Weather* to see the temperature and sky, from Open-Meteo (free, no account). It updates once an hour.
+2. **Up Next**: queue games from their options (START). They come first on the Continue tab and leave the list once you play them.
+3. **Arrange your systems**: open a system, press START and use *Position on Home* to move it left or right.
+4. **Console facts**: the top screen shows a fact about the selected system, like when it came out or what it was known for.
+5. **Low-battery alert while you play**: the Now Playing screen flashes a warning at 15%, since Ryzer's own warning can't be seen during a game.
+6. **Start with my last game**: Ryzer can open straight into the game you played last (*Look & feel*).
+
+#### Library
+7. **Tags**: give games your own labels (Co-op, RPG, Short...) and filter any list by tag.
+8. **Region badges**: USA, EUR, JPN and others, read from the file name, next to each game in lists.
+9. **Your own covers**: *Set cover from gallery* in a game's options uses any picture as its box art.
+10. **Rescan one system**: from a system's list options, without rescanning everything.
+11. **Storage per system**: the Library check-up shows how much space each system's games take.
+12. **Forgotten Favorites**: a smart collection of favorites you haven't played in 60 days.
+
+#### Playing
+13. **Brightness buttons** on the Now Playing screen.
+14. **Clock page** on Now Playing: tap *Info* again for a big clock and your session time.
+15. **Play with...**: start a game once with another emulator, without changing its default.
+16. **Search this list**: search inside any game list (its options), typos allowed.
+
+#### Stats and fun
+17. **Completion per system**: the Stats Systems page shows how much of each system you've beaten or completed.
+18. **Weekly challenges**: a small new goal every week ("Play 3 different systems"), in *Goals & reminders*, with a notice when you finish it.
+
+#### Comfort
+19. **Typo-tolerant search**: "zelda minsh" still finds The Minish Cap.
+20. **Vibration strength**: off, light, medium or strong.
+
 ## 3.1.1: smoother and more polished
 
 - **Smoother on slow chips.** Home, game lists, Now Playing and the clock no longer create new objects every frame (date formatters, paints, shapes), which means less stutter on handhelds like the RG DS.

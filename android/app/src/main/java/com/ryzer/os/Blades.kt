@@ -63,6 +63,11 @@ class BladesHome(app: Ryzer) : Screen(app) {
                 note = "Played ${formatDuration(st.playtime(g.key))}" + (st.lastPlayed[g.key]?.let { ", ${agoText(it)}" } ?: "") + ".")
         }
         base.addAll(base.indexOfFirst { it.kind == "continue" } + 1, more)
+        // Up Next goes first: the games you queued
+        val queued = app.visible(st.upNext.mapNotNull { Library.find(app.systems, it) }).map { g ->
+            Tile("continue", app.title(g), app.title(g), g.system.color, g.system, g, note = "Up Next in your queue. ${g.system.name}.")
+        }
+        base.addAll(0, queued)
         base += Tile("notifications", "Alerts", "${Notifs.unread()} new", note = "Your notification centre: banners, do not disturb and everything that came in.")
         base += Tile("wrapped", "Wrapped", "Your year in games", note = "Ryzer Wrapped: total time, top games, best streak and your biggest day.")
         base += Tile("profile", "Profile", app.cfg.userName.ifEmpty { "Set your name" }, note = "Your name, picture and play stats.")
@@ -348,6 +353,8 @@ class BladesHome(app: Ryzer) : Screen(app) {
         Skin.parallelogram(c, band, withAlpha(th.c("bg_bottom"), 0.75f), 14f)
         val line = when {
             tile.kind == "continue" -> "A  RESUME  ·  ${tile.note}"
+            tile.kind == "system" && tile.system != null && ConsoleFacts.pick(tile.system.id, System.currentTimeMillis() / 86_400_000L) != null ->
+                ConsoleFacts.pick(tile.system.id, System.currentTimeMillis() / 86_400_000L)!!
             Notifs.list.isNotEmpty() -> Notifs.list.first().let { "${it.app}: ${it.title}" }
             else -> tips[((t / 8).toInt()) % tips.size]
         }
@@ -359,6 +366,7 @@ class BladesHome(app: Ryzer) : Screen(app) {
         drawAvatar(c, app, th, 26f, 22f, 15f)
         val gr = Skin.text(c, greeting(app), 50f, 9f, 24f, th.c("text"), maxW = w * 0.45f)
         drawGoalRing(c, app, th, gr.right + 22, 22f, 13f)
+        Weather.line(app)?.let { Skin.text(c, it, gr.right + if (app.cfg.dailyGoal > 0) 44 else 14, 12f, 19f, th.c("text_dim"), maxW = w * 0.25f) }
         val now = java.util.Date()
         val clock = TimeText.clock(now.time, app.cfg.clock24)
         var x = Skin.text(c, clock, w - 14, 8f, 26f, th.c("text"), align = 'r').left - 14

@@ -562,7 +562,11 @@ fun setSystemBrightness(app: Ryzer, d: Int) {
     }
 }
 
-const val WHATS_NEW = "3.1.1: smoother on slower handhelds, plus small visual fixes.\n\n" +
+const val WHATS_NEW = "3.2 adds 20 small features: weather on the top screen, an Up Next queue, arranging your systems, console facts, " +
+    "a low-battery alert while you play, starting with your last game, tags, region badges, your own covers, rescanning one system, " +
+    "storage per system, Forgotten Favorites, Now Playing brightness and clock, Play with..., search inside a list, completion per system, " +
+    "weekly challenges, typo-tolerant search and vibration strength.\n\n" +
+    "3.1.1: smoother on slower handhelds, plus small visual fixes.\n\n" +
     "3.1: every system has its own console icon (Tools > System icons), and all 21 built-in themes are redesigned " +
     "with new speedlines, hex, circuit, halftone and aurora backgrounds.\n\n" +
     "3.0.1: choosing another game while one is still open now starts the new game, instead of bringing back the first one.\n\n" +
@@ -606,7 +610,9 @@ const val HELP_TEXT = "Buttons: A open, B back, X random / favorite, Y search, S
 fun universalSearch(app: Ryzer, q: String): Menu {
     val query = q.lowercase()
     val items = mutableListOf<Item>()
-    app.allGames().filter { query in app.title(it).lowercase() }.take(60).forEach { g ->
+    // Exact matches first, then typo-tolerant ones ("zelda minsh" finds The Minish Cap)
+    val all = app.allGames()
+    (all.filter { query in app.title(it).lowercase() } + fuzzyFilter(app, all, q)).distinct().take(60).forEach { g ->
         items += Item("${app.title(g)}  [${g.system.short}]", "Game - ${g.system.name}", select = { app.launch(g) })
     }
     val pm = app.ctx.packageManager

@@ -137,6 +137,17 @@ class Config(private val file: File) {
     val recentSearches = mutableListOf<String>()
     // 3.0
     var uiStyle = "blades"       // blades | classic
+    // 3.2
+    var weather = false          // weather on the top screen (Open-Meteo, no account)
+    var weatherCity = ""
+    var weatherLat = 0.0
+    var weatherLon = 0.0
+    var weatherF = false         // Fahrenheit
+    var lowBattery = true        // warn at 15% and 5%
+    var bootLastGame = false     // start the last game instead of Home
+    val systemOrder = mutableListOf<String>()   // your order for the Systems tab / system tiles
+    var haptic = "light"         // off | light | medium | strong
+    var challengeDone = ""       // week number whose challenge was completed (one notice per week)
     /** Set for one run when an older config was switched to the 3.0 look, so Home can say so. */
     var justMigrated = false
 
@@ -196,6 +207,11 @@ class Config(private val file: File) {
         slideshow = j.optInt("slideshow", slideshow); highContrast = j.optBoolean("highContrast", highContrast)
         recentSearches.clear(); recentSearches += j.optJSONArray("recentSearches").strings()
         uiStyle = j.optString("uiStyle", uiStyle)
+        weather = j.optBoolean("weather", weather); weatherCity = j.optString("weatherCity", "")
+        weatherLat = j.optDouble("weatherLat", 0.0); weatherLon = j.optDouble("weatherLon", 0.0); weatherF = j.optBoolean("weatherF", weatherF)
+        lowBattery = j.optBoolean("lowBattery", lowBattery); bootLastGame = j.optBoolean("bootLastGame", bootLastGame)
+        systemOrder.clear(); systemOrder += j.optJSONArray("systemOrder").strings()
+        haptic = j.optString("haptic", if (haptics) haptic else "off"); challengeDone = j.optString("challengeDone", "")
         if (j.optInt("uiVersion", 1) < 3) {   // 3.0 introduces the Blades look; old configs switch once
             uiStyle = "blades"; homeLayout = "blades"; bootStyle = "strike"; justMigrated = true
         }
@@ -232,6 +248,9 @@ class Config(private val file: File) {
         put("groupDiscs", groupDiscs); put("hideBios", hideBios); put("panelAutoDim", panelAutoDim); put("chargeAlert", chargeAlert)
         put("slideshow", slideshow); put("highContrast", highContrast); put("recentSearches", JSONArray(recentSearches))
         put("uiStyle", uiStyle)
+        put("weather", weather); put("weatherCity", weatherCity); put("weatherLat", weatherLat); put("weatherLon", weatherLon); put("weatherF", weatherF)
+        put("lowBattery", lowBattery); put("bootLastGame", bootLastGame); put("systemOrder", JSONArray(systemOrder))
+        put("haptic", haptic); put("challengeDone", challengeDone)
     })
 }
 
@@ -265,6 +284,8 @@ class PlayState(private val file: File) {
     val firstSeen = HashMap<String, Long>()       // when a ROM first showed up, for NEW badges
     val lastPlayed = HashMap<String, Long>()      // when each game was last started
     val gameScreen = HashMap<String, String>()    // per-game "main" | "second" for dual-screen play
+    val tags = HashMap<String, MutableList<String>>()   // your own labels per game (Co-op, RPG...)
+    val upNext = mutableListOf<String>()          // games you queued to play next (front of Continue)
     @Volatile var pendingKey: String? = null      // read by background work that waits while a game runs
     var pendingStart = 0L
     private val writer = java.util.concurrent.Executors.newSingleThreadExecutor()
@@ -291,6 +312,8 @@ class PlayState(private val file: File) {
             j.optJSONObject("firstSeen").longMap(firstSeen)
             j.optJSONObject("lastPlayed").longMap(lastPlayed)
             gameScreen.putAll(j.optJSONObject("gameScreen").stringMap())
+            j.optJSONObject("tags")?.let { t -> t.keys().forEach { tags[it] = t.getJSONArray(it).strings().toMutableList() } }
+            upNext += j.optJSONArray("upNext").strings()
             if (lastPlayed.isEmpty()) for ((k, t, _) in sessions) if (k !in lastPlayed) lastPlayed[k] = t   // from older versions
             pendingKey = j.optString("pendingKey").ifEmpty { null }
             pendingStart = j.optLong("pendingStart", 0)
@@ -318,6 +341,7 @@ class PlayState(private val file: File) {
         put("sessions", JSONArray().apply { sessions.forEach { (k, t, secs) -> put(JSONArray().put(k).put(t).put(secs)) } })
         put("bestScores", JSONObject(bestScores as Map<*, *>)); put("firstSeen", JSONObject(firstSeen as Map<*, *>))
         put("lastPlayed", JSONObject(lastPlayed as Map<*, *>)); put("gameScreen", JSONObject(gameScreen as Map<*, *>))
+        put("tags", JSONObject().apply { tags.forEach { (k, v) -> if (v.isNotEmpty()) put(k, JSONArray(v)) } }); put("upNext", JSONArray(upNext))
         put("pendingKey", pendingKey ?: ""); put("pendingStart", pendingStart)
     }
 
@@ -363,7 +387,7 @@ class PlayState(private val file: File) {
     }
 
     fun forget(k: String) {
-        lastPlayed.remove(k); gameScreen.remove(k)
+        lastPlayed.remove(k); gameScreen.remove(k); tags.remove(k); upNext.remove(k)
         favorites.remove(k); recent.remove(k); times.remove(k); launches.remove(k); ratings.remove(k)
         status.remove(k); titles.remove(k); gameEmu.remove(k); hidden.remove(k); notes.remove(k); pins.remove(k)
         collections.values.forEach { it.remove(k) }
@@ -445,6 +469,8 @@ fun cleanName(stem: String): String = TAGS.replace(stem, "").replace('_', ' ').t
 class Game(val file: File, val system: GameSystem, private val clean: Boolean) {
     val name: String = if (clean) cleanName(file.nameWithoutExtension) else file.nameWithoutExtension
     val key: String get() = file.path
+    /** USA / EUR / JPN... from the file name, for the region badge. */
+    val region: String? by lazy { RomInfo.region(file.name) }
 
     private var imageLooked = false
     private var imageFile: File? = null
@@ -460,6 +486,8 @@ class Game(val file: File, val system: GameSystem, private val clean: Boolean) {
 
     private fun findImage(): File? {
         val stem = file.nameWithoutExtension
+        // Your own cover picked from the gallery (game options > Set cover) wins over everything
+        Library.coversDir?.let { File(File(it, "custom/${system.id}"), "$stem.jpg") }?.takeIf { it.isFile }?.let { return it }
         val dirs = IMAGE_DIRS.map { File(file.parentFile, it) } +
             listOf("covers", "miximages", "screenshots").map {
                 File(Environment.getExternalStorageDirectory(), "ES-DE/downloaded_media/${file.parentFile?.name}/$it")
@@ -645,6 +673,11 @@ object Library {
 
     /** Every game by key, rebuilt after each scan: Home looks games up hundreds of times per refresh. */
     @Volatile private var index: Map<String, Game> = emptyMap()
+
+    /** Rebuilds the key index after one system was rescanned on its own. */
+    fun reindex(systems: List<GameSystem>) {
+        index = HashMap<String, Game>().apply { for (s in systems) for (g in s.games) put(g.key, g) }
+    }
 
     fun find(systems: List<GameSystem>, key: String): Game? {
         val idx = index

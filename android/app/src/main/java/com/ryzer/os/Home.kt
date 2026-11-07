@@ -10,7 +10,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
 
-private fun plural(n: Int, w: String) = "$n $w${if (n == 1) "" else "s"}"
+internal fun plural(n: Int, w: String) = "$n $w${if (n == 1) "" else "s"}"
 
 /** Smart collection tile label -> id, filled in by homeTiles. */
 private val smartIds = HashMap<String, String>()
@@ -99,6 +99,8 @@ fun smartCollections(app: Ryzer): List<Triple<String, String, List<Game>>> {
         Triple("top", "Top Rated", all.filter { (st.ratings[it.key] ?: 0) >= 4 }.sortedByDescending { st.ratings[it.key] ?: 0 }),
         Triple("unplayed", "Never Played", all.filter { (st.launches[it.key] ?: 0) == 0 }),
         Triple("new", "New This Week", all.filter { st.isNew(it.key) }),
+        Triple("forgotten", "Forgotten Favorites", ListOps.forgotten(st.favorites, st.lastPlayed, System.currentTimeMillis(), 60)
+            .mapNotNull { Library.find(app.systems, it) }.let { app.visible(it) }),
     ).filter { it.third.isNotEmpty() }
 }
 
@@ -356,6 +358,8 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
     private val rowH = 34f
     private var cols = 4
     private val collection = source?.takeIf { it.startsWith("collection:") }?.removePrefix("collection:")
+    /** Show only games with this tag (list options > Tag); not saved. */
+    private var tagFilter: String? = null
 
     init { refresh() }
 
@@ -374,6 +378,7 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
                 sortIt = source == "smart:unplayed" || source == "smart:new")
             else -> ListView.apply(app, system?.games ?: initial ?: emptyList())
         }
+        tagFilter?.let { t -> games = games.filter { st.tags[it.key]?.contains(t) == true } }
         sel = games.indexOfFirst { it.key == keep }.let { if (it >= 0) it else sel.coerceIn(0, max(0, games.size - 1)) }
     }
 
@@ -433,7 +438,21 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
             select = { app.pop(); Scraper.start(app, games, auto = false, onlyMissing = true, retryMisses = true) }),
         Item("Show hidden games", value = { if (app.cfg.showHidden) "On" else "Off" }, change = { app.cfg.showHidden = !app.cfg.showHidden; app.cfg.save() }),
         Item("Random game from this list", select = { app.pop(); app.randomFrom(games) }),
-    )
+        Item("Search this list", "Finds games in this list only. Typos are fine.", select = {
+            val here = games
+            app.push(Keyboard(app, "Search $title", "", 30) { q ->
+                if (q.isNotBlank()) { app.pop(); app.push(GameList(app, "\"$q\" in $title", fuzzyFilter(app, here, q))) } }) }),
+        Item("Tag", "Show only games with one of your tags.", value = { tagFilter ?: "All" }, change = { d ->
+            val all = listOf<String?>(null) + app.state.tags.values.flatten().distinct().sorted()
+            tagFilter = all[((all.indexOf(tagFilter).coerceAtLeast(0) + d) % all.size + all.size) % all.size]; refresh() }),
+    ) + (system?.let { s -> listOf(
+        Item("Position on Home", "Moves ${s.short} left or right among the systems on Home.",
+            value = { "${sortedSystems(app).indexOf(s) + 1} of ${sortedSystems(app).size}" }, change = { d ->
+                val order = sortedSystems(app).map { it.id }
+                app.cfg.systemOrder.clear(); app.cfg.systemOrder += ListOps.move(order, s.id, d)
+                app.cfg.systemSort = "default"; app.cfg.save() }),
+        Item("Rescan ${s.short}", "Looks for new or removed ${s.short} games without rescanning everything.", select = { app.pop(); app.rescanSystem(s) }),
+    ) } ?: emptyList())
 
     private fun listOptions() = app.push(Menu(app, title, viewItems()))
 
@@ -459,6 +478,9 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
                 select = { app.push(Keyboard(app, "Notes for ${app.title(g)}", st.notes[g.key] ?: "", 120) { text ->
                     if (text.isBlank()) st.notes.remove(g.key) else st.notes[g.key] = text
                     st.save() }) }),
+        )
+        items += gameExtraItems(app, g) { refresh() }
+        items += listOf(
             Item("Emulator controls", "How to open the emulator's menu, save states and more.", select = {
                 app.push(Message(app, "Controls: ${Launcher.label(app, st.gameEmu[g.key] ?: Launcher.chosen(app, g.system))}",
                     DualPlay.hotkeys(app, st.gameEmu[g.key] ?: Launcher.chosen(app, g.system)))) }),
@@ -554,7 +576,9 @@ class GameList(app: Ryzer, override val title: String, private val initial: List
             val right = (if (app.cfg.newBadges && st.isNew(g.key)) "NEW  " else "") + (st.ratings[g.key]?.let { "★$it" } ?: "")
             if (s && Skin.blades) Skin.text(c, label, r.left + 28, r.top + 4, 25f, th.c("text"), maxW = r.width() - 80)
             else G.text(c, label, r.left + 28, r.top + 6, 23f, if (s) th.c("text") else th.c("text_dim"), maxW = r.width() - 80, theme = th)
-            if (right.isNotEmpty()) G.text(c, right, r.right - 10, r.top + 7, 19f, th.c("warn"), align = 'r')
+            var rx = r.right - 10
+            if (right.isNotEmpty()) rx = G.text(c, right, rx, r.top + 7, 19f, th.c("warn"), align = 'r').left - 8
+            g.region?.let { G.text(c, it, rx, r.top + 8, 16f, th.c("text_dim"), align = 'r') }
         }
         G.scrollbar(c, th, RectF(listW + 18, top, listW + 23, top + visible * rowH - 4), offset, visible, games.size)
         G.text(c, "${sel + 1}/${games.size}", listW + 10, h - 62, 18f, th.c("text_dim"), align = 'r')
