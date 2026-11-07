@@ -632,8 +632,9 @@ fun universalSearch(app: Ryzer, q: String): Menu {
         "Emulators" to { app.push(settingsMenu(app)) }, "Quick menu" to { app.push(QuickMenu(app)) },
     )
     places.filter { query in it.first.lowercase() }.forEach { (name, go) -> items += Item("Open: $name", select = go) }
-    if (items.isEmpty()) items += Item("Nothing found for \"$q\"")
-    return Menu(app, "Search: \"$q\" (${items.size})", items)
+    val found = items.size
+    if (items.isEmpty()) items += Item("Nothing found for \"$q\"", "Check the spelling, or try fewer words.")
+    return Menu(app, "Search: \"$q\" ($found)", items)
 }
 
 
