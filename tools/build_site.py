@@ -28,6 +28,8 @@ GALLERY = [
     ("theme-circuit", "Cyberpunk theme", "New circuit-board background"),
     ("theme-aurora", "Neon Night theme", "Aurora glow"),
     ("theme-hex", "Lava theme", "Hex mesh background"),
+    ("weather", "Weather and console facts", "On the top screen (3.2)"),
+    ("stats-systems", "Completion per system", "How much you've beaten (3.2)"),
     ("blades-settings", "New slanted menus", "Colour-coded Settings sections"),
     ("boot-1", "Strike boot animation", "Two seconds, any button skips"),
     ("games", "Game lists", "Slanted covers and play-time meters"),
