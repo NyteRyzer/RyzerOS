@@ -1,5 +1,5 @@
 [home] events finished=True running=True problems=0
 [classic] events finished=True running=True problems=0
 [home-gold] events finished=True running=True problems=0
-handled launch/update errors: 0
+handled launch/update errors: 1
 crash.txt: empty
