@@ -112,6 +112,19 @@ def hero(shots: dict, out: Path, version: str):
     img.convert("RGB").save(out / "hero.png", optimize=True)
 
 
+def thor(raw: Path, out: Path):
+    """The AYN Thor layout: the 1920x1080 top screen above the 1240x1080 touch screen, as on the device."""
+    top, bottom = raw / "systems-top.png", raw / "systems-bottom.png"
+    if not (top.exists() and bottom.exists()):
+        return
+    t = Image.open(top).convert("RGB").resize((640, 360), Image.LANCZOS)
+    b = Image.open(bottom).convert("RGB").resize((413, 360), Image.LANCZOS)
+    img = Image.new("RGB", (640, 736), (14, 14, 20))
+    img.paste(t, (0, 0))
+    img.paste(b, ((640 - 413) // 2, 376))
+    img.save(out / "thor.png", optimize=True)
+
+
 def main(raw: Path, out: Path):
     out.mkdir(parents=True, exist_ok=True)
     shots = {}
@@ -125,6 +138,7 @@ def main(raw: Path, out: Path):
     import re
     version = re.search(r'VERSION = "([^"]+)"', (ROOT / "ryzer/__init__.py").read_text()).group(1)
     hero(shots, out, version)
+    thor(raw / "thor", out)
     print(f"{len(shots)} screenshots + hero.png -> {out}")
 
 

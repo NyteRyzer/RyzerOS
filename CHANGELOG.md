@@ -2,6 +2,12 @@
 
 Every version of Ryzer OS, newest first. Downloads for each one are on the [Releases page](https://github.com/NyteRyzer/RyzerOS/releases).
 
+## 3.2.1: made for the AYN Thor
+
+- **3DS-style layout on big-top handhelds.** On the AYN Thor and AYANEO Pocket DS (a large top screen and a small touch screen below), Ryzer now puts its menus, tabs and game lists on the bottom touch screen and the big banner, cover art and info on the top screen. Ryzer decides from the screens' sizes; L3 / R3 or *Settings → Display & dual screen → Swap screens* still switch it, and your choice is kept.
+- **Checked at the Thor's sizes.** Home, game lists, Settings, Themes, Stats and the icon sheet were drawn at 1920×1080 (top) and 1240×1080 (bottom) and checked; the top-screen info now keeps a readable width on wide screens.
+- **120 fps menus** for 120 Hz screens (*Display → Menu frame rate*).
+
 ## 3.2.0: 20 small new features
 
 #### Home

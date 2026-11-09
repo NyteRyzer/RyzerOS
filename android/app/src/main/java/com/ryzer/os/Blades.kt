@@ -326,7 +326,7 @@ class BladesHome(app: Ryzer) : Screen(app) {
         Skin.outlinePara(c, card, th.c("accent"), 3f, skew)
 
         val tx = card.right + 34
-        val tw = w - tx - 24
+        val tw = min(w - tx - 24, 560f)   // wide top screens (AYN Thor, 1920x1080): keep the text and meters a readable width
         var y = 76f
         // System chip
         (tile.system?.name ?: BladeTabs.NAMES[tab]).uppercase().let { chip ->

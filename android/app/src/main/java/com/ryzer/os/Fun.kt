@@ -562,7 +562,8 @@ fun setSystemBrightness(app: Ryzer, d: Int) {
     }
 }
 
-const val WHATS_NEW = "3.2 adds 20 small features: weather on the top screen, an Up Next queue, arranging your systems, console facts, " +
+const val WHATS_NEW = "3.2.1: on the AYN Thor and AYANEO Pocket DS the menus now sit on the small touch screen and the big banner on the top screen, like a 3DS (L3 / R3 swaps). Plus 120 fps menus.\n\n" +
+    "3.2 adds 20 small features: weather on the top screen, an Up Next queue, arranging your systems, console facts, " +
     "a low-battery alert while you play, starting with your last game, tags, region badges, your own covers, rescanning one system, " +
     "storage per system, Forgotten Favorites, Now Playing brightness and clock, Play with..., search inside a list, completion per system, " +
     "weekly challenges, typo-tolerant search and vibration strength.\n\n" +

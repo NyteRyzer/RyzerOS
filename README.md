@@ -85,6 +85,12 @@ More screenshots (2048, Game Roulette, quick menu, the Classic style and the Rib
 - **Stats**: play time, streaks, a play calendar, session history, 14 milestones and a shareable stats card.
 - **Extras**: Snake, 2048, Game Roulette, a controller tester, battery info, a stopwatch and timer, a bedtime reminder, a quick menu (L + R) and kid mode.
 
+## Made for the AYN Thor
+
+<p align="center"><img src="docs/screenshots/thor.png" alt="Ryzer OS on the AYN Thor layout" width="420"></p>
+
+On the AYN Thor (and AYANEO Pocket DS), Ryzer works like a 3DS: menus on the small touch screen, the big banner and box art on the large top screen. Single-screen games open on the big screen with the Now Playing panel below; DS and 3DS games get both.
+
 ## New in 3.2: 20 small features
 
 Weather on the top screen, an **Up Next** queue, arrange your systems, console facts, tags and region badges, your own covers, **Play with...** another emulator, typo-tolerant search, weekly challenges, completion per system, a clock and brightness on Now Playing, and more. Full list in the [changelog](CHANGELOG.md#320-20-small-new-features).
