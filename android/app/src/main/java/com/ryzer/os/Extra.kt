@@ -128,7 +128,7 @@ fun settingsMenu(app: Ryzer): Menu {
     val display = { Menu(app, "Display & dual screen", listOf(
         Item("Dual screen", "Auto uses a second display when the device has one (AYN Thor, RG DS, AYANEO Pocket DS, Retroid Dual).",
             value = { cfg.dual.replaceFirstChar { it.uppercase() } }, change = { d -> cfg.dual = cycle(listOf("auto", "on", "off"), cfg.dual, d); cfg.save(); app.ctx.updateDisplays() }),
-        toggle("Swap screens", "Put the menu on the second display and art/info on the main one.", { cfg.swapScreens }) { cfg.swapScreens = it; app.ctx.updateDisplays() },
+        toggle("Swap screens", "Put the menu on the second display and art/info on the main one.", { cfg.swapScreens }) { cfg.swapScreens = it; cfg.swapChosen = true; app.ctx.updateDisplays() },
         Item("Swap button", "L3 / R3 (stick clicks) always swap the screens. Press A here, then press any other button to use it as well (e.g. a dedicated screen button).",
             value = { if (cfg.swapKey > 0) android.view.KeyEvent.keyCodeToString(cfg.swapKey).removePrefix("KEYCODE_") else "L3 / R3" },
             select = {

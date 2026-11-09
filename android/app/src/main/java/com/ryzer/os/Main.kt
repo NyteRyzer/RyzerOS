@@ -929,6 +929,13 @@ class MainActivity : Activity() {
         val a = app ?: return
         second?.dismiss(); second = null; dualActive = false
         val disp = secondaryDisplays().firstOrNull()
+        if (disp != null && !a.cfg.swapChosen) {
+            // AYN Thor, AYANEO Pocket DS: a big screen on top and a small touch screen below get the 3DS layout
+            fun size(d: Display) = android.util.DisplayMetrics().also { @Suppress("DEPRECATION") d.getRealMetrics(it) }
+            val m = mainView.display?.let { size(it) }
+            val s2 = size(disp)
+            if (m != null) a.cfg.swapScreens = ScreenRoles.menusOnSecond(m.widthPixels, m.heightPixels, s2.widthPixels, s2.heightPixels, chosen = null)
+        }
         if (disp != null && a.cfg.dual != "off" && resumed) {
             runCatching {
                 val p = SecondScreen(this, disp, { app }, if (a.cfg.swapScreens) Role.MAIN else Role.TOP)
@@ -1001,6 +1008,7 @@ class MainActivity : Activity() {
     fun toggleSwap() {
         val a = app ?: return
         a.cfg.swapScreens = !a.cfg.swapScreens
+        a.cfg.swapChosen = true
         a.cfg.save()
         updateDisplays()
         a.sounds.play("select")

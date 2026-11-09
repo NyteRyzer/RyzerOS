@@ -167,3 +167,14 @@ object ListOps {
     fun completion(statuses: List<String>): Int =
         if (statuses.isEmpty()) 0 else statuses.count { it == "beaten" || it == "completed" } * 100 / statuses.size
 }
+
+/** Which physical screen gets Ryzer's menus on two-screen handhelds. */
+object ScreenRoles {
+    /**
+     * True when the menus belong on the second display: you chose that ([chosen]), or nobody chose and the
+     * second display is clearly the smaller one, as on the AYN Thor and AYANEO Pocket DS (big top screen,
+     * small touch screen below), so Ryzer lays out like a 3DS.
+     */
+    fun menusOnSecond(mainW: Int, mainH: Int, secondW: Int, secondH: Int, chosen: Boolean?): Boolean =
+        chosen ?: (secondW.toLong() * secondH < mainW.toLong() * mainH * 7 / 10)
+}

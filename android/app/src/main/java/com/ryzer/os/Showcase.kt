@@ -55,6 +55,7 @@ object Showcase {
                 "boot" -> app.current?.let { app.push(BootScreen(app, it, arg.toFloatOrNull() ?: 1f)) }
                 "perf" -> perf(app)
                 "icons" -> app.push(IconSheet(app))
+                "thor" -> thorShots(app, arg.ifEmpty { "screen" })
                 "search" -> app.push(universalSearch(app, arg))
                 "tab" -> (app.stack.firstOrNull() as? BladesHome)?.let { it.rebuild(); it.showTab(arg.toIntOrNull() ?: 0) }
             }
@@ -90,5 +91,25 @@ object Showcase {
             app.stack[0] = home
         }
         out.writeText("PERF blades=%.2f classic=%.2f\n".format(java.util.Locale.US, blades, classic))
+    }
+
+    /**
+     * Draws the current screen at the AYN Thor's sizes, off-screen: the menu on its 1240x1080 bottom screen and the
+     * top-screen view on its 1920x1080 main screen (Ryzer's 3DS layout there). Saved to RyzerOS/thor/<name>-*.png.
+     */
+    private fun thorShots(app: Ryzer, name: String) {
+        val dir = java.io.File(app.home, "thor").apply { mkdirs() }
+        fun shot(role: Role, pw: Int, ph: Int, file: String) {
+            val bmp = android.graphics.Bitmap.createBitmap(pw, ph, android.graphics.Bitmap.Config.ARGB_8888)
+            val c = android.graphics.Canvas(bmp)
+            val lh = app.logicalH
+            val scale = ph / lh
+            c.scale(scale, scale)
+            app.render(c, role, pw / scale, lh, 1 / 30f, 1f)
+            java.io.File(dir, file).outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+            bmp.recycle()
+        }
+        shot(Role.MAIN, 1240, 1080, "$name-bottom.png")
+        shot(Role.TOP, 1920, 1080, "$name-top.png")
     }
 }

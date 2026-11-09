@@ -105,6 +105,23 @@ def perf_check(demo: Path, out: Path):
     print("=== PERF ===", (out / "perf.txt").read_text().strip() if (out / "perf.txt").exists() else "missing", flush=True)
 
 
+THOR = [   # (name, config, showcase steps) drawn at the AYN Thor's two screen sizes
+    ("home", "home", "tab:0"), ("systems", "home", "tab:1"), ("collections", "home-neon", "tab:2"), ("tools", "home", "tab:3"),
+    ("games", "games", "games:gba"), ("settings", "home", "settings"), ("themes", "themes", "themes"),
+    ("stats", "stats", "stats"), ("icons", "home", "icons"), ("classic", "classic", "tab:1"), ("3ds-layout", "home-gold", ""),
+]
+
+
+def thor_check(demo: Path, out: Path):
+    """Ryzer at the AYN Thor's sizes: menus on the 1240x1080 bottom screen, the top view on the 1920x1080 main screen."""
+    shell("rm -rf /sdcard/RyzerOS/thor")
+    for name, config, steps in THOR:
+        start(config, demo, ",".join(x for x in (steps, f"thor:{name}") if x))
+        time.sleep(6)
+    (out / "thor").mkdir(parents=True, exist_ok=True)
+    adb("pull", "/sdcard/RyzerOS/thor/.", str(out / "thor"))
+
+
 def stability_check(demo: Path, out: Path):
     """Random-input stress test (Android's monkey) in Blades, Classic and the 3DS layout. The report
     (monkey's crash/ANR lines, whether Ryzer is still running, and crash.txt from the whole run so far)
@@ -276,6 +293,7 @@ def main(apk: str, demo: Path, out: Path):
     shell("mkdir -p /sdcard/EmptyRoms")
     run(SHOTS, demo, out)
     perf_check(demo, out)
+    thor_check(demo, out)
     stability_check(demo, out)
 
     shell("settings put system accelerometer_rotation 0")

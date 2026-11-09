@@ -44,6 +44,7 @@ class Config(private val file: File) {
     var swapAB = false
     var dual = "auto"            // auto | on | off
     var swapScreens = false      // put the menu on the second display instead
+    var swapChosen = false       // you picked the layout yourself; until then it follows the screens' sizes (ScreenRoles)
     var boost = true             // close cached background apps before heavy systems
     var showApps = true
     var romDirs = mutableListOf<String>()
@@ -163,6 +164,8 @@ class Config(private val file: File) {
         animations = j.optBoolean("animations", animations); fps = j.optInt("fps", fps)
         swapAB = j.optBoolean("swapAB", swapAB); dual = j.optString("dual", dual)
         swapScreens = j.optBoolean("swapScreens", swapScreens); boost = j.optBoolean("boost", boost)
+        // Someone who had swapped before 3.2.1 clearly chose it; an unswapped config may just be the old default
+        swapChosen = j.optBoolean("swapChosen", swapScreens)
         showApps = j.optBoolean("showApps", showApps)
         romDirs = j.optJSONArray("romDirs").strings().toMutableList()
         systemEmu.clear(); systemEmu.putAll(j.optJSONObject("systemEmu").stringMap())
@@ -222,7 +225,7 @@ class Config(private val file: File) {
         put("clockStyle", clockStyle)
         put("showBattery", showBattery); put("cleanNames", cleanNames); put("hideEmpty", hideEmpty)
         put("boot", boot); put("animations", animations); put("fps", fps); put("swapAB", swapAB)
-        put("dual", dual); put("swapScreens", swapScreens); put("boost", boost); put("showApps", showApps)
+        put("dual", dual); put("swapScreens", swapScreens); put("swapChosen", swapChosen); put("boost", boost); put("showApps", showApps)
         put("romDirs", JSONArray(romDirs)); put("systemEmu", JSONObject(systemEmu as Map<*, *>))
         put("sort", sort); put("filter", filter); put("grid", grid); put("showHidden", showHidden)
         put("systemSort", systemSort); put("hiddenSystems", JSONArray(hiddenSystems.toList()))
